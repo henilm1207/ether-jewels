@@ -6,6 +6,8 @@ export const products = [
     description: 'A stunning pear-shaped diamond engagement ring with accent stones, crafted for timeless elegance.',
     shortDescription: 'Lab Grown Pear Diamond Ring',
     category: 'solitaire-rings',
+    style: 'MJ72R',
+    kt18Delta: 800,
     images: ['/images/products/product-1-1.webp', '/images/products/product-1-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1500, color: '#E0BFB8', material: 'Rose Gold' },
@@ -23,6 +25,8 @@ export const products = [
     description: 'An oval diamond with a hidden halo setting that creates a mesmerizing circle of brilliance.',
     shortDescription: 'Oval Hidden Halo Ring',
     category: 'halo-rings',
+    style: 'MJ47R',
+    kt18Delta: 200,
     images: ['/images/products/product-2-1.webp', '/images/products/product-2-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1500, color: '#E0BFB8', material: 'Rose Gold' },
@@ -40,6 +44,8 @@ export const products = [
     description: 'A pear-cut diamond set on a split-shank band for a modern, architectural look.',
     shortDescription: 'Pear-Cut Split-Shank Ring',
     category: 'solitaire-rings',
+    style: 'MJ64R',
+    kt18Delta: 400,
     images: ['/images/products/product-3-1.webp', '/images/products/product-3-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1200, color: '#E0BFB8', material: 'Rose Gold' },
@@ -56,6 +62,8 @@ export const products = [
     description: 'An emerald-cut diamond with split-shank detailing, offering clean lines and modern sophistication.',
     shortDescription: 'Emerald-Cut Solitaire Ring',
     category: 'solitaire-rings',
+    style: 'MJ65R',
+    kt18Delta: 500,
     images: ['/images/products/product-4-1.webp', '/images/products/product-4-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1100, color: '#E0BFB8', material: 'Rose Gold' },
@@ -72,6 +80,8 @@ export const products = [
     description: 'A classic round brilliant diamond on a split-shank band, combining tradition with contemporary design.',
     shortDescription: 'Round Brilliant Solitaire',
     category: 'solitaire-rings',
+    style: 'MJ66R',
+    kt18Delta: 500,
     images: ['/images/products/product-5-1.webp', '/images/products/product-5-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1200, color: '#E0BFB8', material: 'Rose Gold' },

@@ -3,21 +3,24 @@ import { shapes } from '../../data/products';
 
 export default function ShopByShape() {
   return (
-    <section className="py-[30px] bg-white">
+    <section className="bg-white" style={{ paddingTop: '50px', paddingBottom: '50px' }}>
       <div className="container">
         <h2
-          className="text-center font-bold uppercase mb-[30px]"
+          className="text-center uppercase"
           style={{
             fontSize: '20px',
-            letterSpacing: '5px',
+            fontWeight: 400,
+            letterSpacing: '4px',
             fontFamily: "'Playfair Display', serif",
+            marginBottom: '36px',
           }}
         >
           Shop By Shape
         </h2>
 
         <div
-          className="flex justify-center items-center overflow-x-auto pb-4 scrollbar-hide gap-[60px]"
+          className="flex md:justify-center md:flex-wrap items-start overflow-x-auto pb-2 scrollbar-hide"
+          style={{ gap: '2.5rem 3.75rem' }}
         >
           {shapes.map((shape) => (
             <Link
@@ -39,12 +42,12 @@ export default function ShopByShape() {
               <p
                 className="text-center transition-colors duration-300 group-hover:text-black"
                 style={{
-                  fontSize: '14px',
-                  fontWeight: 700,
+                  fontSize: '13px',
+                  fontWeight: 500,
                   letterSpacing: '2px',
                   textTransform: 'uppercase',
                   color: '#3a3a3a',
-                  fontFamily: "'Playfair Display', serif",
+                  fontFamily: "'DM Sans', sans-serif",
                 }}
               >
                 {shape.name}

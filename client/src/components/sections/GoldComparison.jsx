@@ -21,7 +21,7 @@ export default function GoldComparison() {
   return (
     <section className="section-padding-lg bg-white">
       <div className="container">
-        <div className="flex flex-col md:flex-row gap-8 lg:gap-12 items-center">
+        <div className="flex flex-col md:flex-row gap-10 lg:gap-16 items-center">
           {/* Slider */}
           <div
             ref={containerRef}
@@ -83,17 +83,17 @@ export default function GoldComparison() {
           </div>
 
           {/* Text Content */}
-          <div className="w-full md:w-1/2 text-left">
-            <p className="text-subheading text-gray-500 mb-2 animate-fade-in-up delay-0">
+          <div className="w-full md:w-1/2 text-center md:text-left md:pl-2">
+            <p className="text-subheading mb-3 animate-fade-in-up delay-0">
               Compare
             </p>
-            <h1
+            <h2
               className="font-heading mb-4 animate-fade-in-up delay-50"
-              style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', letterSpacing: '1px' }}
+              style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.25rem)', letterSpacing: '1px', lineHeight: 1.2 }}
             >
               Yellow Gold or White Gold
-            </h1>
-            <p className="text-gray-600 leading-relaxed animate-fade-in-up delay-100">
+            </h2>
+            <p className="text-gray-600 leading-relaxed animate-fade-in-up delay-100 max-w-md mx-auto md:mx-0" style={{ fontSize: '15px' }}>
               Slide to explore the subtle contrast between warm yellow gold and luminous white gold.
               Two tones. One timeless design.
             </p>

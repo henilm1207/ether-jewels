@@ -43,26 +43,27 @@ export default function MitvaExperience() {
         </div>
 
         {/* Content: Image Left, Accordion Right */}
-        <div className="flex flex-col md:flex-row items-center gap-0">
+        <div className="flex flex-col md:flex-row items-stretch gap-8 lg:gap-12 max-w-6xl mx-auto">
           {/* Image */}
           <div className="w-full md:w-1/2 aspect-square bg-[#f7f2ef] overflow-hidden">
             <img
+              key={tabs[activeTab].image}
               src={tabs[activeTab].image}
               alt={tabs[activeTab].title}
-              className="w-full h-full object-cover transition-opacity duration-500"
+              className="w-full h-full object-cover animate-fade-in"
             />
           </div>
 
           {/* Accordion */}
-          <div className="w-full md:w-1/2">
+          <div className="w-full md:w-1/2 flex flex-col justify-center">
             {tabs.map((tab, index) => (
               <div
                 key={tab.id}
-                className="border-b border-[#ededed]"
+                className="border-t border-[#ededed] last:border-b"
               >
                 <button
                   onClick={() => setActiveTab(index)}
-                  className="w-full flex items-baseline gap-3 py-5 text-left"
+                  className="w-full flex items-baseline gap-4 py-6 text-left"
                 >
                   <span
                     className="text-gray-400"

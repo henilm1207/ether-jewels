@@ -45,12 +45,18 @@ body {
   line-height: 1.6;
 }
 
-/* ========== CONTAINERS ========== */
+/* ========== CONTAINERS (Prestige: 1340px max, 50px desktop gutters) ========== */
 .container {
   max-width: 1340px;
   margin: 0 auto;
   padding: 0 20px;
   width: 100%;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 50px;
+  }
 }
 
 /* ========== TYPOGRAPHY ========== */
@@ -76,24 +82,45 @@ h6, .h6 { font-size: 1rem; line-height: 1.4; }
   h4, .h4 { font-size: 1.1rem; }
 }
 
-/* Subheading */
+/* Subheading — Prestige eyebrow: small, muted, tracked */
 .text-subheading {
   font-family: var(--font-body);
   font-weight: 500;
-  font-size: 0.9375rem;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0px;
+  letter-spacing: 1.5px;
+  color: #6b6b6b;
 }
 
-/* ========== SECTION SPACING ========== */
+/* ========== SECTION SPACING (Prestige rhythm: 70-90px desktop) ========== */
 .section-padding {
   padding-top: 30px;
   padding-bottom: 30px;
 }
 
 .section-padding-lg {
-  padding-top: 70px;
-  padding-bottom: 70px;
+  padding-top: 60px;
+  padding-bottom: 60px;
+}
+
+@media (min-width: 768px) {
+  .section-padding-lg {
+    padding-top: 80px;
+    padding-bottom: 80px;
+  }
+}
+
+/* Section header lockup — matches reference centered headers */
+.section-header {
+  text-align: center;
+  max-width: 78rem;
+  margin: 0 auto 2rem;
+}
+
+@media (min-width: 768px) {
+  .section-header {
+    margin-bottom: 2.75rem;
+  }
 }
 
 /* ========== BUTTONS ========== */

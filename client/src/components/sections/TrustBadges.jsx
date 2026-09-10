@@ -19,24 +19,25 @@ const badges = [
 
 export default function TrustBadges() {
   return (
-    <section className="py-[40px] bg-white">
+    <section className="bg-white border-t border-[#ededed]" style={{ paddingTop: '48px', paddingBottom: '48px' }}>
       <div className="container">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 gap-x-6 md:gap-8">
           {badges.map((badge) => (
-            <div key={badge.title} className="text-center">
+            <div key={badge.title} className="text-center px-2">
               <h4
-                className="mb-1"
+                className="mb-1.5"
                 style={{
-                  fontSize: 'clamp(0.875rem, 2vw, 1.375rem)',
+                  fontSize: 'clamp(0.95rem, 2vw, 1.25rem)',
                   fontWeight: 400,
                   fontFamily: "'Playfair Display', serif",
                   textTransform: 'uppercase',
                   letterSpacing: '1px',
+                  lineHeight: 1.3,
                 }}
               >
                 {badge.title}
               </h4>
-              <p className="text-gray-500" style={{ fontSize: '0.9375rem' }}>
+              <p className="text-gray-500" style={{ fontSize: '14px' }}>
                 {badge.subtitle}
               </p>
             </div>
