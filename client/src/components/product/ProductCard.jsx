@@ -11,16 +11,16 @@ export default function ProductCard({ product }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Image */}
-      <div className="relative aspect-square bg-[#f7f2ef] overflow-hidden mb-4">
+      {/* Image — live: #F6F1EE, 1/1.15 ratio, contain + padding so ring heads never crop */}
+      <div className="relative aspect-[1/1.15] bg-[#F6F1EE] overflow-hidden mb-4 p-3">
         <img
           src={hovered && product.images[1] ? product.images[1] : product.images[0]}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+          className="w-full h-full object-contain transition-transform duration-700 ease-out group-hover:scale-105"
         />
 
-        {/* Badge — Prestige style top-left */}
+        {/* Badge */}
         {product.badge && (
           <span
             className={`absolute top-3 left-3 px-2.5 py-1 text-[10px] font-medium uppercase text-white ${
@@ -36,13 +36,13 @@ export default function ProductCard({ product }) {
           </span>
         )}
 
-        {/* Choose Options Button on hover — slides up */}
+        {/* Choose Options — slides up from bottom with blur, like live */}
         <div
-          className={`absolute bottom-0 left-0 right-0 transition-all duration-300 ${
-            hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          className={`absolute bottom-0 left-0 right-0 transition-transform duration-300 ease-out ${
+            hovered ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          <div className="btn btn--white w-full text-center">
+          <div className="btn btn--white w-full text-center bg-white/90 backdrop-blur">
             Choose options
           </div>
         </div>

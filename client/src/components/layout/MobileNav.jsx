@@ -93,7 +93,7 @@ export default function MobileNav({ isOpen, onClose }) {
         {/* Footer */}
         <div className="border-t border-[#ededed] px-6 py-4">
           <Link
-            to="/pages/contact"
+            to="/account/login"
             onClick={onClose}
             className="block w-full py-3 border border-[#222] text-center text-[13px] font-medium uppercase tracking-wider hover:bg-[#222] hover:text-white transition-colors"
           >

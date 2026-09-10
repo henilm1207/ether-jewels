@@ -98,7 +98,7 @@ export const products = [
     description: 'A round brilliant center stone surrounded by a delicate halo of pavé diamonds.',
     shortDescription: 'Round Halo Pavé Ring',
     category: 'halo-rings',
-    images: ['/images/products/product-6-1.webp', '/images/products/product-6-2.webp'],
+    images: ['/images/products/product-1-1.webp', '/images/products/product-1-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1800, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 1800, color: '#E8E8E8', material: 'White Gold' },
@@ -114,7 +114,7 @@ export const products = [
     description: 'Three stunning lab-grown diamonds set in a pavé band, symbolizing past, present, and future.',
     shortDescription: 'Three Stone Pavé Ring',
     category: 'three-stone-rings',
-    images: ['/images/products/product-7-1.webp', '/images/products/product-7-2.webp'],
+    images: ['/images/products/product-2-1.webp', '/images/products/product-2-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 2200, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 2200, color: '#E8E8E8', material: 'White Gold' },
@@ -129,7 +129,7 @@ export const products = [
     description: 'A timeless wedding band with pavé-set diamonds for everyday elegance.',
     shortDescription: 'Pavé Wedding Band',
     category: 'bands',
-    images: ['/images/products/product-8-1.webp', '/images/products/product-8-2.webp'],
+    images: ['/images/products/product-3-1.webp', '/images/products/product-3-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 800, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 800, color: '#E8E8E8', material: 'White Gold' },
@@ -145,7 +145,7 @@ export const products = [
     description: 'A luminous engagement ring featuring a round diamond with delicate side stones.',
     shortDescription: 'Round Diamond Side Stone Ring',
     category: 'engagement-rings',
-    images: ['/images/products/product-9-1.webp', '/images/products/product-9-2.webp'],
+    images: ['/images/products/product-4-1.webp', '/images/products/product-4-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1600, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 1600, color: '#E8E8E8', material: 'White Gold' },
@@ -161,7 +161,7 @@ export const products = [
     description: 'Elegant drop earrings featuring pear-shaped lab-grown diamonds with a delicate setting.',
     shortDescription: 'Pear Diamond Drop Earrings',
     category: 'earrings',
-    images: ['/images/products/product-10-1.webp', '/images/products/product-10-2.webp'],
+    images: ['/images/products/product-5-1.webp', '/images/products/product-5-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 950, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 950, color: '#E8E8E8', material: 'White Gold' },
@@ -177,7 +177,7 @@ export const products = [
     description: 'A classic tennis bracelet with round brilliant lab-grown diamonds in a seamless setting.',
     shortDescription: 'Diamond Tennis Bracelet',
     category: 'bracelets',
-    images: ['/images/products/product-11-1.webp', '/images/products/product-11-2.webp'],
+    images: ['/images/products/product-1-1.webp', '/images/products/product-1-2.webp'],
     variants: [
       { name: 'White Gold', price: 2500, color: '#E8E8E8', material: 'White Gold' },
     ],
@@ -191,7 +191,7 @@ export const products = [
     description: 'A delicate pendant necklace featuring a single round brilliant diamond on a fine chain.',
     shortDescription: 'Round Diamond Pendant',
     category: 'necklaces',
-    images: ['/images/products/product-12-1.webp', '/images/products/product-12-2.webp'],
+    images: ['/images/products/product-2-1.webp', '/images/products/product-2-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1100, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 1100, color: '#E8E8E8', material: 'White Gold' },
@@ -207,7 +207,7 @@ export const products = [
     description: 'Three oval diamonds set in a trilogy arrangement, representing your journey together.',
     shortDescription: 'Oval Trilogy Ring',
     category: 'three-stone-rings',
-    images: ['/images/products/product-13-1.webp', '/images/products/product-13-2.webp'],
+    images: ['/images/products/product-3-1.webp', '/images/products/product-3-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 2800, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 2800, color: '#E8E8E8', material: 'White Gold' },
@@ -222,7 +222,7 @@ export const products = [
     description: 'Stud earrings with a halo of pavé diamonds surrounding a center round brilliant stone.',
     shortDescription: 'Halo Stud Earrings',
     category: 'earrings',
-    images: ['/images/products/product-14-1.webp', '/images/products/product-14-2.webp'],
+    images: ['/images/products/product-4-1.webp', '/images/products/product-4-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 1300, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 1300, color: '#E8E8E8', material: 'White Gold' },
@@ -237,7 +237,7 @@ export const products = [
     description: 'A clean, polished wedding band with no stones — pure and timeless.',
     shortDescription: 'Polished Wedding Band',
     category: 'bands',
-    images: ['/images/products/product-15-1.webp', '/images/products/product-15-2.webp'],
+    images: ['/images/products/product-5-1.webp', '/images/products/product-5-2.webp'],
     variants: [
       { name: 'Rose Gold', price: 600, color: '#E0BFB8', material: 'Rose Gold' },
       { name: 'White Gold', price: 600, color: '#E8E8E8', material: 'White Gold' },

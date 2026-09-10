@@ -65,27 +65,27 @@ export default function ProductDetail() {
           </nav>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
-            {/* Images */}
-            <div>
-              <div className="aspect-square bg-[#f7f2ef] overflow-hidden mb-4">
-                <img
-                  src={product.images[selectedImage]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex gap-3">
+            {/* Images — live: vertical thumbs left on desktop, main 65% */}
+            <div className="grid grid-cols-1 lg:grid-cols-[80px_1fr] gap-4">
+              <div className="flex lg:flex-col gap-3 order-2 lg:order-1">
                 {product.images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={`w-16 h-16 md:w-20 md:h-20 bg-[#f7f2ef] overflow-hidden border transition-colors ${
+                    className={`w-16 h-16 lg:w-[80px] lg:h-[80px] bg-[#F6F1EE] overflow-hidden border transition-colors flex-shrink-0 ${
                       selectedImage === i ? 'border-[#222]' : 'border-[#ededed]'
                     }`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
                   </button>
                 ))}
+              </div>
+              <div className="aspect-square bg-[#F6F1EE] overflow-hidden order-1 lg:order-2">
+                <img
+                  src={product.images[selectedImage]}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
 
@@ -121,7 +121,7 @@ export default function ProductDetail() {
                           ? 'bg-[#222] text-white border border-[#222]'
                           : 'bg-white text-[#222] border border-[#d9d9d9] hover:border-[#222]'
                       }`}
-                      style={{ height: '44px', letterSpacing: '1px' }}
+                      style={{ height: '46px', minWidth: '80px', letterSpacing: '1px' }}
                     >
                       {kt}
                     </button>
@@ -140,17 +140,24 @@ export default function ProductDetail() {
                   </p>
                   <div className="flex gap-3">
                     {product.variants.map((variant, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setSelectedVariant(i)}
-                        className="w-9 h-9 rounded-full transition-all"
-                        style={{
-                          backgroundColor: variant.color,
-                          outline: selectedVariant === i ? '2px solid #222' : '1px solid #d1d5db',
-                          outlineOffset: '2px',
-                        }}
-                        title={variant.name}
-                      />
+                      <span key={i} className="relative group/swatch">
+                        <button
+                          onClick={() => setSelectedVariant(i)}
+                          className="w-9 h-9 rounded-full transition-all block"
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            backgroundColor: variant.color,
+                            outline: selectedVariant === i ? '2px solid #222' : '1px solid #d1d5db',
+                            outlineOffset: '2px',
+                          }}
+                          title={variant.material || variant.name}
+                          aria-label={variant.material || variant.name}
+                        />
+                        <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#222] text-white text-[11px] px-2 py-1 opacity-0 group-hover/swatch:opacity-100 transition-opacity">
+                          {variant.material || variant.name}
+                        </span>
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -199,6 +206,14 @@ export default function ProductDetail() {
               <button className="btn btn--secondary w-full mb-6">
                 Buy it now
               </button>
+
+              {/* Sticky ATC — mobile only, like live */}
+              <div className="lg:hidden sticky bottom-0 z-30 bg-white/95 backdrop-blur border-t border-[#ededed] py-3 px-1 mb-6 flex items-center gap-3">
+                <span className="text-[15px] font-medium whitespace-nowrap">{formatPrice(currentPrice)}</span>
+                <button onClick={handleAddToCart} className="btn btn--primary flex-1">
+                  Add to cart
+                </button>
+              </div>
 
               {/* Cert + shipping lines (reference PDP) */}
               <div className="space-y-2.5 mb-8">
@@ -307,9 +322,11 @@ export default function ProductDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {testimonials.map((t) => (
               <div key={t.name} className="border border-[#ededed] p-6 bg-white">
-                <div className="flex gap-0.5 mb-3 text-[#222]" aria-label="5 star review">
+                <div className="flex gap-1 mb-3" role="img" aria-label="Rated 5 out of 5 stars">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i} style={{ fontSize: '14px' }}>★</span>
+                    <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="#222" aria-hidden="true">
+                      <path d="M12 2l2.94 6.36 6.96.82-5.16 4.73 1.4 6.89L12 17.27 5.86 20.8l1.4-6.89L2.1 9.18l6.96-.82L12 2z" />
+                    </svg>
                   ))}
                 </div>
                 <p className="text-[14px] text-gray-600 leading-relaxed mb-4">&ldquo;{t.text}&rdquo;</p>
@@ -323,12 +340,12 @@ export default function ProductDetail() {
       </section>
 
       {/* Mitva Standard closing banner (reference PDP) */}
-      <section className="bg-[#222] text-white" style={{ paddingTop: '64px', paddingBottom: '64px' }}>
+      <section className="bg-[#1A1A1A] text-white" style={{ paddingTop: '96px', paddingBottom: '96px' }}>
         <div className="container text-center max-w-2xl mx-auto">
           <p className="mb-3" style={{ fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.7)' }}>
             The Mitva Standard
           </p>
-          <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)', letterSpacing: '1px', lineHeight: 1.25 }}>
+          <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', letterSpacing: '2.5px', lineHeight: 1.2 }}>
             From selection to setting, every detail is handled at the source
           </h2>
           <p className="leading-relaxed" style={{ fontSize: '15px', color: 'rgba(255,255,255,0.75)' }}>

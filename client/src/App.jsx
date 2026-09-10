@@ -11,7 +11,6 @@ import Diamond from './pages/Diamond';
 import Contact from './pages/Contact';
 import About from './pages/About';
 import NewsletterPopup from './components/ui/NewsletterPopup';
-import AgeVerifier from './components/ui/AgeVerifier';
 import CookieConsent from './components/ui/CookieConsent';
 
 function App() {
@@ -39,7 +38,7 @@ function App() {
         searchOpen={searchOpen}
       />
 
-      <main className="flex-1" style={{ paddingTop: isHome ? 0 : '63px' }}>
+      <main className="flex-1" style={{ paddingTop: isHome ? 0 : '84px' }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/collections/:category" element={<Collection />} />
@@ -56,7 +55,6 @@ function App() {
       <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       <NewsletterPopup />
-      <AgeVerifier />
       <CookieConsent />
     </div>
   );

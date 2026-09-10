@@ -17,8 +17,8 @@ export default function CartDrawer({ isOpen, onClose }) {
         onClick={onClose}
       />
 
-      {/* Drawer */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-[460px] bg-white z-[101] flex flex-col animate-slide-in-right">
+      {/* Drawer — live is 420px */}
+      <div className="fixed top-0 right-0 h-full w-full max-w-[420px] bg-white z-[101] flex flex-col animate-slide-in-right">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#ededed]">
           <h2 className="text-[13px] font-medium tracking-[1px] uppercase">

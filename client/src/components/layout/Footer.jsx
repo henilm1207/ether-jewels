@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+const paymentMethods = [
+  { name: 'Visa', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="Visa"><rect width="38" height="24" rx="3" fill="#fff" stroke="#e2e2e2" /><text x="19" y="16" textAnchor="middle" fontSize="9" fontWeight="800" fontStyle="italic" fill="#1A1F71">VISA</text></svg>) },
+  { name: 'Mastercard', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="Mastercard"><rect width="38" height="24" rx="3" fill="#fff" stroke="#e2e2e2" /><circle cx="15" cy="12" r="6" fill="#EB001B" opacity="0.85" /><circle cx="23" cy="12" r="6" fill="#F79E1B" opacity="0.85" /></svg>) },
+  { name: 'Amex', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="Amex"><rect width="38" height="24" rx="3" fill="#2E77BC" /><text x="19" y="16" textAnchor="middle" fontSize="8" fontWeight="800" fill="#fff">AMEX</text></svg>) },
+  { name: 'Apple Pay', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="Apple Pay"><rect width="38" height="24" rx="3" fill="#000" /><text x="19" y="16" textAnchor="middle" fontSize="8" fontWeight="700" fill="#fff"> Pay</text></svg>) },
+  { name: 'Google Pay', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="Google Pay"><rect width="38" height="24" rx="3" fill="#fff" stroke="#e2e2e2" /><text x="19" y="16" textAnchor="middle" fontSize="8" fontWeight="700" fill="#5F6368">G Pay</text></svg>) },
+  { name: 'Discover', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="Discover"><rect width="38" height="24" rx="3" fill="#fff" stroke="#e2e2e2" /><text x="19" y="16" textAnchor="middle" fontSize="7" fontWeight="800" fill="#F48120">DISCOVER</text></svg>) },
+  { name: 'JCB', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="JCB"><rect width="38" height="24" rx="3" fill="#fff" stroke="#e2e2e2" /><text x="19" y="16" textAnchor="middle" fontSize="9" fontWeight="800" fill="#0B4EA2">JCB</text></svg>) },
+  { name: 'Diners Club', svg: (<svg width="38" height="24" viewBox="0 0 38 24" aria-label="Diners Club"><rect width="38" height="24" rx="3" fill="#fff" stroke="#e2e2e2" /><circle cx="19" cy="12" r="7" fill="none" stroke="#0079BE" strokeWidth="1.5" /><text x="19" y="14.5" textAnchor="middle" fontSize="6" fontWeight="800" fill="#0079BE">DC</text></svg>) },
+];
+
 export default function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
@@ -26,20 +37,18 @@ export default function Footer() {
 
   return (
     <footer className="bg-[#ece7e3]">
-      <div className="container py-10 md:py-12">
-        <div
-          className="flex flex-wrap gap-y-8"
-          style={{ gap: '3rem' }}
-        >
-          {/* Col 1: Logo (20%) */}
-          <div className="w-full md:w-[20%] flex md:justify-center">
+      <div className="container py-10 md:py-14">
+        {/* 12-col grid — no wrap on 1280px */}
+        <div className="grid grid-cols-12 gap-8 md:gap-10">
+          {/* Logo */}
+          <div className="col-span-12 md:col-span-2">
             <Link to="/">
               <img src="/images/logo.png" alt="MITVA JEWELS" style={{ maxWidth: '150px' }} />
             </Link>
           </div>
 
-          {/* Col 2: Newsletter (36%) */}
-          <div className="w-full md:w-[36%]" style={{ maxWidth: '420px' }}>
+          {/* Newsletter — underline style like live */}
+          <div className="col-span-12 md:col-span-4">
             <h6
               className="mb-3"
               style={{
@@ -57,18 +66,19 @@ export default function Footer() {
             {subscribed ? (
               <p className="text-sm text-green-700">Thank you for subscribing!</p>
             ) : (
-              <form onSubmit={handleSubscribe} className="flex">
+              <form onSubmit={handleSubscribe} className="flex items-center border-b border-[#222] bg-transparent">
                 <input
                   type="email"
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-sm bg-white focus:outline-none focus:border-[#222]"
+                  className="flex-1 py-3 bg-transparent text-sm focus:outline-none placeholder:text-gray-500"
                   required
                 />
                 <button
                   type="submit"
-                  className="px-4 py-3 bg-transparent border border-l-0 border-gray-300 hover:bg-gray-100 transition-colors"
+                  aria-label="Subscribe"
+                  className="p-2 hover:translate-x-1 transition-transform"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />
@@ -83,8 +93,8 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Col 3: Contact (16%) */}
-          <div className="w-full md:w-[16%]">
+          {/* Contact */}
+          <div className="col-span-6 md:col-span-2">
             <h6
               className="mb-4"
               style={{
@@ -105,8 +115,8 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Shop (10%) */}
-          <div className="w-full md:w-[10%]">
+          {/* Shop */}
+          <div className="col-span-6 md:col-span-2">
             <h6
               className="mb-4"
               style={{
@@ -126,8 +136,8 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 5: Company (16%) */}
-          <div className="w-full md:w-[16%]">
+          {/* Company */}
+          <div className="col-span-6 md:col-span-2">
             <h6
               className="mb-4"
               style={{
@@ -151,15 +161,11 @@ export default function Footer() {
         {/* Bottom */}
         <div className="mt-10 pt-6 border-t border-gray-300 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-gray-500">© 2026, MITVA JEWELS L.L.C.</p>
-          <div className="flex items-center gap-2 flex-wrap justify-center">
-            {['Amex', 'Apple Pay', 'Diners Club', 'Discover', 'Google Pay', 'JCB', 'Mastercard', 'Visa'].map((method) => (
-              <div
-                key={method}
-                className="px-2 py-1 bg-white border border-gray-200 text-[10px] text-gray-600"
-                style={{ minWidth: '40px', textAlign: 'center' }}
-              >
-                {method}
-              </div>
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
+            {paymentMethods.map((method) => (
+              <span key={method.name} title={method.name} className="inline-flex">
+                {method.svg}
+              </span>
             ))}
           </div>
         </div>

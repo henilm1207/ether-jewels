@@ -3,7 +3,7 @@
 @theme {
   --color-primary: #222222;
   --color-background: #ffffff;
-  --color-bg-2: #f7f2ef;
+  --color-bg-2: #F6F1EE;
   --color-highlight: #ec635e;
   --color-border: #ededed;
   --color-btn-bg: #222222;
@@ -42,10 +42,10 @@ body {
   background-color: var(--color-background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-/* ========== CONTAINERS (Prestige: 1340px max, 50px desktop gutters) ========== */
+/* ========== CONTAINERS (Prestige: 1340px max, 50px desktop gutters, switch at 1000px) ========== */
 .container {
   max-width: 1340px;
   margin: 0 auto;
@@ -53,10 +53,26 @@ body {
   width: 100%;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1000px) {
   .container {
     padding: 0 50px;
   }
+}
+
+@media (max-width: 1024px) {
+  .container {
+    padding: 0 20px;
+  }
+}
+
+/* ========== ACCESSIBILITY: keyboard focus ========== */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #222222;
+  outline-offset: 2px;
 }
 
 /* ========== TYPOGRAPHY ========== */
@@ -64,7 +80,7 @@ body {
   font-family: var(--font-heading);
   font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2.5px;
 }
 
 /* Headings */
@@ -99,14 +115,14 @@ h6, .h6 { font-size: 1rem; line-height: 1.4; }
 }
 
 .section-padding-lg {
-  padding-top: 60px;
-  padding-bottom: 60px;
+  padding-top: 80px;
+  padding-bottom: 80px;
 }
 
 @media (min-width: 768px) {
   .section-padding-lg {
-    padding-top: 80px;
-    padding-bottom: 80px;
+    padding-top: 96px;
+    padding-bottom: 96px;
   }
 }
 
@@ -171,7 +187,7 @@ h6, .h6 { font-size: 1rem; line-height: 1.4; }
   position: relative;
   font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   border-bottom: 1px solid currentColor;
   padding-bottom: 2px;
 }

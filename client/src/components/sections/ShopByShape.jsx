@@ -19,34 +19,34 @@ export default function ShopByShape() {
         </h2>
 
         <div
-          className="flex md:justify-center md:flex-wrap items-start overflow-x-auto pb-2 scrollbar-hide"
-          style={{ gap: '2.5rem 3.75rem' }}
+          className="flex md:justify-center md:flex-wrap items-start overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory gap-5 md:gap-x-16 md:gap-y-12"
         >
           {shapes.map((shape) => (
             <Link
               key={shape.slug}
               to={`/collections/${shape.slug}`}
-              className="flex-shrink-0 flex flex-col items-center group"
+              className="flex-shrink-0 flex flex-col items-center group snap-start"
               style={{ textDecoration: 'none' }}
             >
               <div
-                className="flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-105"
-                style={{ width: '85px', height: '85px' }}
+                className="flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-105 w-[72px] h-[72px] md:w-[92px] md:h-[92px]"
               >
                 <img
                   src={shape.image}
                   alt={shape.name}
+                  loading="lazy"
                   className="w-full h-full object-contain"
                 />
               </div>
               <p
                 className="text-center transition-colors duration-300 group-hover:text-black"
                 style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  letterSpacing: '2px',
+                  fontSize: '12px',
+                  fontWeight: 400,
+                  letterSpacing: '2.5px',
                   textTransform: 'uppercase',
                   color: '#3a3a3a',
+                  opacity: 0.85,
                   fontFamily: "'DM Sans', sans-serif",
                 }}
               >

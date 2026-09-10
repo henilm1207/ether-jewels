@@ -21,11 +21,18 @@ export default function NewsletterPopup() {
       }
     };
 
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') handleClose();
+    };
+
     window.addEventListener('scroll', handleScroll);
+    window.addEventListener('keydown', handleEsc);
     return () => {
       clearTimeout(timer);
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('keydown', handleEsc);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleClose = () => {

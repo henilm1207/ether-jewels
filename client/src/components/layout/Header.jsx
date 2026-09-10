@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Search, User, ShoppingBag, Menu, X } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { products } from '../../data/products';
 
 const navItems = [
   {
@@ -19,9 +20,14 @@ const navItems = [
   { label: 'About', to: '/pages/about-us' },
 ];
 
+// Announcement bar slot — Prestige expects it; hidden until enabled.
+// Set VITE_ANNOUNCEMENT_TEXT to show, e.g. "Complimentary insured shipping over $1,000".
+const ANNOUNCEMENT_TEXT = import.meta.env.VITE_ANNOUNCEMENT_TEXT || '';
+
 export default function Header({ onCartClick, onMenuClick, onSearchClick, searchOpen }) {
   const { totalItems } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -30,6 +36,8 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
 
   const isHome = location.pathname === '/';
   const isTransparent = isHome && !scrolled;
+  // Live inner-page header is taller (84px) than the transparent home header (63px)
+  const headerHeight = isTransparent ? 63 : 84;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -41,6 +49,11 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
     if (searchOpen && searchRef.current) searchRef.current.focus();
   }, [searchOpen]);
 
+  // Close search on route change
+  useEffect(() => {
+    setSearchValue('');
+  }, [location.pathname]);
+
   const handleMouseEnter = (label) => {
     clearTimeout(timeoutRef.current);
     setDropdownOpen(label);
@@ -50,8 +63,25 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
     timeoutRef.current = setTimeout(() => setDropdownOpen(null), 200);
   };
 
+  const suggestions = useMemo(() => {
+    const q = searchValue.trim().toLowerCase();
+    if (!q) return [];
+    return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 4);
+  }, [searchValue]);
+
+  const submitSearch = (e) => {
+    e?.preventDefault();
+    const q = searchValue.trim();
+    if (!q) return;
+    if (suggestions.length > 0) {
+      navigate(`/products/${suggestions[0].slug}`);
+    }
+    onSearchClick?.();
+  };
+
   const headerTextColor = isTransparent ? 'text-white' : 'text-[#222222]';
   const headerBg = isTransparent ? 'bg-transparent' : 'bg-white';
+  const logoSrc = isTransparent ? '/images/logo-white.png' : '/images/logo.png';
 
   return (
     <header
@@ -59,8 +89,13 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
         scrolled ? 'shadow-sm' : ''
       }`}
     >
+      {ANNOUNCEMENT_TEXT ? (
+        <div className="bg-[#222] text-white text-center text-[11px] tracking-[1.5px] uppercase py-2 px-4">
+          {ANNOUNCEMENT_TEXT}
+        </div>
+      ) : null}
       <div className="container">
-        <div className="flex items-center justify-between" style={{ height: '63px' }}>
+        <div className="flex items-center justify-between transition-all duration-300" style={{ height: `${headerHeight}px` }}>
           {/* Left: Mobile Menu + Logo */}
           <div className="flex items-center gap-4">
             <button
@@ -72,42 +107,24 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
             </button>
 
             <Link to="/" className="flex-shrink-0">
-              {isTransparent ? (
-                <img
-                  src="/images/logo-white.png"
-                  alt="MITVA JEWELS"
-                  style={{ width: '140px', height: 'auto' }}
-                />
-              ) : (
-                <img
-                  src="/images/logo.png"
-                  alt="MITVA JEWELS"
-                  className="hidden md:block"
-                  style={{ width: '140px', height: 'auto' }}
-                />
-              )}
-              {/* Mobile logo */}
-              {!isTransparent && (
-                <img
-                  src="/images/logo.png"
-                  alt="MITVA JEWELS"
-                  className="md:hidden"
-                  style={{ width: '100px', height: 'auto' }}
-                />
-              )}
-              {isTransparent && (
-                <img
-                  src="/images/logo-white.png"
-                  alt="MITVA JEWELS"
-                  className="md:hidden"
-                  style={{ width: '100px', height: 'auto' }}
-                />
-              )}
+              {/* Desktop logo 150px / mobile 135px */}
+              <img
+                src={logoSrc}
+                alt="MITVA JEWELS"
+                className="hidden md:block"
+                style={{ width: '150px', height: 'auto' }}
+              />
+              <img
+                src={logoSrc}
+                alt="MITVA JEWELS"
+                className="md:hidden"
+                style={{ width: '135px', height: 'auto' }}
+              />
             </Link>
           </div>
 
-          {/* Center: Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-7 absolute left-1/2 -translate-x-1/2">
+          {/* Center: Desktop Navigation — 32px gap, 13px / 1px tracking / 500 */}
+          <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item) => (
               <div
                 key={item.label}
@@ -135,7 +152,8 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
 
                 {item.children && dropdownOpen === item.label && (
                   <div
-                    className="absolute top-full left-1/2 -translate-x-1/2 bg-white border border-[#ededed] min-w-[220px] py-1 z-50 shadow-lg"
+                    className="absolute top-full left-1/2 -translate-x-1/2 bg-white border border-[#ededed] min-w-[260px] py-3 z-50 shadow-lg"
+                    style={{ marginTop: '12px' }}
                     onMouseEnter={() => handleMouseEnter(item.label)}
                     onMouseLeave={handleMouseLeave}
                   >
@@ -143,7 +161,7 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                       <Link
                         key={child.label}
                         to={child.to}
-                        className="block px-5 py-2.5 text-[13px] font-medium text-[#222] hover:bg-[#f7f2ef] transition-colors"
+                        className="block px-6 py-3 text-[13px] font-medium text-[#222] hover:bg-[#f7f2ef] transition-colors"
                         onClick={() => setDropdownOpen(null)}
                       >
                         {child.label}
@@ -180,7 +198,10 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
             >
               <ShoppingBag size={20} className={headerTextColor} />
               {totalItems > 0 && (
-                <span className="absolute -top-0 -right-0 bg-[#ecddd4] text-[#222] text-[9px] font-bold w-[18px] h-[18px] flex items-center justify-center rounded-full">
+                <span
+                  className="absolute top-0 right-0 bg-[#EEE0D5] text-[#222] flex items-center justify-center rounded-full"
+                  style={{ width: '16px', height: '16px', fontSize: '10px', fontWeight: 900 }}
+                >
                   {totalItems}
                 </span>
               )}
@@ -189,11 +210,11 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
         </div>
       </div>
 
-      {/* Search Drawer */}
+      {/* Search Drawer — full-width with hint + suggestions */}
       {searchOpen && (
         <div className="border-t border-[#ededed] bg-white animate-fade-in">
-          <div className="container py-4">
-            <div className="relative max-w-xl mx-auto">
+          <div className="container py-5">
+            <form onSubmit={submitSearch} className="relative max-w-xl mx-auto">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 ref={searchRef}
@@ -203,7 +224,36 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                 onChange={(e) => setSearchValue(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 border border-[#ededed] text-sm focus:outline-none focus:border-[#222]"
               />
-            </div>
+            </form>
+            <p className="text-center text-[12px] text-gray-400 mt-2 tracking-wide">
+              Search &amp; press Enter
+            </p>
+            {searchValue.trim() ? (
+              suggestions.length > 0 ? (
+                <div className="max-w-xl mx-auto mt-4 divide-y divide-[#f0f0f0] border border-[#ededed]">
+                  {suggestions.map((p) => (
+                    <Link
+                      key={p.slug}
+                      to={`/products/${p.slug}`}
+                      onClick={() => onSearchClick?.()}
+                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-[#f7f2ef] transition-colors"
+                    >
+                      <span className="w-10 h-10 bg-[#f7f2ef] overflow-hidden flex-shrink-0">
+                        <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[13px] font-medium truncate">{p.name}</span>
+                        <span className="block text-[12px] text-gray-500">${p.price.toFixed(2)} USD</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-[13px] text-gray-500 mt-4">
+                  No results for &ldquo;{searchValue.trim()}&rdquo;. Try &ldquo;solitaire&rdquo; or &ldquo;halo&rdquo;.
+                </p>
+              )
+            ) : null}
           </div>
         </div>
       )}
