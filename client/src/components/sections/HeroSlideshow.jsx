@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export default function HeroSlideshow() {
   return (
-    <section className="relative w-full h-[580px] md:h-[740px] lg:h-[800px] overflow-hidden">
+    <section className="relative w-full overflow-hidden hero-slideshow-height" style={{ height: '420px' }}>
       {/* Background Image - full width, no container */}
       <div className="absolute inset-0">
         <img
@@ -12,30 +12,29 @@ export default function HeroSlideshow() {
           loading="eager"
           fetchPriority="high"
         />
-        {/* Prestige-style bottom-left gradient so text stays legible */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute inset-0" style={{ background: 'rgba(68,68,68,0.6)' }} />
       </div>
 
-      {/* Content - positioned left bottom */}
-      <div className="relative h-full flex items-end pb-14 md:pb-20">
-        <div className="container">
-          <div className="max-w-lg text-left">
-            <p
-              className="mb-3 animate-fade-in-up delay-0 text-white/90"
-              style={{ fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1.5px' }}
-            >
+      {/* Content - left bottom, live: 30px mobile / 50px 0 desktop, 50% width */}
+      <div className="relative h-full flex items-end">
+        <div className="container w-full">
+          <div
+            className="text-left animate-fade-in-up hero-slideshow-content"
+            style={{ padding: '30px 0', width: 'calc(100% - 30px)', color: '#fff' }}
+          >
+            <p className="text-subheading" style={{ marginBottom: '12px', color: '#fff' }}>
               Lab Grown · IGI Certified
             </p>
-            <h1
-              className="font-heading text-white mb-6 leading-tight animate-fade-in-up delay-100"
-              style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)', letterSpacing: '2.5px' }}
+            <h2
+              className="font-heading hero-slideshow-title"
+              style={{ fontSize: '22px', color: '#fff', marginBottom: '32px' }}
             >
               Engagement Rings
-            </h1>
+            </h2>
             <Link
-              to="/collections/solitaire-rings"
-              className="btn--underline text-white inline-flex items-center gap-2 group animate-fade-in-up delay-200"
-              style={{ fontSize: '13px', letterSpacing: '3px' }}
+              to="/collections/rings-1"
+              className="btn--underline inline-flex items-center gap-2 group"
+              style={{ color: '#fff', letterSpacing: '3px' }}
             >
               Shop Now
               <span aria-hidden="true" className="inline-block transition-transform duration-300 group-hover:translate-x-2">→</span>
@@ -43,6 +42,13 @@ export default function HeroSlideshow() {
           </div>
         </div>
       </div>
+      <style>{`
+        @media (min-width: 768px) {
+          .hero-slideshow-height { height: 720px !important; }
+          .hero-slideshow-content { max-width: 50%; padding: 50px 0 !important; }
+          .hero-slideshow-title { font-size: 28px !important; }
+        }
+      `}</style>
     </section>
   );
 }

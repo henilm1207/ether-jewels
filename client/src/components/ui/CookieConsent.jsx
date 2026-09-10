@@ -28,7 +28,7 @@ export default function CookieConsent() {
         <p className="text-sm text-gray-300 text-center md:text-left">
           We use cookies to ensure you get the best experience on our website. By clicking on "Accept
           all" you consent to our use of cookies.{' '}
-          <a href="#" className="underline text-white">Learn more.</a>
+          <a href="/policies/privacy-policy" className="underline text-white">Learn more.</a>
         </p>
         <div className="flex items-center gap-3 flex-shrink-0">
           <button

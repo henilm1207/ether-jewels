@@ -21,86 +21,145 @@ const tabs = [
   },
 ];
 
+// Live: h2 with h1 class (40px desktop / 32 mobile)
+function SectionHeader({ className = '' }) {
+  return (
+    <div className={className}>
+      <p className="section__subheading">
+        THE MITVA EXPERIENCE
+      </p>
+      <h2
+        className="font-heading exp-title"
+        style={{ marginBottom: 0 }}
+      >
+        Made To Be<br />
+        Adorned, Loved, Be<br />
+        Remembered
+      </h2>
+    </div>
+  );
+}
+
 export default function MitvaExperience() {
   const [activeTab, setActiveTab] = useState(0);
 
   return (
     <section className="section-padding-lg bg-white">
-      <div className="container">
-        {/* Section Header — live: 38/42px, 1.1 line-height */}
-        <div className="text-center mb-10 md:mb-14">
-          <p className="text-subheading mb-3">
-            THE MITVA EXPERIENCE
-          </p>
-          <h2
-            className="font-heading"
-            style={{ fontSize: 'clamp(28px, 4vw, 42px)', letterSpacing: '2.5px', lineHeight: 1.1 }}
-          >
-            Made To Be<br />
-            Adorned, Loved, Be<br />
-            Remembered
-          </h2>
+      <div className="container-fluid">
+        {/* Mobile header — text-left above image */}
+        <div className="md:hidden text-left" style={{ paddingBottom: '32px' }}>
+          <SectionHeader />
         </div>
 
-        {/* Content: Image Left, Accordion Right */}
-        <div className="flex flex-col md:flex-row items-stretch gap-8 lg:gap-12 max-w-6xl mx-auto">
-          {/* Image — live: 4/5 ratio, no beige bg */}
-          <div className="w-full md:w-1/2 aspect-[4/5] overflow-hidden">
-            <img
-              key={tabs[activeTab].image}
-              src={tabs[activeTab].image}
-              alt={tabs[activeTab].title}
-              loading="lazy"
-              className="w-full h-full object-cover animate-fade-in"
-            />
+        {/* Live: collection-tabs image-right, column gap 2.2rem → 5rem → 10rem */}
+        <div className="flex flex-col lg:flex-row lg:flex-row-reverse items-stretch exp-grid">
+          {/* Images — square stacked, active fades in */}
+          <div className="w-full lg:w-1/2">
+            <div className="relative aspect-square overflow-hidden">
+              {tabs.map((tab, index) => (
+                <img
+                  key={tab.image}
+                  src={tab.image}
+                  alt={tab.title}
+                  loading="lazy"
+                  aria-hidden={activeTab === index ? undefined : true}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+                  style={{ opacity: activeTab === index ? 1 : 0 }}
+                />
+              ))}
+            </div>
           </div>
 
-          {/* Accordion — tall rows, active near-black */}
-          <div className="w-full md:w-1/2 flex flex-col justify-center">
-            {tabs.map((tab, index) => (
-              <div
-                key={tab.id}
-                className={`border-t border-[#E8E8E8] last:border-b transition-colors ${
-                  activeTab === index ? 'border-black' : ''
-                }`}
-              >
-                <button
-                  onClick={() => setActiveTab(index)}
-                  className="w-full flex items-baseline gap-4 py-6 md:py-8 text-left"
-                >
-                  <span
-                    className="text-gray-400"
-                    style={{ fontSize: '14px', fontWeight: 500 }}
+          {/* Content column */}
+          <div className="w-full lg:w-1/2 flex flex-col justify-center">
+            {/* Desktop header inside content column */}
+            <div className="hidden md:block text-left" style={{ paddingBottom: '40px' }}>
+              <p className="section__subheading">
+                THE MITVA EXPERIENCE
+              </p>
+              <h2 className="font-heading exp-title" style={{ marginBottom: 0 }}>
+                Made To Be<br />
+                Adorned, Loved, Be<br />
+                Remembered
+              </h2>
+            </div>
+
+            {/* Tabs — live collapsible rhythm, hover trigger */}
+            <div>
+              {tabs.map((tab, index) => {
+                const isActive = activeTab === index;
+                return (
+                  <div
+                    key={tab.id}
+                    className="border-t border-[#ededed] last:border-b"
+                    style={{ padding: index === 0 ? '0 0 32px' : '32px 0' }}
+                    onMouseEnter={() => setActiveTab(index)}
                   >
-                    {tab.id}.
-                  </span>
-                  <span
-                    className={`transition-colors duration-300 ${
-                      activeTab === index ? 'text-[#111]' : 'text-gray-400'
-                    }`}
-                    style={{
-                      fontSize: 'clamp(1rem, 2vw, 1.375rem)',
-                      fontFamily: "'Playfair Display', serif",
-                      fontWeight: 400,
-                      textTransform: 'uppercase',
-                      letterSpacing: '2px',
-                    }}
-                  >
-                    {tab.title}
-                  </span>
-                </button>
-                {activeTab === index && (
-                  <div className="pl-8 pb-6 pr-6 animate-fade-in">
-                    <p className="leading-relaxed max-w-[420px]" style={{ fontSize: '15px', lineHeight: 1.7, color: '#666' }}>
-                      {tab.description}
-                    </p>
+                    <button
+                      onClick={() => setActiveTab(index)}
+                      aria-expanded={isActive}
+                      className="relative w-full flex items-center text-left"
+                      style={{ minHeight: '96px', padding: '16px 80px 16px 0' }}
+                    >
+                      <span
+                        className="text-gray-400 flex-shrink-0"
+                        style={{ fontSize: '14px', fontWeight: 500, minWidth: '28px', margin: '0 12px 0 0' }}
+                      >
+                        {tab.id}.
+                      </span>
+                      <span
+                        className="font-heading exp-tab-title transition-colors duration-300"
+                        style={{ color: isActive ? '#111' : '#9a9a9a' }}
+                      >
+                        {tab.title}
+                      </span>
+                      {/* Circular arrow — live collection-tab__link */}
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-1/2 -translate-y-1/2 rounded-full items-center justify-center hidden sm:inline-flex"
+                        style={{
+                          right: 0,
+                          width: '64px',
+                          height: '64px',
+                          border: '1px solid rgba(34,34,34,0.2)',
+                          opacity: isActive ? 1 : 0.45,
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3.75 9H14.25" />
+                          <path d="M9 3.75L14.25 9L9 14.25" />
+                        </svg>
+                      </span>
+                      {/* Base + active underline */}
+                      <span aria-hidden="true" className="absolute bottom-0 left-0 h-[2px] w-full bg-[#222]" style={{ opacity: 0.2 }} />
+                      <span
+                        aria-hidden="true"
+                        className="absolute bottom-0 left-0 h-[2px] bg-[#222] transition-all duration-500"
+                        style={{ width: isActive ? '100%' : '0%' }}
+                      />
+                    </button>
+                    {isActive && (
+                      <div className="animate-fade-in" style={{ padding: '0 10px 40px 50px' }}>
+                        <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#666' }}>
+                          {tab.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
+      <style>{`
+        .exp-grid { gap: 35px; }
+        .exp-title { font-size: 32px; line-height: 1.2; }
+        .exp-tab-title { font-size: 17.6px; }
+        @media (min-width: 768px) { .exp-grid { gap: 80px; } }
+        @media (min-width: 1024px) { .exp-title { font-size: 40px; } .exp-tab-title { font-size: 22px; } }
+        @media (min-width: 1280px) { .exp-grid { gap: 160px; } }
+      `}</style>
     </section>
   );
 }

@@ -58,12 +58,20 @@ export default function NewsletterPopup() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
-      <div className="absolute inset-0 bg-black/60" onClick={handleClose} />
-      <div className="relative bg-white w-full max-w-[500px] flex flex-col md:flex-row overflow-hidden animate-fade-in-up z-10">
+    <div className="fixed inset-0 z-[999] flex items-end md:items-center justify-center md:p-0 animate-fade-in" style={{ paddingTop: '40px' }}>
+      <div className="absolute inset-0" style={{ background: 'rgba(68,68,68,0.64)' }} onClick={handleClose} />
+      <div
+        className="relative bg-white w-full flex flex-col md:flex-row overflow-hidden animate-fade-in-up z-10"
+        style={{ maxWidth: '500px', maxHeight: '90vh', width: 'min(500px, 90vw)' }}
+      >
+        {/* Close — 30px circle, rotates on hover */}
         <button
           onClick={handleClose}
-          className="absolute top-3 right-3 z-10 p-1 bg-white/80 rounded-full hover:bg-white"
+          aria-label="Close popup"
+          className="absolute z-10 bg-white rounded-full flex items-center justify-center popup-close"
+          style={{ width: '30px', height: '30px', top: '8px', right: '16px', transition: 'transform .3s ease' }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = 'rotate(180deg)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = 'rotate(0deg)'; }}
         >
           <X size={18} />
         </button>
@@ -77,28 +85,29 @@ export default function NewsletterPopup() {
           />
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-6 md:p-8 flex flex-col justify-center">
-          <h2 className="font-heading text-xl md:text-2xl mb-2">Welcome to MITVA</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Enjoy 5% off your first order and early access to new collections.
+        {/* Content — live inner padding 30px */}
+        <div className="flex-1 flex flex-col justify-center" style={{ padding: '30px' }}>
+          <h2 className="font-heading" style={{ fontSize: '24px', marginBottom: '12px' }}>Welcome to MITVA</h2>
+          <p className="text-[15px] text-gray-600" style={{ marginBottom: '24px' }}>
+            Enjoy <strong>5% off your first order</strong> and early access to new collections.
           </p>
 
           {subscribed ? (
-            <p className="text-sm text-green-700">Thank you for subscribing!</p>
+            <p className="text-[15px]">You have already subscribed!</p>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} style={{ marginTop: '24px' }}>
               <input
                 type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 text-sm focus:outline-none focus:border-[#222]"
+                className="form-control"
+                style={{ marginBottom: '12px' }}
                 required
               />
               <button
                 type="submit"
-                className="w-full py-3 bg-[#222] text-white text-[13px] font-medium uppercase tracking-wider hover:bg-black transition-colors"
+                className="btn btn--primary w-full"
               >
                 Subscribe
               </button>

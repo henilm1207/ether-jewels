@@ -46,7 +46,7 @@ export default function Diamond() {
               <div className="w-16 h-16 mx-auto mb-4 bg-[#f7f2ef] rounded-full flex items-center justify-center">
                 <span
                   style={{
-                    fontFamily: "'Playfair Display', serif",
+                    fontFamily: "var(--font-heading)",
                     fontSize: '1.25rem',
                   }}
                 >
@@ -56,7 +56,7 @@ export default function Diamond() {
               <h3
                 className="mb-2"
                 style={{
-                  fontFamily: "'Playfair Display', serif",
+                  fontFamily: "var(--font-heading)",
                   fontWeight: 400,
                   textTransform: 'uppercase',
                   letterSpacing: '1px',
@@ -77,33 +77,22 @@ export default function Diamond() {
           >
             Shop by Diamond Shape
           </h2>
-          <div className="flex justify-center items-center flex-wrap gap-8 md:gap-12">
+          <div className="shape-row scrollbar-hide" style={{ flexWrap: 'wrap' }}>
             {shapes.map((shape) => (
               <Link
                 key={shape.slug}
                 to={`/collections/${shape.slug}`}
-                className="group text-center"
+                className="shape-item group"
               >
-                <div
-                  className="flex items-center justify-center mb-2 transition-transform duration-300 group-hover:scale-105"
-                  style={{ width: '85px', height: '85px' }}
-                >
+                <div className="shape-image-wrapper">
                   <img
                     src={shape.image}
                     alt={shape.name}
+                    loading="lazy"
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <p
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    letterSpacing: '2px',
-                    textTransform: 'uppercase',
-                    color: '#3a3a3a',
-                    fontFamily: "'Playfair Display', serif",
-                  }}
-                >
+                <p className="shape-name">
                   {shape.name}
                 </p>
               </Link>
@@ -129,7 +118,7 @@ export default function Diamond() {
             <div>
               <h4
                 className="font-medium mb-1"
-                style={{ fontFamily: "'Playfair Display', serif", textTransform: 'uppercase', letterSpacing: '1px' }}
+                style={{ fontFamily: "var(--font-heading)", textTransform: 'uppercase', letterSpacing: '1px' }}
               >
                 Identical Quality
               </h4>
@@ -138,7 +127,7 @@ export default function Diamond() {
             <div>
               <h4
                 className="font-medium mb-1"
-                style={{ fontFamily: "'Playfair Display', serif", textTransform: 'uppercase', letterSpacing: '1px' }}
+                style={{ fontFamily: "var(--font-heading)", textTransform: 'uppercase', letterSpacing: '1px' }}
               >
                 Ethically Sourced
               </h4>
@@ -147,7 +136,7 @@ export default function Diamond() {
             <div>
               <h4
                 className="font-medium mb-1"
-                style={{ fontFamily: "'Playfair Display', serif", textTransform: 'uppercase', letterSpacing: '1px' }}
+                style={{ fontFamily: "var(--font-heading)", textTransform: 'uppercase', letterSpacing: '1px' }}
               >
                 IGI Certified
               </h4>

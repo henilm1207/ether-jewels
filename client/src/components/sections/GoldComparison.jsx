@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 
+// Live image-comparison-slider: 360px mobile / 560px desktop, 46px knob,
+// labels top corners, 80px/40px grid gap, 70px section padding.
 export default function GoldComparison() {
   const [sliderPos, setSliderPos] = useState(50);
   const containerRef = useRef(null);
@@ -31,13 +33,13 @@ export default function GoldComparison() {
   };
 
   return (
-    <section className="section-padding-lg bg-white">
-      <div className="container">
-        <div className="flex flex-col md:flex-row gap-10 lg:gap-16 items-center">
+    <section className="bg-white" style={{ paddingTop: '70px', paddingBottom: '70px' }}>
+      <div className="container-fluid">
+        <div className="flex flex-col md:flex-row items-center compare-grid">
           {/* Slider */}
           <div
             ref={containerRef}
-            className="w-full md:w-1/2 relative aspect-square overflow-hidden cursor-ew-resize select-none"
+            className="w-full md:w-1/2 relative overflow-hidden cursor-ew-resize select-none compare-slider"
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
@@ -53,7 +55,6 @@ export default function GoldComparison() {
             tabIndex={0}
             onKeyDown={onKeyDown}
           >
-            {/* White Gold (full background) */}
             <img
               src="/images/gold-white.jpg"
               alt="White Gold"
@@ -61,8 +62,6 @@ export default function GoldComparison() {
               className="absolute inset-0 w-full h-full object-cover"
               draggable={false}
             />
-
-            {/* Yellow Gold (clipped) */}
             <div
               className="absolute inset-0 overflow-hidden"
               style={{ width: `${sliderPos}%` }}
@@ -77,53 +76,55 @@ export default function GoldComparison() {
               />
             </div>
 
-            {/* Slider Handle — 44px circle like live */}
+            {/* Handle — 2px line + 46px white knob */}
             <div
-              className="absolute top-0 bottom-0 w-[2px] bg-white z-10"
-              style={{ left: `${sliderPos}%` }}
+              className="absolute top-0 bottom-0 bg-white z-10"
+              style={{ width: '2px', left: `${sliderPos}%` }}
             >
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[44px] h-[44px] bg-white rounded-full shadow-lg flex items-center justify-center cursor-ew-resize">
-                <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
-                  <path d="M6 1L1 6L6 11M14 1L19 6L14 11" stroke="#222" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-full shadow-lg flex items-center justify-center cursor-ew-resize"
+                style={{ width: '46px', height: '46px' }}
+              >
+                <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
+                  <path d="M8 1.5L2.5 6L8 10.5M16 1.5L21.5 6L16 10.5" stroke="#222" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             </div>
 
-            {/* Labels at bottom corners — frosted, tracked */}
-            <div className="absolute bottom-4 left-0 right-0 flex justify-between px-4 z-10 pointer-events-none">
-              <span
-                className="bg-white/90 backdrop-blur px-3 py-2 font-medium uppercase"
-                style={{ fontSize: '12px', letterSpacing: '2px' }}
-              >
+            {/* Labels — live: top corners */}
+            <div className="absolute left-0 right-0 flex justify-between z-10 pointer-events-none" style={{ top: '14px', paddingLeft: '25px', paddingRight: '25px' }}>
+              <span className="bg-white uppercase" style={{ padding: '2px 10px', lineHeight: '24px', fontSize: '15px' }}>
                 Yellow Gold
               </span>
-              <span
-                className="bg-white/90 backdrop-blur px-3 py-2 font-medium uppercase"
-                style={{ fontSize: '12px', letterSpacing: '2px' }}
-              >
+              <span className="bg-white uppercase" style={{ padding: '2px 10px', lineHeight: '24px', fontSize: '15px' }}>
                 White Gold
               </span>
             </div>
           </div>
 
           {/* Text Content */}
-          <div className="w-full md:w-1/2 text-center md:text-left md:pl-2">
-            <p className="text-subheading mb-3 animate-fade-in-up delay-0">
+          <div className="w-full md:w-1/2 text-center md:text-left">
+            <p className="section__subheading">
               Compare
             </p>
-            <h2
-              className="font-heading mb-4 animate-fade-in-up delay-50"
-              style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.25rem)', letterSpacing: '2.5px', lineHeight: 1.2 }}
-            >
+            <h3 className="font-heading h3" style={{ marginBottom: '24px' }}>
               Yellow Gold or White Gold
-            </h2>
-            <p className="text-gray-600 leading-relaxed animate-fade-in-up delay-100 max-w-md mx-auto md:mx-0" style={{ fontSize: '15px' }}>
+            </h3>
+            <p className="text-gray-600 leading-relaxed max-w-md mx-auto md:mx-0" style={{ fontSize: '15px', marginTop: '24px' }}>
               Slide to explore the subtle contrast between warm yellow gold and luminous white gold.
               Two tones. One timeless design.
             </p>
           </div>
         </div>
       </div>
+      <style>{`
+        .compare-grid { gap: 40px; }
+        .compare-slider { height: 360px; }
+        @media (min-width: 768px) {
+          .compare-grid { gap: 80px; }
+          .compare-slider { height: 560px; }
+        }
+      `}</style>
     </section>
   );
 }

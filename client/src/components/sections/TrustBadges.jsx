@@ -1,23 +1,18 @@
-import { Gem, Truck, Factory, ShieldCheck } from 'lucide-react';
-
+// Live multicolumn: 40px section padding, h4 titles, 15px subs — no icons.
 const badges = [
   {
-    icon: Gem,
     title: 'IGI / GIA Certified',
     subtitle: 'Every diamond, with certificate',
   },
   {
-    icon: Truck,
     title: 'Free USA Shipping',
     subtitle: 'On Orders Over $1,000',
   },
   {
-    icon: Factory,
     title: 'Made-to-Order',
     subtitle: 'Crafted in Surat, India',
   },
   {
-    icon: ShieldCheck,
     title: 'Insured Shipping',
     subtitle: 'Covered Door to Door',
   },
@@ -25,32 +20,28 @@ const badges = [
 
 export default function TrustBadges() {
   return (
-    <section className="bg-white border-y border-[#ededed]" style={{ paddingTop: '64px', paddingBottom: '64px' }}>
+    <section className="bg-white" style={{ paddingTop: '40px', paddingBottom: '40px' }}>
       <div className="container">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-10 gap-x-6 md:gap-8">
           {badges.map((badge) => (
             <div key={badge.title} className="text-center px-2">
-              <badge.icon size={24} strokeWidth={1.25} className="mx-auto mb-4 text-[#222]" aria-hidden="true" />
-              <h4
-                className="mb-1.5"
-                style={{
-                  fontSize: '16px',
-                  fontWeight: 500,
-                  fontFamily: "'Playfair Display', serif",
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px',
-                  lineHeight: 1.3,
-                }}
+              <h3
+                className="font-heading trust-title"
+                style={{ margin: 0 }}
               >
                 {badge.title}
-              </h4>
-              <p className="text-gray-500" style={{ fontSize: '14px' }}>
+              </h3>
+              <p style={{ fontSize: '15px', marginTop: '12px' }}>
                 {badge.subtitle}
               </p>
             </div>
           ))}
         </div>
       </div>
+      <style>{`
+        .trust-title { font-size: 22px; line-height: 1.2; }
+        @media (max-width: 639px) { .trust-title { font-size: 17.6px; } }
+      `}</style>
     </section>
   );
 }

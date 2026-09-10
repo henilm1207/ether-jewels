@@ -1,7 +1,9 @@
 export const products = [
   {
     name: 'The Pear Accent Diamond Engagement Ring',
-    slug: 'pear-accent-diamond-engagement-ring',
+    slug: 'the-pear-accent-diamond-engagement-ring',
+    legacySlugs: ['pear-accent-diamond-engagement-ring'],
+    shape: 'Pear',
     price: 1500,
     description: 'A stunning pear-shaped diamond engagement ring with accent stones, crafted for timeless elegance.',
     shortDescription: 'Lab Grown Pear Diamond Ring',
@@ -21,6 +23,7 @@ export const products = [
   {
     name: 'Liora Oval Hidden Halo Setting',
     slug: 'liora-oval-hidden-halo-setting',
+    shape: 'Oval',
     price: 1500,
     description: 'An oval diamond with a hidden halo setting that creates a mesmerizing circle of brilliance.',
     shortDescription: 'Oval Hidden Halo Ring',
@@ -39,7 +42,9 @@ export const products = [
   },
   {
     name: 'Pear-Cut Split-Shank Solitaire',
-    slug: 'pear-cut-split-shank-solitaire',
+    slug: 'the-pear-cut-split-shank-solitaire',
+    legacySlugs: ['pear-cut-split-shank-solitaire'],
+    shape: 'Pear',
     price: 1200,
     description: 'A pear-cut diamond set on a split-shank band for a modern, architectural look.',
     shortDescription: 'Pear-Cut Split-Shank Ring',
@@ -57,7 +62,9 @@ export const products = [
   },
   {
     name: 'Emerald-Cut Split-Shank Solitaire',
-    slug: 'emerald-cut-split-shank-solitaire',
+    slug: 'the-emerald-cut-split-shank-solitaire',
+    legacySlugs: ['emerald-cut-split-shank-solitaire'],
+    shape: 'Emerald',
     price: 1100,
     description: 'An emerald-cut diamond with split-shank detailing, offering clean lines and modern sophistication.',
     shortDescription: 'Emerald-Cut Solitaire Ring',
@@ -75,7 +82,9 @@ export const products = [
   },
   {
     name: 'The Round Brilliant Split-Shank Solitaire',
-    slug: 'round-brilliant-split-shank-solitaire',
+    slug: 'the-round-brilliant-split-shank-solitaire',
+    legacySlugs: ['round-brilliant-split-shank-solitaire'],
+    shape: 'Round',
     price: 1200,
     description: 'A classic round brilliant diamond on a split-shank band, combining tradition with contemporary design.',
     shortDescription: 'Round Brilliant Solitaire',
@@ -94,6 +103,7 @@ export const products = [
   {
     name: 'The Celestine Halo Ring',
     slug: 'celestine-halo-ring',
+    shape: 'Round',
     price: 1800,
     description: 'A round brilliant center stone surrounded by a delicate halo of pavé diamonds.',
     shortDescription: 'Round Halo Pavé Ring',
@@ -110,6 +120,7 @@ export const products = [
   {
     name: 'Three Stone Pavé Engagement Ring',
     slug: 'three-stone-pave-engagement-ring',
+    shape: 'Round',
     price: 2200,
     description: 'Three stunning lab-grown diamonds set in a pavé band, symbolizing past, present, and future.',
     shortDescription: 'Three Stone Pavé Ring',
@@ -141,6 +152,7 @@ export const products = [
   {
     name: 'The Lumina Engagement Ring',
     slug: 'lumina-engagement-ring',
+    shape: 'Round',
     price: 1600,
     description: 'A luminous engagement ring featuring a round diamond with delicate side stones.',
     shortDescription: 'Round Diamond Side Stone Ring',
@@ -157,6 +169,7 @@ export const products = [
   {
     name: 'The Aspen Drop Earrings',
     slug: 'aspen-drop-earrings',
+    shape: 'Pear',
     price: 950,
     description: 'Elegant drop earrings featuring pear-shaped lab-grown diamonds with a delicate setting.',
     shortDescription: 'Pear Diamond Drop Earrings',
@@ -173,6 +186,7 @@ export const products = [
   {
     name: 'The Serene Tennis Bracelet',
     slug: 'serene-tennis-bracelet',
+    shape: 'Round',
     price: 2500,
     description: 'A classic tennis bracelet with round brilliant lab-grown diamonds in a seamless setting.',
     shortDescription: 'Diamond Tennis Bracelet',
@@ -187,6 +201,7 @@ export const products = [
   {
     name: 'The Aria Pendant Necklace',
     slug: 'aria-pendant-necklace',
+    shape: 'Round',
     price: 1100,
     description: 'A delicate pendant necklace featuring a single round brilliant diamond on a fine chain.',
     shortDescription: 'Round Diamond Pendant',
@@ -203,6 +218,7 @@ export const products = [
   {
     name: 'The Trilogy Three-Stone Ring',
     slug: 'trilogy-three-stone-ring',
+    shape: 'Oval',
     price: 2800,
     description: 'Three oval diamonds set in a trilogy arrangement, representing your journey together.',
     shortDescription: 'Oval Trilogy Ring',
@@ -218,6 +234,7 @@ export const products = [
   {
     name: 'The Velvet Halo Earrings',
     slug: 'velvet-halo-earrings',
+    shape: 'Round',
     price: 1300,
     description: 'Stud earrings with a halo of pavé diamonds surrounding a center round brilliant stone.',
     shortDescription: 'Halo Stud Earrings',
@@ -261,12 +278,61 @@ export const shapes = [
 ];
 
 export const categories = {
+  'rings-1': { name: 'Rings', parent: 'Collection: Rings', aliasOf: 'rings' },
+  rings: {
+    name: 'Rings',
+    parent: 'Collection',
+    description:
+      'From timeless solitaires to modern statement designs, our ring collection is crafted to celebrate every moment. Each piece is thoughtfully designed with precision, brilliance, and enduring elegance.',
+    aggregate: ['solitaire-rings', 'halo-rings', 'engagement-rings', 'three-stone-rings', 'bands'],
+  },
   'solitaire-rings': { name: 'Solitaire Rings', parent: 'Rings' },
   'halo-rings': { name: 'Halo Rings', parent: 'Rings' },
+  'halo-rings-1': { name: 'Halo Rings', parent: 'Rings', aliasOf: 'halo-rings' },
   'engagement-rings': { name: 'Engagement Rings', parent: 'Rings' },
   'three-stone-rings': { name: 'Three Stone Rings', parent: 'Rings' },
   bands: { name: 'Bands', parent: 'Rings' },
-  earrings: { name: 'Earrings', parent: 'Earrings' },
+  earrings: { name: 'EarRings', parent: 'EarRings' },
   bracelets: { name: 'Bracelets', parent: 'Bracelets' },
+  'bracelets-1': { name: 'Bracelets', parent: 'Bracelets', aliasOf: 'bracelets' },
   necklaces: { name: 'Necklaces', parent: 'Necklaces' },
+  // Diamond-shape collections (live: /collections/round, /collections/marquise-1, …)
+  round: { name: 'Round', parent: 'Shop By Shape', shape: 'Round' },
+  emerald: { name: 'Emerald', parent: 'Shop By Shape', shape: 'Emerald' },
+  princess: { name: 'Princess', parent: 'Shop By Shape', shape: 'Princess' },
+  cushion: { name: 'Cushion', parent: 'Shop By Shape', shape: 'Cushion' },
+  oval: { name: 'Oval', parent: 'Shop By Shape', shape: 'Oval' },
+  pear: { name: 'Pear', parent: 'Shop By Shape', shape: 'Pear' },
+  marquise: { name: 'Marquise', parent: 'Shop By Shape', shape: 'Marquise' },
+  'marquise-1': { name: 'Marquise', parent: 'Shop By Shape', aliasOf: 'marquise' },
+  asscher: { name: 'Asscher', parent: 'Shop By Shape', shape: 'Asscher' },
+  heart: { name: 'Heart', parent: 'Shop By Shape', shape: 'Heart' },
 };
+
+/** Resolve alias slugs (halo-rings-1, bracelets-1, marquise-1) to canonical keys. */
+export function resolveCategory(key) {
+  const info = categories[key];
+  if (!info) return { key, info: undefined };
+  if (info.aliasOf) return { key: info.aliasOf, info: categories[info.aliasOf] };
+  return { key, info };
+}
+
+/** Find a product by current or legacy slug. */
+export function findProduct(slug) {
+  return products.find(
+    (p) => p.slug === slug || (p.legacySlugs && p.legacySlugs.includes(slug))
+  );
+}
+
+/** Products for a (resolved) category key: aggregate, shape, or plain category. */
+export function productsForCategory(key) {
+  const info = categories[key];
+  if (!info) return products;
+  if (info.aggregate) {
+    return products.filter((p) => info.aggregate.includes(p.category));
+  }
+  if (info.shape) {
+    return products.filter((p) => p.shape === info.shape);
+  }
+  return products.filter((p) => p.category === key);
+}

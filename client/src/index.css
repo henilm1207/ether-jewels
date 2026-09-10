@@ -3,7 +3,7 @@
 @theme {
   --color-primary: #222222;
   --color-background: #ffffff;
-  --color-bg-2: #F6F1EE;
+  --color-bg-2: #f7f2ef;
   --color-highlight: #ec635e;
   --color-border: #ededed;
   --color-btn-bg: #222222;
@@ -15,13 +15,14 @@
   --color-badge-hot: #222222;
   --color-badge-new: #70c5d8;
   --color-cart-bubble: #ecddd4;
-  --color-overlay: rgba(68, 68, 68, 0.6);
+  --color-overlay: rgba(68, 68, 68, 0.64);
   --color-text-body: #222222;
   --color-text-heading: #222222;
   --color-footer-bg: #ece7e3;
 
   --font-body: 'DM Sans', sans-serif;
-  --font-heading: 'Playfair Display', serif;
+  --font-heading: 'New York', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', 'Droid Serif', Times, 'Source Serif Pro', serif;
+  --font-shape-name: 'Libre Baskerville', Baskerville, Georgia, serif;
 }
 
 * {
@@ -38,30 +39,56 @@ html {
 body {
   font-family: var(--font-body);
   font-weight: 400;
+  font-size: 15px;
   color: var(--color-text-body);
   background-color: var(--color-background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
-/* ========== CONTAINERS (Prestige: 1340px max, 50px desktop gutters, switch at 1000px) ========== */
+/* ========== CONTAINERS (live: 1340 content + 2x50 gutters = 1440 max, 15px mobile) ========== */
 .container {
-  max-width: 1340px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 15px;
   width: 100%;
 }
 
-@media (min-width: 1000px) {
+@media (min-width: 1200px) {
   .container {
     padding: 0 50px;
   }
 }
 
-@media (max-width: 1024px) {
-  .container {
-    padding: 0 20px;
+.container-fluid {
+  max-width: 1780px;
+  margin: 0 auto;
+  padding: 0 15px;
+  width: 100%;
+}
+
+@media (min-width: 1200px) {
+  .container-fluid {
+    padding: 0 50px;
+  }
+}
+
+.container-narrow {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 15px;
+  width: 100%;
+}
+
+/* Inner-page offset under the fixed auto-height header (live ≈86px desktop / 60px mobile) */
+.page-offset {
+  padding-top: 60px;
+}
+
+@media (min-width: 1024px) {
+  .page-offset {
+    padding-top: 86px;
   }
 }
 
@@ -75,67 +102,139 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* ========== TYPOGRAPHY ========== */
+/* ========== TYPOGRAPHY (live: 10px root → px equivalents) ========== */
 .font-heading {
   font-family: var(--font-heading);
   font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 2.5px;
+  letter-spacing: 1px;
 }
 
-/* Headings */
-h1, .h1 { font-size: 2.5rem; line-height: 1.2; }
-h2, .h2 { font-size: 2.125rem; line-height: 1.2; }
-h3, .h3 { font-size: 1.75rem; line-height: 1.3; }
-h4, .h4 { font-size: 1.375rem; line-height: 1.3; }
-h5, .h5 { font-size: 1.125rem; line-height: 1.4; }
-h6, .h6 { font-size: 1rem; line-height: 1.4; }
+/* Headings — live h1:40 h2:34 h3:28 h4:22 h5:18 h6:16, mb 12, lh 1.2 */
+h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6 {
+  letter-spacing: 1px;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+h1, .h1 { font-size: 2.5rem; }
+h2, .h2 { font-size: 2.125rem; }
+h3, .h3 { font-size: 1.75rem; }
+h4, .h4 { font-size: 1.375rem; }
+h5, .h5 { font-size: 1.125rem; }
+h6, .h6 { font-size: 1rem; }
 
-@media (max-width: 767px) {
+@media (max-width: 639px) {
   h1, .h1 { font-size: 2rem; }
   h2, .h2 { font-size: 1.7rem; }
   h3, .h3 { font-size: 1.4rem; }
   h4, .h4 { font-size: 1.1rem; }
+  h5, .h5 { font-size: 0.9rem; }
 }
 
-/* Subheading — Prestige eyebrow: small, muted, tracked */
+/* Subheading — live: 16px/500/uppercase/tracking 0, section mb 24 (12 mobile) */
 .text-subheading {
   font-family: var(--font-body);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 16px;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: #6b6b6b;
+  letter-spacing: 0px;
 }
 
-/* ========== SECTION SPACING (Prestige rhythm: 70-90px desktop) ========== */
+.section__subheading {
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 767px) {
+  .section__subheading {
+    margin-bottom: 12px;
+  }
+}
+
+/* ========== SECTION SPACING (live: 100px desktop / 40px mobile) ========== */
 .section-padding {
   padding-top: 30px;
   padding-bottom: 30px;
 }
 
 .section-padding-lg {
-  padding-top: 80px;
-  padding-bottom: 80px;
+  padding-top: 40px;
+  padding-bottom: 40px;
 }
 
 @media (min-width: 768px) {
   .section-padding-lg {
-    padding-top: 96px;
-    padding-bottom: 96px;
+    padding-top: 100px;
+    padding-bottom: 100px;
   }
 }
 
-/* Section header lockup — matches reference centered headers */
+/* Section header lockup — live: padding-bottom 40 (32 mobile) */
 .section-header {
   text-align: center;
   max-width: 78rem;
-  margin: 0 auto 2rem;
+  margin: 0 auto;
+  padding-bottom: 32px;
 }
 
 @media (min-width: 768px) {
   .section-header {
-    margin-bottom: 2.75rem;
+    padding-bottom: 40px;
+  }
+}
+
+/* ========== FORM CONTROLS (live: 46px, #ededed border, radius 0) ========== */
+.form-control {
+  background: #ffffff;
+  border: 1px solid var(--color-border, #ededed);
+  border-radius: 0;
+  line-height: 44px;
+  min-height: 46px;
+  padding: 0 13px;
+  color: #222222;
+  font-size: 15px;
+  width: 100%;
+}
+
+select.form-control {
+  padding-inline-end: 35px;
+  cursor: pointer;
+}
+
+/* ========== PDP GALLERY (live: 61.8575% media, thumb row under main) ========== */
+.pdp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+}
+
+@media (min-width: 768px) {
+  .pdp-grid {
+    grid-template-columns: 61.8575% 1fr;
+  }
+  .pdp-media {
+    padding-inline-end: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .pdp-media {
+    padding-inline-end: 48px;
+  }
+}
+
+/* Live swatches: 44px mobile / 36px desktop */
+.pdp-swatch {
+  width: 44px;
+  height: 44px;
+}
+
+@media (min-width: 640px) {
+  .pdp-swatch {
+    width: 36px;
+    height: 36px;
   }
 }
 
@@ -145,7 +244,8 @@ h6, .h6 { font-size: 1rem; line-height: 1.4; }
   align-items: center;
   justify-content: center;
   height: 46px;
-  padding: 0 28px;
+  line-height: 30px;
+  padding: 0 40px;
   font-family: var(--font-body);
   font-weight: 500;
   font-size: 13px;
@@ -182,14 +282,14 @@ h6, .h6 { font-size: 1rem; line-height: 1.4; }
 .btn--underline {
   background: transparent;
   color: #ffffff;
-  padding: 0;
+  padding: 2px 0;
   height: auto;
+  line-height: 22px;
   position: relative;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 3px;
   border-bottom: 1px solid currentColor;
-  padding-bottom: 2px;
 }
 
 .btn--underline:hover {
@@ -285,10 +385,12 @@ h6, .h6 { font-size: 1rem; line-height: 1.4; }
 .delay-150 { animation-delay: 150ms; }
 .delay-200 { animation-delay: 200ms; }
 
-/* ========== PRODUCT CARD TITLE ========== */
+/* ========== PRODUCT CARD TITLE (live: 15px/400/none) ========== */
 .product-card-title {
   font-family: var(--font-heading);
   font-weight: 400;
+  font-size: 15px;
+  color: #222222;
   text-transform: none;
   letter-spacing: 0;
 }

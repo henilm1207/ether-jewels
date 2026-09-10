@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { products } from '../data/products';
+import { findProduct } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { Truck, ShieldCheck, Gem } from 'lucide-react';
 
@@ -19,13 +19,14 @@ function formatPrice(value) {
 
 export default function ProductDetail() {
   const { slug } = useParams();
-  const product = products.find((p) => p.slug === slug);
+  const product = findProduct(slug);
   const { addItem } = useCart();
 
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [selectedKt, setSelectedKt] = useState('14KT');
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const carouselRef = useRef(null);
 
   if (!product) {
     return (
@@ -49,6 +50,28 @@ export default function ProductDetail() {
     );
   };
 
+  // Gallery media: optional admin-side video first, then images (supports N images)
+  const medias = [
+    ...(product.video ? [{ type: 'video', src: product.video }] : []),
+    ...product.images.map((src) => ({ type: 'image', src })),
+  ];
+
+  const selectMedia = (i) => {
+    setSelectedImage(i);
+    const el = carouselRef.current;
+    if (el && el.children[i]) {
+      el.children[i].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  };
+
+  const onCarouselScroll = () => {
+    const el = carouselRef.current;
+    if (!el || !el.children.length) return;
+    const w = el.children[0].getBoundingClientRect().width || 1;
+    const i = Math.round(el.scrollLeft / w);
+    if (i !== selectedImage && i >= 0 && i < medias.length) setSelectedImage(i);
+  };
+
   return (
     <>
       <section className="py-8 md:py-12">
@@ -64,64 +87,93 @@ export default function ProductDetail() {
             <span className="text-[#222]">{product.name}</span>
           </nav>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
-            {/* Images — live: vertical thumbs left on desktop, main 65% */}
-            <div className="grid grid-cols-1 lg:grid-cols-[80px_1fr] gap-4">
-              <div className="flex lg:flex-col gap-3 order-2 lg:order-1">
-                {product.images.map((img, i) => (
+          <div className="pdp-grid">
+            {/* Gallery — live: 61.8575% media, thumb row under main (6-up/4-up) */}
+            <div className="pdp-media">
+              {/* Desktop main */}
+              <div className="hidden md:block aspect-square bg-[#f7f2ef] overflow-hidden">
+                {medias[selectedImage]?.type === 'video' ? (
+                  <video src={medias[selectedImage].src} controls className="w-full h-full object-cover" />
+                ) : (
+                  <img
+                    src={medias[selectedImage]?.src}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+              {/* Mobile swipe carousel — 77% peep */}
+              <div
+                ref={carouselRef}
+                onScroll={onCarouselScroll}
+                className="md:hidden flex overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-[15px] px-[15px]"
+              >
+                {medias.map((m, i) => (
+                  <div key={i} className="snap-center flex-shrink-0" style={{ width: '77%', marginRight: '12px' }}>
+                    <div className="aspect-square bg-[#f7f2ef] overflow-hidden">
+                      {m.type === 'video' ? (
+                        <video src={m.src} controls playsInline className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={m.src} alt={i === 0 ? product.name : ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Thumb row */}
+              <div className="grid grid-cols-4 lg:grid-cols-6 gap-2" style={{ marginTop: '12px' }}>
+                {medias.map((m, i) => (
                   <button
                     key={i}
-                    onClick={() => setSelectedImage(i)}
-                    className={`w-16 h-16 lg:w-[80px] lg:h-[80px] bg-[#F6F1EE] overflow-hidden border transition-colors flex-shrink-0 ${
-                      selectedImage === i ? 'border-[#222]' : 'border-[#ededed]'
-                    }`}
+                    onClick={() => selectMedia(i)}
+                    aria-label={`View image ${i + 1}`}
+                    className="aspect-square bg-[#f7f2ef] overflow-hidden transition-colors"
+                    style={{ border: selectedImage === i ? '1px solid #222' : '1px solid transparent' }}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    {m.type === 'video' ? (
+                      <video src={m.src} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={m.src} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    )}
                   </button>
                 ))}
               </div>
-              <div className="aspect-square bg-[#F6F1EE] overflow-hidden order-1 lg:order-2">
-                <img
-                  src={product.images[selectedImage]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
             </div>
 
-            {/* Info — matches mitvajewels.com PDP order */}
-            <div>
+            {/* Info — live block rhythm 24px (20 mobile) */}
+            <div className="pdp-info">
               <h1
-                className="font-heading mb-3"
-                style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', letterSpacing: '1px', lineHeight: 1.25 }}
+                className="font-heading"
+                style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', lineHeight: 1.25, marginBottom: '16px' }}
               >
                 {product.name}
               </h1>
 
-              <p className="text-lg font-medium mb-2">
+              <p className="font-medium" style={{ fontSize: '15px', lineHeight: 1.5, marginBottom: '8px' }}>
                 {formatPrice(currentPrice)}
               </p>
 
-              <p className="text-[13px] text-gray-500 uppercase mb-6" style={{ letterSpacing: '1px' }}>
+              <p className="text-[13px] text-gray-500 uppercase" style={{ letterSpacing: '1px', marginBottom: '24px' }}>
                 Setting Only — Center Diamond Not Included
               </p>
 
-              {/* KT Selector */}
-              <div className="mb-5">
-                <p className="text-[13px] font-medium mb-3">
-                  KT: <span className="text-gray-600 font-normal">{selectedKt}</span>
+              {/* KT Selector — live option buttons 46px, 12px gaps */}
+              <div style={{ marginBottom: '24px' }}>
+                <p className="text-[15px]" style={{ lineHeight: '24px', marginBottom: '12px' }}>
+                  <span className="font-medium">KT:</span>{' '}
+                  <span className="text-gray-600">{selectedKt}</span>
                 </p>
-                <div className="flex gap-2">
+                <div className="flex" style={{ gap: '12px' }}>
                   {['14KT', '18KT'].map((kt) => (
                     <button
                       key={kt}
                       onClick={() => setSelectedKt(kt)}
-                      className={`px-5 transition-all text-[13px] font-medium uppercase ${
+                      className={`transition-all text-[13px] font-medium uppercase ${
                         selectedKt === kt
                           ? 'bg-[#222] text-white border border-[#222]'
-                          : 'bg-white text-[#222] border border-[#d9d9d9] hover:border-[#222]'
+                          : 'bg-white text-[#222] border hover:border-[#222]'
                       }`}
-                      style={{ height: '46px', minWidth: '80px', letterSpacing: '1px' }}
+                      style={{ minWidth: '73px', minHeight: '46px', padding: '8px 14px', borderColor: selectedKt === kt ? '#222' : '#ededed', letterSpacing: '1px' }}
                     >
                       {kt}
                     </button>
@@ -129,24 +181,22 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* Color Selector */}
+              {/* Color Selector — live swatches 36px (44px mobile) */}
               {product.variants && product.variants.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-[13px] font-medium mb-3">
-                    Color:{' '}
-                    <span className="text-gray-600 font-normal">
+                <div style={{ marginBottom: '24px' }}>
+                  <p className="text-[15px]" style={{ lineHeight: '24px', marginBottom: '12px' }}>
+                    <span className="font-medium">Color:</span>{' '}
+                    <span className="text-gray-600">
                       {product.variants[selectedVariant].material || product.variants[selectedVariant].name}
                     </span>
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex" style={{ gap: '12px' }}>
                     {product.variants.map((variant, i) => (
                       <span key={i} className="relative group/swatch">
                         <button
                           onClick={() => setSelectedVariant(i)}
-                          className="w-9 h-9 rounded-full transition-all block"
+                          className="pdp-swatch rounded-full transition-all block"
                           style={{
-                            width: '36px',
-                            height: '36px',
                             backgroundColor: variant.color,
                             outline: selectedVariant === i ? '2px solid #222' : '1px solid #d1d5db',
                             outlineOffset: '2px',
@@ -166,19 +216,23 @@ export default function ProductDetail() {
               {/* Choose your diamond */}
               <Link
                 to="/pages/diamond"
-                className="btn btn--secondary w-full mb-4"
+                className="btn btn--secondary w-full"
+                style={{ marginBottom: '24px' }}
               >
                 <Gem size={15} strokeWidth={1.5} className="mr-2" />
                 Choose your diamond
               </Link>
 
               {/* Quantity */}
-              <div className="mb-4">
-                <p className="text-[13px] font-medium mb-3">Quantity</p>
+              <div style={{ marginBottom: '24px' }}>
+                <p className="text-[15px]" style={{ lineHeight: '24px', marginBottom: '12px' }}>
+                  <span className="font-medium">Quantity</span>
+                </p>
                 <div className="inline-flex items-center border border-[#ededed]" style={{ height: '46px' }}>
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="px-4 hover:bg-gray-50 h-full text-lg"
+                    aria-label="Decrease quantity"
                   >
                     −
                   </button>
@@ -188,26 +242,27 @@ export default function ProductDetail() {
                   <button
                     onClick={() => setQuantity(quantity + 1)}
                     className="px-4 hover:bg-gray-50 h-full text-lg"
+                    aria-label="Increase quantity"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              {/* Add to Cart */}
-              <button
-                onClick={handleAddToCart}
-                className="btn btn--primary w-full mb-3"
-              >
-                Add to cart
-              </button>
+              {/* Buy buttons — live: 40px top margin, 12px gap */}
+              <div className="grid" style={{ gap: '12px', marginTop: '40px', marginBottom: '24px' }}>
+                <button
+                  onClick={handleAddToCart}
+                  className="btn btn--primary w-full"
+                >
+                  Add to cart
+                </button>
+                <button className="btn btn--secondary w-full">
+                  Buy it now
+                </button>
+              </div>
 
-              {/* Buy Now */}
-              <button className="btn btn--secondary w-full mb-6">
-                Buy it now
-              </button>
-
-              {/* Sticky ATC — mobile only, like live */}
+              {/* Sticky ATC — mobile only */}
               <div className="lg:hidden sticky bottom-0 z-30 bg-white/95 backdrop-blur border-t border-[#ededed] py-3 px-1 mb-6 flex items-center gap-3">
                 <span className="text-[15px] font-medium whitespace-nowrap">{formatPrice(currentPrice)}</span>
                 <button onClick={handleAddToCart} className="btn btn--primary flex-1">
@@ -215,13 +270,13 @@ export default function ProductDetail() {
                 </button>
               </div>
 
-              {/* Cert + shipping lines (reference PDP) */}
-              <div className="space-y-2.5 mb-8">
-                <div className="flex items-center gap-3 text-[13px] text-gray-600">
+              {/* Cert + shipping lines */}
+              <div className="space-y-2.5" style={{ marginBottom: '24px' }}>
+                <div className="flex items-center gap-3 text-[15px] text-gray-600">
                   <ShieldCheck size={16} strokeWidth={1.5} />
                   <span>Certified by GIA/IGI/SHC</span>
                 </div>
-                <div className="flex items-center gap-3 text-[13px] text-gray-600">
+                <div className="flex items-center gap-3 text-[15px] text-gray-600">
                   <Truck size={16} strokeWidth={1.5} />
                   <span>Free Worldwide Shipping Over $1,000</span>
                 </div>
@@ -229,17 +284,17 @@ export default function ProductDetail() {
 
               {/* Description */}
               {product.description && (
-                <p className="text-gray-600 mb-6 leading-relaxed text-[15px]">
+                <p className="text-gray-600 leading-relaxed text-[15px]" style={{ marginBottom: '24px' }}>
                   {product.description}
                 </p>
               )}
 
-              {/* Price Note + Details table (reference PDP) */}
-              <div className="border-t border-[#ededed] pt-6 mb-8">
-                <p className="text-[13px] text-gray-500 mb-4 leading-relaxed">
+              {/* Price Note + Details table */}
+              <div className="border-t border-[#ededed]" style={{ paddingTop: '24px' }}>
+                <p className="text-[13px] text-gray-500 leading-relaxed" style={{ marginBottom: '16px' }}>
                   Price Note: Setting price shown. Final price depends on your selected diamond, KT and color.
                 </p>
-                <table className="w-full text-[14px]">
+                <table className="w-full text-[15px]">
                   <tbody>
                     {product.style && (
                       <tr className="border-b border-[#ededed]">
@@ -281,7 +336,7 @@ export default function ProductDetail() {
       {/* Diamond expert advisor (reference PDP) */}
       <section className="bg-white section-padding-lg">
         <div className="container max-w-3xl mx-auto text-center">
-          <p className="text-subheading mb-3">Need Help?</p>
+          <p className="section__subheading">Need Help?</p>
           <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '1px' }}>
             Talk to a Diamond Expert
           </h2>
@@ -314,7 +369,7 @@ export default function ProductDetail() {
       <section className="bg-white border-t border-[#ededed] section-padding-lg" style={{ paddingTop: '60px' }}>
         <div className="container">
           <div className="section-header">
-            <p className="text-subheading mb-3">Reviews</p>
+            <p className="section__subheading">Reviews</p>
             <h2 className="font-heading" style={{ fontSize: 'clamp(1.4rem, 3vw, 1.75rem)', letterSpacing: '1px' }}>
               What Our Clients Say
             </h2>
@@ -345,7 +400,7 @@ export default function ProductDetail() {
           <p className="mb-3" style={{ fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.7)' }}>
             The Mitva Standard
           </p>
-          <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', letterSpacing: '2.5px', lineHeight: 1.2 }}>
+          <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', letterSpacing: '1px', lineHeight: 1.2 }}>
             From selection to setting, every detail is handled at the source
           </h2>
           <p className="leading-relaxed" style={{ fontSize: '15px', color: 'rgba(255,255,255,0.75)' }}>

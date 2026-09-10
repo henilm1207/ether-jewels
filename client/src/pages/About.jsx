@@ -64,7 +64,7 @@ export default function About() {
                 <h3
                   className="mb-3"
                   style={{
-                    fontFamily: "'Playfair Display', serif",
+                    fontFamily: 'var(--font-heading)',
                     fontWeight: 400,
                     textTransform: 'uppercase',
                     letterSpacing: '1px',

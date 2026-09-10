@@ -5,9 +5,10 @@ import { X, ChevronDown, ChevronUp } from 'lucide-react';
 const menuItems = [
   {
     label: 'Rings',
+    to: '/collections/rings',
     children: [
       { label: 'Solitaire Rings', to: '/collections/solitaire-rings' },
-      { label: 'Halo Rings', to: '/collections/halo-rings' },
+      { label: 'Halo Rings', to: '/collections/halo-rings-1' },
       { label: 'Engagement Rings', to: '/collections/engagement-rings' },
       { label: 'Three Stone Rings', to: '/collections/three-stone-rings' },
       { label: 'Bands', to: '/collections/bands' },
@@ -27,12 +28,13 @@ export default function MobileNav({ isOpen, onClose }) {
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/50 z-[100] animate-fade-in"
+        className="fixed inset-0 z-[100] animate-fade-in"
+        style={{ background: 'rgba(68,68,68,0.64)' }}
         onClick={onClose}
       />
 
       {/* Drawer */}
-      <div className="fixed top-0 left-0 h-full w-full max-w-[460px] bg-white z-[101] flex flex-col animate-slide-in-left">
+      <div className="fixed top-0 left-0 h-full w-full max-w-[350px] bg-white z-[101] flex flex-col animate-slide-in-left">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#ededed]">
           <Link to="/" onClick={onClose}>

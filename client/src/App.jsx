@@ -10,7 +10,16 @@ import ProductDetail from './pages/ProductDetail';
 import Diamond from './pages/Diamond';
 import Contact from './pages/Contact';
 import About from './pages/About';
+import Search from './pages/Search';
+import Cart from './pages/Cart';
+import Login from './pages/Login';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import ReturnPolicy from './pages/ReturnPolicy';
+import ShippingPolicy from './pages/ShippingPolicy';
+import Faqs from './pages/Faqs';
 import NewsletterPopup from './components/ui/NewsletterPopup';
+import AgeVerifier from './components/ui/AgeVerifier';
 import CookieConsent from './components/ui/CookieConsent';
 
 function App() {
@@ -38,7 +47,7 @@ function App() {
         searchOpen={searchOpen}
       />
 
-      <main className="flex-1" style={{ paddingTop: isHome ? 0 : '84px' }}>
+      <main className={`flex-1${isHome ? '' : ' page-offset'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/collections/:category" element={<Collection />} />
@@ -46,6 +55,14 @@ function App() {
           <Route path="/pages/diamond" element={<Diamond />} />
           <Route path="/pages/contact" element={<Contact />} />
           <Route path="/pages/about-us" element={<About />} />
+          <Route path="/pages/return-policy" element={<ReturnPolicy />} />
+          <Route path="/pages/shipping-and-deliveries" element={<ShippingPolicy />} />
+          <Route path="/pages/faqs" element={<Faqs />} />
+          <Route path="/policies/terms-of-service" element={<TermsOfService />} />
+          <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/account/login" element={<Login />} />
         </Routes>
       </main>
 
@@ -55,6 +72,7 @@ function App() {
       <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       <NewsletterPopup />
+      <AgeVerifier />
       <CookieConsent />
     </div>
   );

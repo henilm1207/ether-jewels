@@ -1,43 +1,50 @@
+import { useState } from 'react';
 import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 
+// Live: 350px drawer, $100 free-shipping goal, 80px thumbs, 38×110 qty.
 export default function CartDrawer({ isOpen, onClose }) {
   const { items, removeItem, updateQuantity, subtotal } = useCart();
-  const FREE_SHIPPING_THRESHOLD = 1000;
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [note, setNote] = useState('');
+  const [code, setCode] = useState('');
+  const [appliedCode, setAppliedCode] = useState('');
+  const FREE_SHIPPING_THRESHOLD = 100;
   const shippingProgress = Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100);
 
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay — live #444 at 64% */}
       <div
-        className="fixed inset-0 bg-black/50 z-[100] animate-fade-in"
+        className="fixed inset-0 z-[100] animate-fade-in"
+        style={{ background: 'rgba(68,68,68,0.64)' }}
         onClick={onClose}
       />
 
-      {/* Drawer — live is 420px */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-[420px] bg-white z-[101] flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#ededed]">
-          <h2 className="text-[13px] font-medium tracking-[1px] uppercase">
+      {/* Drawer */}
+      <div className="fixed top-0 right-0 h-full w-full max-w-[350px] bg-white z-[101] flex flex-col animate-slide-in-right">
+        {/* Header — live 60px */}
+        <div className="flex items-center justify-between border-b border-[#ededed]" style={{ height: '60px', padding: '16px 20px' }}>
+          <h2 className="text-[15px] font-medium">
             Your cart ({items.length} {items.length === 1 ? 'item' : 'items'})
           </h2>
-          <button onClick={onClose} className="p-1 hover:opacity-70">
-            <X size={20} />
+          <button onClick={onClose} className="p-1 hover:opacity-70" aria-label="Close cart">
+            <X size={22} />
           </button>
         </div>
 
-        {/* Shipping Progress */}
-        <div className="px-6 py-3 bg-[#f7f2ef]">
+        {/* Shipping goal */}
+        <div className="bg-[#f7f2ef]" style={{ padding: '12px 20px' }}>
           {subtotal >= FREE_SHIPPING_THRESHOLD ? (
-            <p className="text-sm text-center text-green-700 font-medium">
-              ✓ Your order qualifies for free shipping!
+            <p className="text-sm text-center font-medium">
+              Congratulations! Your order qualifies for free shipping
             </p>
           ) : (
             <>
-              <p className="text-sm text-center mb-2">
+              <p className="text-sm text-center" style={{ marginBottom: '8px' }}>
                 Spend ${(FREE_SHIPPING_THRESHOLD - subtotal).toFixed(2)} more for free shipping
               </p>
               <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -50,28 +57,30 @@ export default function CartDrawer({ isOpen, onClose }) {
           )}
         </div>
 
-        {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        {/* Items */}
+        <div className="flex-1 overflow-y-auto" style={{ padding: '0 20px' }}>
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <ShoppingBag size={48} className="text-gray-300 mb-4" />
-              <p className="text-sm text-gray-500 mb-4">Your cart is empty</p>
+            <div className="flex flex-col items-center justify-center h-full text-center" style={{ maxWidth: '300px', margin: '0 auto' }}>
+              <ShoppingBag size={48} className="text-gray-300" style={{ marginBottom: '12px' }} />
+              <p className="text-[15px] text-gray-500" style={{ marginTop: '30px', marginBottom: '20px' }}>Your cart is empty</p>
               <Link
-                to="/collections/solitaire-rings"
+                to="/collections/rings"
                 onClick={onClose}
-                className="px-6 py-3 bg-[#222] text-white text-[13px] font-medium uppercase tracking-wider hover:bg-black transition-colors"
+                className="btn btn--primary w-full"
+                style={{ marginBottom: '12px' }}
               >
                 Continue Shopping
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div>
               {items.map((item) => (
-                <div key={item.key} className="flex gap-4 py-4 border-b border-[#ededed] last:border-0">
+                <div key={item.key} className="flex" style={{ padding: '20px 0', marginTop: items.indexOf(item) === 0 ? '16px' : 0, borderBottom: '1px solid #ededed' }}>
                   <Link
                     to={`/products/${item.product.slug}`}
                     onClick={onClose}
-                    className="flex-shrink-0 w-[80px] h-[80px] bg-[#f7f2ef] overflow-hidden"
+                    className="flex-shrink-0 bg-[#f7f2ef] overflow-hidden"
+                    style={{ width: '80px', height: '80px' }}
                   >
                     <img
                       src={item.product.images[0]}
@@ -80,42 +89,46 @@ export default function CartDrawer({ isOpen, onClose }) {
                     />
                   </Link>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0" style={{ paddingInlineStart: '12px' }}>
                     <Link
                       to={`/products/${item.product.slug}`}
                       onClick={onClose}
-                      className="text-sm font-medium hover:opacity-70 transition-opacity block truncate"
+                      className="text-[15px] font-medium hover:opacity-70 transition-opacity block truncate"
+                      style={{ marginBottom: '4px' }}
                     >
                       {item.product.name}
                     </Link>
                     {item.variant && (
-                      <p className="text-xs text-gray-500 mt-0.5">{item.variant.name}</p>
+                      <p className="text-xs text-gray-500">{item.variant.name}{item.variant.kt ? ` / ${item.variant.kt}` : ''}</p>
                     )}
-                    <p className="text-sm font-medium mt-1">
+                    <p className="text-[15px] font-medium" style={{ margin: '-2px 0 5px' }}>
                       ${(item.variant?.price || item.product.price).toFixed(2)}
                     </p>
 
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center border border-[#ededed]">
+                    <div className="flex items-center">
+                      <div className="flex items-center border border-[#ededed]" style={{ height: '38px', width: '110px' }}>
                         <button
                           onClick={() => updateQuantity(item.key, item.quantity - 1)}
-                          className="p-1.5 hover:bg-gray-50"
+                          className="px-2.5 hover:bg-gray-50 h-full"
+                          aria-label="Decrease quantity"
                         >
                           <Minus size={14} />
                         </button>
-                        <span className="px-3 text-sm font-medium min-w-[32px] text-center">
+                        <span className="flex-1 text-sm font-medium text-center">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => updateQuantity(item.key, item.quantity + 1)}
-                          className="p-1.5 hover:bg-gray-50"
+                          className="px-2.5 hover:bg-gray-50 h-full"
+                          aria-label="Increase quantity"
                         >
                           <Plus size={14} />
                         </button>
                       </div>
                       <button
                         onClick={() => removeItem(item.key)}
-                        className="text-xs text-gray-500 hover:text-[#222] underline"
+                        className="text-gray-500 hover:text-[#222] underline"
+                        style={{ fontSize: '14px', textTransform: 'capitalize', lineHeight: 1, marginInlineStart: '12px' }}
                       >
                         Remove
                       </button>
@@ -129,19 +142,62 @@ export default function CartDrawer({ isOpen, onClose }) {
 
         {/* Footer */}
         {items.length > 0 && (
-          <div className="border-t border-[#ededed] px-6 py-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Subtotal:</span>
-              <span className="text-sm font-medium">${subtotal.toFixed(2)} USD</span>
-            </div>
-            <p className="text-xs text-gray-500">Tax included. Shipping calculated at checkout.</p>
-            <button className="w-full py-3.5 bg-[#222] text-white text-[13px] font-medium uppercase tracking-wider hover:bg-black transition-colors">
-              Check out
+          <div className="border-t border-[#ededed]" style={{ padding: '13px 20px 24px' }}>
+            <button
+              onClick={() => setNoteOpen(!noteOpen)}
+              className="text-[13px] underline hover:text-black"
+              style={{ marginBottom: '8px' }}
+            >
+              Add order note
             </button>
+            {noteOpen && (
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add a note to your order"
+                rows={2}
+                className="form-control"
+                style={{ marginBottom: '12px', lineHeight: 1.6, paddingTop: '8px' }}
+              />
+            )}
+            {appliedCode ? (
+              <p className="text-[13px]" style={{ marginBottom: '8px' }}>
+                Code &ldquo;{appliedCode}&rdquo; — discounts calculated at checkout.
+              </p>
+            ) : (
+              <form
+                className="flex gap-2"
+                style={{ marginBottom: '8px' }}
+                onSubmit={(e) => { e.preventDefault(); if (code.trim()) setAppliedCode(code.trim()); }}
+              >
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Add discount code"
+                  className="form-control flex-1"
+                  aria-label="Discount code"
+                />
+                <button type="submit" className="btn btn--secondary" style={{ padding: '0 20px' }}>
+                  Apply
+                </button>
+              </form>
+            )}
+            <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+              <span className="font-medium" style={{ fontSize: '15px', lineHeight: '24px' }}>Subtotal:</span>
+              <span className="font-medium" style={{ fontSize: '15px', lineHeight: '26px' }}>${subtotal.toFixed(2)} USD</span>
+            </div>
+            <p className="text-xs text-gray-500" style={{ marginBottom: '12px' }}>Tax included. Shipping calculated at checkout.</p>
+            <div className="flex" style={{ gap: '8px' }}>
+              <button className="btn btn--primary flex-1">
+                Check out
+              </button>
+            </div>
             <Link
               to="/cart"
               onClick={onClose}
-              className="block w-full py-3.5 border border-[#222] text-center text-[13px] font-medium uppercase tracking-wider hover:bg-[#222] hover:text-white transition-colors"
+              className="block w-full text-center text-[13px] font-medium uppercase tracking-wider hover:opacity-70"
+              style={{ marginTop: '12px', padding: '0 29px', lineHeight: '30px' }}
             >
               View cart
             </Link>
