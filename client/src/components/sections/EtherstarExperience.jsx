@@ -44,7 +44,7 @@ export default function EtherstarExperience() {
   const [activeTab, setActiveTab] = useState(0);
 
   return (
-    <section className="section-padding-lg bg-white">
+    <section className="exp-pad bg-white">
       <div className="container-fluid">
         {/* Mobile header — text-left above image */}
         <div className="md:hidden text-left" style={{ paddingBottom: '32px' }}>
@@ -73,7 +73,7 @@ export default function EtherstarExperience() {
           {/* Content column */}
           <div className="w-full lg:w-1/2 flex flex-col justify-center">
             {/* Desktop header inside content column */}
-            <div className="hidden md:block text-left" style={{ paddingBottom: '40px' }}>
+            <div className="hidden md:block text-left" style={{ paddingBottom: '30px' }}>
               <p className="section__subheading">
                 THE ETHERSTAR EXPERIENCE
               </p>
@@ -91,15 +91,15 @@ export default function EtherstarExperience() {
                 return (
                   <div
                     key={tab.id}
-                    className="border-t border-[#ededed] last:border-b"
-                    style={{ padding: index === 0 ? '0 0 32px' : '32px 0' }}
+                    className="relative border-b border-[#ededed]"
+                    style={{ padding: index === 0 ? '0 0 20px' : '20px 0' }}
                     onMouseEnter={() => setActiveTab(index)}
                   >
                     <button
                       onClick={() => setActiveTab(index)}
                       aria-expanded={isActive}
                       className="relative w-full flex items-center text-left"
-                      style={{ minHeight: '96px', padding: '16px 80px 16px 0' }}
+                      style={{ minHeight: '60px', padding: '10px 50px 10px 0' }}
                     >
                       <span
                         className="text-gray-400 flex-shrink-0"
@@ -119,8 +119,8 @@ export default function EtherstarExperience() {
                         className="absolute top-1/2 -translate-y-1/2 rounded-full items-center justify-center hidden sm:inline-flex"
                         style={{
                           right: 0,
-                          width: '64px',
-                          height: '64px',
+                          width: '40px',
+                          height: '40px',
                           border: '1px solid rgba(34,34,34,0.2)',
                           opacity: isActive ? 1 : 0.45,
                         }}
@@ -130,21 +130,21 @@ export default function EtherstarExperience() {
                           <path d="M9 3.75L14.25 9L9 14.25" />
                         </svg>
                       </span>
-                      {/* Base + active underline */}
-                      <span aria-hidden="true" className="absolute bottom-0 left-0 h-[2px] w-full bg-[#222]" style={{ opacity: 0.2 }} />
-                      <span
-                        aria-hidden="true"
-                        className="absolute bottom-0 left-0 h-[2px] bg-[#222] transition-all duration-500"
-                        style={{ width: isActive ? '100%' : '0%' }}
-                      />
                     </button>
                     {isActive && (
-                      <div className="animate-fade-in" style={{ padding: '0 10px 40px 50px' }}>
+                      <div className="animate-fade-in" style={{ padding: '0 50px 10px 40px' }}>
                         <p style={{ fontSize: '15px', lineHeight: 1.7, color: '#666' }}>
                           {tab.description}
                         </p>
                       </div>
                     )}
+                    {/* Base + active row line — live 1px at row bottom */}
+                    <span aria-hidden="true" className="absolute bottom-0 left-0 h-[1px] w-full bg-[#222]" style={{ opacity: 0.2 }} />
+                    <span
+                      aria-hidden="true"
+                      className="absolute bottom-0 left-0 h-[1px] bg-[#222] transition-all duration-500"
+                      style={{ width: isActive ? '100%' : '0%' }}
+                    />
                   </div>
                 );
               })}
@@ -153,12 +153,13 @@ export default function EtherstarExperience() {
         </div>
       </div>
       <style>{`
-        .exp-grid { gap: 35px; }
+        .exp-pad { padding: 40px 0; }
+        .exp-grid { gap: 22px; }
         .exp-title { font-size: 32px; line-height: 1.2; }
         .exp-tab-title { font-size: 17.6px; }
-        @media (min-width: 768px) { .exp-grid { gap: 80px; } }
+        @media (min-width: 768px) { .exp-pad { padding: 70px 0; } .exp-grid { gap: 50px; } }
         @media (min-width: 1024px) { .exp-title { font-size: 40px; } .exp-tab-title { font-size: 22px; } }
-        @media (min-width: 1280px) { .exp-grid { gap: 160px; } }
+        @media (min-width: 1280px) { .exp-grid { gap: 100px; } }
       `}</style>
     </section>
   );

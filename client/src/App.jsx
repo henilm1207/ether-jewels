@@ -19,7 +19,6 @@ import ReturnPolicy from './pages/ReturnPolicy';
 import ShippingPolicy from './pages/ShippingPolicy';
 import Faqs from './pages/Faqs';
 import NewsletterPopup from './components/ui/NewsletterPopup';
-import AgeVerifier from './components/ui/AgeVerifier';
 import CookieConsent from './components/ui/CookieConsent';
 
 function App() {
@@ -72,7 +71,6 @@ function App() {
       <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       <NewsletterPopup />
-      <AgeVerifier />
       <CookieConsent />
     </div>
   );

@@ -7,8 +7,8 @@ const paymentMethods = [
     name: 'American Express',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="American Express">
-        <rect width="38" height="24" fill="#0071CE" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#0071CE" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <text x="19" y="16" textAnchor="middle" fontSize="8" fontWeight="800" fill="#fff" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="0.5">AMEX</text>
       </svg>
     ),
@@ -17,8 +17,8 @@ const paymentMethods = [
     name: 'Apple Pay',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="Apple Pay">
-        <rect width="38" height="24" fill="#000" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#000" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <g transform="translate(-1,-0.5)">
           <path fill="#fff" d="M15.36 13.76c0-1.54 1.26-2.28 1.32-2.32-.72-1.05-1.84-1.19-2.23-1.21-.95-.1-1.86.56-2.34.56-.48 0-1.23-.55-2.02-.53-1.04.01-2 .6-2.53 1.53-1.08 1.87-.27 4.64.78 6.16.51.74 1.13 1.58 1.93 1.54.78-.03 1.07-.5 2.01-.5s1.2.5 2.03.49c.84-.02 1.37-.76 1.88-1.5.6-.87.84-1.71.86-1.75-.02-.01-1.64-.63-1.69-2.47zM13.98 8.84c.43-.52.72-1.24.64-1.95-.62.02-1.36.41-1.8.92-.4.46-.74 1.19-.65 1.89.7.05 1.4-.35 1.81-.86z" />
         </g>
@@ -30,8 +30,8 @@ const paymentMethods = [
     name: 'Diners Club',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="Diners Club">
-        <rect width="38" height="24" fill="#fff" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#fff" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <clipPath id="dc-clip"><circle cx="11.5" cy="12" r="7" /></clipPath>
         <g clipPath="url(#dc-clip)">
           <rect x="4.5" y="5" width="7" height="14" fill="#0079BE" />
@@ -47,8 +47,8 @@ const paymentMethods = [
     name: 'Discover',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="Discover">
-        <rect width="38" height="24" fill="#fff" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#fff" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <text x="18" y="12" textAnchor="middle" fontSize="6.2" fontWeight="800" fill="#111" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="0.3">DISCOVER</text>
         <path d="M4.5 16.8c4.2 1.7 9.4 2.4 14 2.1 3.8-.2 7-1 9.8-2.1" fill="none" stroke="#F48120" strokeWidth="1.9" strokeLinecap="round" />
         <circle cx="29.8" cy="14.8" r="3" fill="#F48120" />
@@ -60,8 +60,8 @@ const paymentMethods = [
     name: 'Google Pay',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="Google Pay">
-        <rect width="38" height="24" fill="#fff" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#fff" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <g transform="translate(5,5) scale(0.5833)">
           <path fill="#EA4335" d="M12 4.7c1.8 0 3.4.6 4.6 1.8l3.4-3.4C17.9 1.1 15.2 0 12 0 7.3 0 3.3 2.5 1.4 6.7l3.8 2.9c.9-2.9 3.6-4.9 6.8-4.9z" />
           <path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.3H12v4.5h6.5c-.3 1.4-1.1 2.6-2.3 3.4v2.8h3.7c2.2-2 3.6-5 3.6-8.4z" />
@@ -76,8 +76,8 @@ const paymentMethods = [
     name: 'JCB',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="JCB">
-        <rect width="38" height="24" fill="#fff" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#fff" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <rect x="5" y="5.5" width="8" height="13" fill="#0B4EA2" />
         <rect x="15" y="5.5" width="8" height="13" fill="#CC0000" />
         <rect x="25" y="5.5" width="8" height="13" fill="#009A44" />
@@ -91,8 +91,8 @@ const paymentMethods = [
     name: 'Mastercard',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="Mastercard">
-        <rect width="38" height="24" fill="#232323" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#232323" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <circle cx="15.5" cy="12" r="6" fill="#EB001B" />
         <circle cx="22.5" cy="12" r="6" fill="#F79E1B" />
         <path d="M19 7.127 A6 6 0 0 0 19 16.873 A6 6 0 0 0 19 7.127 Z" fill="#FF5F00" />
@@ -103,8 +103,8 @@ const paymentMethods = [
     name: 'Visa',
     svg: (
       <svg width="38" height="24" viewBox="0 0 38 24" role="img" aria-label="Visa">
-        <rect width="38" height="24" fill="#fff" />
-        <rect width="38" height="24" fill="none" stroke="#000" strokeOpacity="0.07" />
+        <rect width="38" height="24" rx="2.5" fill="#fff" />
+        <rect width="38" height="24" rx="2.5" fill="none" stroke="#000" strokeOpacity="0.07" />
         <text x="19" y="16.5" textAnchor="middle" fontSize="10" fontWeight="800" fontStyle="italic" fill="#142FBD" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="0.5">VISA</text>
       </svg>
     ),
@@ -119,7 +119,7 @@ const blockTitleStyle = {
   marginBottom: '24px',
 };
 
-const linkClass = 'text-[15px] hover:text-[#222] transition-colors';
+const linkClass = 'text-[15px] link--animated transition-colors';
 const linkStyle = { color: '#222', lineHeight: '30px' };
 
 /* Link column — static heading on desktop, collapsible details on mobile */
@@ -141,11 +141,12 @@ function LinkBlock({ title, links }) {
       <details className="lg:hidden group" style={{ borderBottom: '1px solid rgba(34,34,34,.1)' }}>
         <summary className="flex items-center justify-between py-4 cursor-pointer list-none" style={{ fontSize: '16px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1px' }}>
           {title}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="transition-transform group-open:rotate-180" aria-hidden="true">
-            <path d="M2 4l4 4 4-4" />
-          </svg>
+          <span aria-hidden="true" className="relative inline-block flex-shrink-0" style={{ width: '12px', height: '12px' }}>
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 bg-current" style={{ width: '12px', height: '1.5px' }} />
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 bg-current group-open:hidden" style={{ width: '1.5px', height: '12px' }} />
+          </span>
         </summary>
-        <div className="pb-8">
+        <div className="pb-5">
             <ul>
               {links.map((link) => (
                 <li key={link.label} style={{ lineHeight: '30px' }}>
@@ -183,25 +184,25 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-[#ece7e3]" style={{ borderTop: '0.1rem solid #ededed' }}>
+    <footer className="site-footer site-footer--show-divider bg-[#ece7e3]">
       {/* site-footer__top — live: 8rem 0 1.5rem (mobile 3.2rem top) */}
-      <div className="container pt-[5rem] pb-6 lg:pt-[10rem] lg:pb-[1.5rem]">
+      <div className="container pt-[32px] pb-[15px] lg:pt-[80px] lg:pb-[15px]">
         {/* f-column flex percentages — newsletter last in DOM, right on desktop */}
         <div className="flex flex-col lg:flex-row lg:items-start">
           {/* Logo — 20%, centered in its column on desktop */}
-          <div className="lg:order-1 lg:basis-[20%] mb-8 lg:mb-0 lg:pr-6 lg:flex lg:justify-center">
+          <div className="order-1 lg:order-1 lg:basis-[20%] mb-8 lg:mb-0 lg:pr-[15px] lg:flex lg:justify-center">
             <Link to="/">
               <img src="/images/logo.png" alt="ETHERSTAR JEWELS" style={{ maxWidth: '150px' }} />
             </Link>
           </div>
 
           {/* Newsletter — 36%, order 9 on desktop (right) */}
-          <div className="order-2 lg:order-9 lg:basis-[36%] mb-8 lg:mb-0 lg:pl-6">
+          <div className="order-2 lg:order-9 lg:basis-[36%] mb-8 lg:mb-0 lg:pl-[15px]">
             <div className="lg:max-w-[420px] lg:ml-auto">
               <h6 className="mb-3" style={blockTitleStyle}>
                 Join the Etherstar Club
               </h6>
-              <p className="text-sm mb-4" style={{ color: 'rgba(34,34,34,.8)' }}>
+              <p className="text-sm mb-6" style={{ color: 'rgba(34,34,34,.8)' }}>
                 Subscribe for store updates and discounts.
               </p>
               {subscribed ? (
@@ -209,8 +210,7 @@ export default function Footer() {
               ) : (
                 <form
                   onSubmit={handleSubscribe}
-                  className="flex items-stretch"
-                  style={{ border: '1px solid #222', background: 'transparent', height: '46px' }}
+                  className="relative"
                 >
                   <label htmlFor="footer-newsletter-email" className="sr-only">Email</label>
                   <input
@@ -219,24 +219,24 @@ export default function Footer() {
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="flex-1 min-w-0 px-4 bg-transparent text-sm focus:outline-none placeholder:text-gray-500"
-                    style={{ border: 0 }}
+                    className="w-full bg-white text-sm focus:outline-none focus-visible:outline-none placeholder:text-[rgba(34,34,34,0.75)] focus:shadow-[0_0_0_1px_#222]"
+                    style={{ height: '46px', border: '1px solid #ededed', borderRadius: 0, padding: '0 50px 0 13px', color: '#222' }}
                     required
                   />
                   <button
                     type="submit"
                     aria-label="Subscribe"
-                    className="hover:opacity-70 transition-opacity flex items-center justify-center flex-shrink-0"
-                    style={{ width: '52px', border: 0, background: 'transparent' }}
+                    className="group/arrow absolute top-0 bottom-0 flex items-center justify-center"
+                    style={{ right: 0, border: 0, background: 'transparent', padding: '0 15px', color: '#222' }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="transition-transform group-hover/arrow:translate-x-[2px]">
                       <path d="M3.75 9H14.25" />
                       <path d="M9 3.75L14.25 9L9 14.25" />
                     </svg>
                   </button>
                 </form>
               )}
-              <p className="text-[11px]" style={{ color: 'rgba(34,34,34,.8)', marginTop: '16px' }}>
+              <p className="text-[11px] mt-4 md:mt-3" style={{ color: 'rgba(34,34,34,.8)' }}>
                 By subscribing you agree to the{' '}
                 <Link to="/policies/terms-of-service" className="underline">Terms of Use</Link> &{' '}
                 <Link to="/policies/privacy-policy" className="underline">Privacy Policy</Link>.
@@ -245,7 +245,7 @@ export default function Footer() {
           </div>
 
           {/* Contact — 16% */}
-          <div className="lg:order-2 lg:basis-[16%] lg:px-6">
+          <div className="order-3 lg:order-2 lg:basis-[16%] mb-0 lg:mb-0 lg:px-[15px]">
             <LinkBlock
               title="Contact"
               links={[
@@ -259,7 +259,7 @@ export default function Footer() {
           </div>
 
           {/* Shop — 10% */}
-          <div className="lg:order-3 lg:basis-[10%] lg:px-6">
+          <div className="order-3 lg:order-3 lg:basis-[10%] mb-0 lg:mb-0 lg:px-[15px]">
             <LinkBlock
               title="Shop"
               links={[
@@ -272,7 +272,7 @@ export default function Footer() {
           </div>
 
           {/* Company — 16% */}
-          <div className="lg:order-4 lg:basis-[16%] lg:px-6">
+          <div className="order-3 lg:order-4 lg:basis-[16%] mb-0 lg:mb-0 lg:px-[15px]">
             <LinkBlock
               title="Company"
               links={[
@@ -288,12 +288,12 @@ export default function Footer() {
 
       {/* site-footer__bottom — live: 5rem 0 6rem (mobile 1rem/3.2rem), no divider */}
       <div>
-        <div className="container pt-4 pb-[5rem] lg:pt-[5rem] lg:pb-[8rem]">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm" style={{ color: '#222' }}>
+        <div className="container pt-[10px] pb-[32px] lg:pt-[50px] lg:pb-[60px]">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-5">
+            <p className="text-sm order-2 md:order-1" style={{ color: '#222' }}>
               © 2026, <Link to="/" className="underline underline-offset-2 hover:opacity-70">ETHERSTAR JEWELS</Link>.
             </p>
-            <div className="flex items-center flex-wrap justify-center" style={{ gap: '1rem' }}>
+            <div className="order-1 md:order-2 flex items-center flex-wrap justify-center" style={{ gap: '10px' }}>
               {paymentMethods.map((method) => (
                 <span key={method.name} title={method.name} className="inline-flex">
                   {method.svg}
@@ -303,6 +303,16 @@ export default function Footer() {
           </div>
         </div>
       </div>
+      <style>{`
+        .site-footer--show-divider { border-top: 1px solid #ededed; }
+        .site-footer .link--animated { position: relative; width: fit-content; }
+        .site-footer .link--animated::after {
+          content: ""; height: 1px; width: 0; background: currentColor;
+          display: block; position: absolute; left: 0; bottom: 0;
+          transition: width .25s ease-in-out;
+        }
+        .site-footer .link--animated:hover::after { width: 100%; }
+      `}</style>
     </footer>
   );
 }

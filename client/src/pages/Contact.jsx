@@ -1,7 +1,30 @@
 import { useState } from 'react';
+import { Phone, MapPin, Mail } from 'lucide-react';
+
+const INFO = [
+  {
+    icon: Phone,
+    label: 'Phone',
+    value: <a href="tel:+971586062080" className="hover:opacity-70">+971 58 606 2080</a>,
+  },
+  {
+    icon: MapPin,
+    label: 'Address',
+    value: 'Dubai, UAE',
+  },
+  {
+    icon: Mail,
+    label: 'Email',
+    value: (
+      <a href="mailto:etherstarjewels@gmail.com" className="hover:opacity-70">
+        etherstarjewels@gmail.com
+      </a>
+    ),
+  },
+];
 
 export default function Contact() {
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
 
   const handleChange = (e) => {
@@ -13,24 +36,28 @@ export default function Contact() {
     setSubmitted(true);
   };
 
+  const inputClass =
+    'w-full px-4 py-3 border border-[#ededed] text-[14px] focus:outline-none focus:border-[#222]';
+
   return (
-    <section className="py-8 md:py-12">
+    <section className="py-10 md:py-[100px]">
       <div className="container">
-        <div className="max-w-3xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <p className="text-subheading text-gray-500 mb-2">
-              Get in Touch
-            </p>
+        <div className="mx-auto" style={{ maxWidth: '770px' }}>
+          {/* Header — live: centered, no eyebrow */}
+          <div className="text-center" style={{ marginBottom: '40px' }}>
             <h1
-              className="font-heading mb-4"
-              style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', letterSpacing: '1px' }}
+              className="font-heading"
+              style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', letterSpacing: '1px', marginBottom: '12px' }}
             >
               Contact Us
             </h1>
-            <p className="text-gray-600 text-[15px]">
-              Have a question? We'd love to hear from you. Send us a message and we'll respond as
-              soon as possible.
+            <p
+              className="font-heading"
+              style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.375rem)', color: '#222' }}
+            >
+              Have questions about a piece or looking for the perfect diamond?
+              <br />
+              Our experts are here to help.
             </p>
           </div>
 
@@ -43,115 +70,89 @@ export default function Contact() {
                 Thank you!
               </h2>
               <p className="text-gray-600 text-[15px]">
-                Your message has been sent. We'll get back to you within 24 hours.
+                Your message has been sent. We&apos;ll get back to you within 24 hours.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-[13px] font-medium mb-2">Name</label>
+                  <label htmlFor="contact-name" className="sr-only">Name</label>
                   <input
+                    id="contact-name"
                     type="text"
                     name="name"
+                    placeholder="Name"
                     value={form.name}
                     onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-[#ededed] text-[14px] focus:outline-none focus:border-[#222]"
+                    autoComplete="name"
+                    className={inputClass}
                     style={{ height: '46px' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-[13px] font-medium mb-2">Email</label>
+                  <label htmlFor="contact-phone" className="sr-only">Phone number</label>
                   <input
-                    type="email"
-                    name="email"
-                    value={form.email}
+                    id="contact-phone"
+                    type="tel"
+                    name="phone"
+                    placeholder="Enter your phone number"
+                    value={form.phone}
                     onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-[#ededed] text-[14px] focus:outline-none focus:border-[#222]"
+                    autoComplete="tel"
+                    className={inputClass}
                     style={{ height: '46px' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium mb-2">Subject</label>
+                <label htmlFor="contact-email" className="sr-only">Email</label>
                 <input
-                  type="text"
-                  name="subject"
-                  value={form.subject}
+                  id="contact-email"
+                  type="email"
+                  name="email"
+                  placeholder="Email"
+                  value={form.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-[#ededed] text-[14px] focus:outline-none focus:border-[#222]"
+                  autoComplete="email"
+                  className={inputClass}
                   style={{ height: '46px' }}
                 />
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium mb-2">Message</label>
+                <label htmlFor="contact-message" className="sr-only">Message</label>
                 <textarea
+                  id="contact-message"
                   name="message"
+                  placeholder="Your Message"
                   value={form.message}
                   onChange={handleChange}
                   required
-                  rows={5}
-                  className="w-full px-4 py-3 border border-[#ededed] text-[14px] focus:outline-none focus:border-[#222] resize-none"
+                  rows={3}
+                  className={`${inputClass} resize-none`}
                 />
               </div>
 
-              <button type="submit" className="btn btn--primary w-full">
-                Send Message
-              </button>
+              <div className="text-center">
+                <button type="submit" className="btn btn--underline" style={{ color: '#222' }}>
+                  Submit Now
+                </button>
+              </div>
             </form>
           )}
 
-          {/* Contact Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 text-center">
-            <div>
-              <h3
-                className="mb-2"
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                }}
-              >
-                Email
-              </h3>
-              <a href="mailto:etherstarjewels@gmail.com" className="text-[14px] text-gray-600 hover:text-[#222]">
-                etherstarjewels@gmail.com
-              </a>
-            </div>
-            <div>
-              <h3
-                className="mb-2"
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                }}
-              >
-                Location
-              </h3>
-              <p className="text-[14px] text-gray-600">Dubai, UAE</p>
-            </div>
-            <div>
-              <h3
-                className="mb-2"
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                }}
-              >
-                Hours
-              </h3>
-              <p className="text-[14px] text-gray-600">Mon – Fri, 9am – 6pm GST</p>
-            </div>
+          {/* Contact Info — live: Phone / Address / Email */}
+          <div className="grid grid-cols-1 md:grid-cols-3 text-center" style={{ gap: '40px', marginTop: '64px' }}>
+            {INFO.map(({ icon: Icon, label, value }) => (
+              <div key={label}>
+                <Icon size={40} strokeWidth={1} aria-hidden="true" className="mx-auto" style={{ color: '#222', marginBottom: '16px' }} />
+                <p style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>{label}</p>
+                <div style={{ fontSize: '16px', color: '#222', overflowWrap: 'anywhere' }}>{value}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
