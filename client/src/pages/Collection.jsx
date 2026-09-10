@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { X, SlidersHorizontal } from 'lucide-react';
 import { resolveCategory, productsForCategory } from '../data/products';
 import ProductGrid from '../components/product/ProductGrid';
+import RangeSlider from '../components/filters/RangeSlider';
 
 const descriptions = {
   rings:
@@ -27,6 +28,7 @@ const shapeDescription = (name) =>
   `${name}-cut certified designs, handcrafted with precision, brilliance, and enduring elegance. Choose your setting, diamond and metal — made to be adorned, loved, and remembered.`;
 
 const sortOptions = [
+  { value: 'most-relevant', label: 'Most relevant' },
   { value: 'featured', label: 'Featured' },
   { value: 'best-selling', label: 'Best selling' },
   { value: 'name-asc', label: 'Alphabetically, A-Z' },
@@ -37,28 +39,43 @@ const sortOptions = [
   { value: 'date-desc', label: 'Date, new to old' },
 ];
 
-const metalColors = ['Rose Gold', 'White Gold', 'Yellow Gold'];
+const metalColors = [
+  { name: 'Rose Gold', swatch: '#E0BFB8' },
+  { name: 'White Gold', swatch: '#E8E8E8' },
+  { name: 'Yellow Gold', swatch: '#FFD700' },
+];
 const metalKts = ['14K', '18K'];
 
-const PAGE_SIZE = 12;
+const PRICE_MIN = 600;
+const PRICE_MAX = 3000;
+const PAGE_SIZE = 50;
+
+const emptyFilters = { availability: ['in'], priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [] };
+
+function ChevronNext() {
+  return (
+    <svg width="6" height="10" viewBox="0 0 6 10" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" style={{ marginLeft: '8px' }}>
+      <path d="M1 1l4 4-4 4" />
+    </svg>
+  );
+}
 
 export default function Collection() {
   const { category } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { key: resolvedKey, info: categoryInfo } = resolveCategory(category);
-  const [sortBy, setSortBy] = useState('featured');
+  const [sortBy, setSortBy] = useState('most-relevant');
   const [filterOpen, setFilterOpen] = useState(false);
-  // Draft (drawer) + applied filter state
-  const [draft, setDraft] = useState({ availability: 'in', priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [] });
-  const [applied, setApplied] = useState(draft);
+  const [mobileCols, setMobileCols] = useState(2);
+  const [draft, setDraft] = useState(emptyFilters);
+  const [applied, setApplied] = useState(emptyFilters);
 
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
 
   useEffect(() => {
-    const reset = { availability: 'in', priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [] };
-    setDraft(reset);
-    setApplied(reset);
-    setSortBy('featured');
+    setDraft(emptyFilters);
+    setApplied(emptyFilters);
+    setSortBy('most-relevant');
     setSearchParams({}, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
@@ -75,7 +92,8 @@ export default function Collection() {
 
   const filteredProducts = useMemo(() => {
     let list = [...baseProducts];
-    if (applied.availability === 'out') list = [];
+    // Availability: everything is in stock; "out" alone yields none.
+    if (applied.availability.length > 0 && !applied.availability.includes('in')) list = [];
     const from = parseFloat(applied.priceFrom);
     const to = parseFloat(applied.priceTo);
     if (!Number.isNaN(from)) list = list.filter((p) => p.price >= from);
@@ -88,7 +106,7 @@ export default function Collection() {
         )
       );
     }
-    // KT: every setting is offered in 14KT and 18KT, so KT never excludes.
+    // KT: every setting is offered in 14K and 18K, so KT never excludes.
     const sorted = [...list];
     if (sortBy === 'price-asc') sorted.sort((a, b) => a.price - b.price);
     if (sortBy === 'price-desc') sorted.sort((a, b) => b.price - a.price);
@@ -100,11 +118,6 @@ export default function Collection() {
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedProducts = filteredProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-  const activeFilterCount =
-    (applied.availability !== 'in' ? 1 : 0) +
-    (applied.priceFrom !== '' || applied.priceTo !== '' ? 1 : 0) +
-    (applied.shapes.length > 0 ? 1 : 0) +
-    (applied.kts.length > 0 || applied.colors.length > 0 ? 1 : 0);
 
   const gotoPage = (p) => {
     setSearchParams(p === 1 ? {} : { page: String(p) });
@@ -114,179 +127,322 @@ export default function Collection() {
   const toggleList = (list, value) =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
+  // Active facet chips
+  const chips = [];
+  applied.availability.forEach((v) => {
+    chips.push({ key: `avail-${v}`, label: v === 'in' ? 'In stock' : 'Out of stock', clear: () => setApplied({ ...applied, availability: applied.availability.filter((x) => x !== v) }) });
+  });
+  if (applied.priceFrom !== '' || applied.priceTo !== '') {
+    const from = applied.priceFrom !== '' ? `$${applied.priceFrom}` : `$${PRICE_MIN}`;
+    const to = applied.priceTo !== '' ? `$${applied.priceTo}` : `$${PRICE_MAX}`;
+    chips.push({ key: 'price', label: `${from} – ${to}`, clear: () => setApplied({ ...applied, priceFrom: '', priceTo: '' }) });
+  }
+  applied.shapes.forEach((s) => {
+    chips.push({ key: `shape-${s}`, label: s, clear: () => setApplied({ ...applied, shapes: applied.shapes.filter((x) => x !== s) }) });
+  });
+  applied.kts.forEach((k) => {
+    chips.push({ key: `kt-${k}`, label: k, clear: () => setApplied({ ...applied, kts: applied.kts.filter((x) => x !== k) }) });
+  });
+  applied.colors.forEach((c) => {
+    chips.push({ key: `color-${c}`, label: c, clear: () => setApplied({ ...applied, colors: applied.colors.filter((x) => x !== c) }) });
+  });
+  const hasActiveFilters = chips.length > 0;
+
+  const sliderLo = draft.priceFrom !== '' ? Math.max(PRICE_MIN, Math.min(PRICE_MAX, Number(draft.priceFrom))) : PRICE_MIN;
+  const sliderHi = draft.priceTo !== '' ? Math.max(PRICE_MIN, Math.min(PRICE_MAX, Number(draft.priceTo))) : PRICE_MAX;
+
   const description =
     descriptions[resolvedKey] ||
     (categoryInfo?.shape ? shapeDescription(categoryInfo.shape) : null) ||
     'Explore our complete collection of certified, handcrafted fine jewellery.';
 
+  const sortSelect = (id, mobile) => (
+    <select
+      id={id}
+      value={sortBy}
+      onChange={(e) => setSortBy(e.target.value)}
+      aria-label="Sort by"
+      className="bg-white text-[#222] cursor-pointer"
+      style={{
+        fontSize: '13px',
+        height: mobile ? '60px' : '44px',
+        lineHeight: mobile ? '60px' : '42px',
+        border: '1px solid #ededed',
+        borderRadius: 0,
+        padding: '0 22px 0 12px',
+        maxWidth: '100%',
+      }}
+    >
+      {sortOptions.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+
   return (
-    <section className="py-10 md:py-14">
-      <div className="container">
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto" style={{ paddingBottom: '40px' }}>
-          <p className="text-subheading" style={{ marginBottom: '12px' }}>
-            {categoryInfo?.parent || 'Collection'}
-          </p>
-          <h1
-            className="font-heading"
-            style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', marginBottom: '24px' }}
-          >
-            {categoryInfo?.name || 'All Products'}
-          </h1>
-          <p className="text-gray-600 leading-relaxed text-[15px]">
-            {description}
-          </p>
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-y border-[#ededed] py-4 gap-3" style={{ marginBottom: '32px' }}>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setFilterOpen(true)}
-              className="inline-flex items-center gap-2 text-[13px] font-medium uppercase tracking-[1px] hover:opacity-70"
-            >
-              <SlidersHorizontal size={15} />
-              Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </button>
-            <p className="text-[13px] text-gray-500 hidden sm:block">
-              Filter: <span className="text-[#222] font-medium">{filteredProducts.length} product{filteredProducts.length === 1 ? '' : 's'}</span>
-            </p>
-          </div>
-          <label className="flex items-center gap-2 text-[13px] text-gray-500">
-            <span className="hidden sm:inline">Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="form-control"
-              style={{ width: 'auto', minHeight: '38px', lineHeight: '36px', fontSize: '13px', padding: '0 35px 0 10px' }}
-            >
-              {sortOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <ProductGrid products={pagedProducts} columns={4} />
-
-        {totalPages > 1 && (
-          <nav className="flex items-center justify-center gap-2 mt-12" aria-label="Pagination">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => gotoPage(i + 1)}
-                aria-current={safePage === i + 1 ? 'page' : undefined}
-                className={`w-10 h-10 text-[13px] font-medium border transition-colors ${
-                  safePage === i + 1
-                    ? 'bg-[#222] text-white border-[#222]'
-                    : 'bg-white text-[#222] border-[#ededed] hover:border-[#222]'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            {safePage < totalPages && (
-              <button
-                onClick={() => gotoPage(safePage + 1)}
-                className="h-10 px-4 text-[13px] font-medium border bg-white text-[#222] border-[#ededed] hover:border-[#222] transition-colors"
-              >
-                Next
-              </button>
-            )}
-          </nav>
-        )}
+    <section>
+      {/* Top divider + banner — live 30px section padding, no eyebrow */}
+      <div className="border-t border-[#ededed]" />
+      <div className="container text-center" style={{ paddingTop: '30px', paddingBottom: '30px' }}>
+        <h1
+          className="font-heading"
+          style={{ fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 1.2, marginBottom: 0 }}
+        >
+          {categoryInfo?.name || 'All Products'}
+        </h1>
+        <p
+          className="mx-auto"
+          style={{ marginTop: '12px', maxWidth: '76rem', fontSize: '15px', lineHeight: 1.7, color: '#222', opacity: 0.8 }}
+        >
+          {description}
+        </p>
       </div>
 
-      {/* Filter drawer */}
+      <div className="container" id="collection-wrapper">
+        {/* Desktop toolbar — borderless, 38px bottom margin */}
+        <div className="hidden md:flex items-center justify-between" style={{ marginBottom: '38px' }}>
+          <button
+            onClick={() => setFilterOpen(true)}
+            className="inline-flex items-center gap-2 uppercase hover:opacity-70 transition-opacity"
+            style={{ height: '46px', padding: '0 24px', border: '1px solid #d9d9d9', background: 'transparent', color: '#222', fontSize: '13px', fontWeight: 500, letterSpacing: '1px' }}
+          >
+            <SlidersHorizontal size={20} />
+            Filter &amp; sort
+          </button>
+          {sortSelect('sort-desktop', false)}
+        </div>
+
+        {/* Mobile sticky bar — switcher | filter | spacer */}
+        <div className="md:hidden sticky bg-white" style={{ top: '60px', zIndex: 20, padding: '8px 0' }}>
+          <div className="grid" style={{ gridTemplateColumns: '1fr 2fr 1fr', gap: '8px', alignItems: 'center' }}>
+            <div className="flex" style={{ gap: '8px' }}>
+              <button
+                onClick={() => setMobileCols(1)}
+                aria-label="One column"
+                title="One column"
+                className="flex items-center justify-center"
+                style={{ width: '36px', height: '36px', border: '1px solid #ededed', background: mobileCols === 1 ? '#000' : '#fff', color: mobileCols === 1 ? '#fff' : '#222' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <rect x="2" y="1.5" width="8" height="9" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setMobileCols(2)}
+                aria-label="Two columns"
+                title="Two columns"
+                className="flex items-center justify-center"
+                style={{ width: '36px', height: '36px', border: '1px solid #ededed', background: mobileCols === 2 ? '#000' : '#fff', color: mobileCols === 2 ? '#fff' : '#222' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <rect x="1" y="1.5" width="4" height="9" />
+                  <rect x="7" y="1.5" width="4" height="9" />
+                </svg>
+              </button>
+            </div>
+            <button
+              onClick={() => setFilterOpen(true)}
+              className="inline-flex items-center justify-center gap-2 uppercase"
+              style={{ height: '46px', padding: '0 24px', border: '1px solid #d9d9d9', background: 'transparent', color: '#222', fontSize: '13px', fontWeight: 500, letterSpacing: '1px' }}
+            >
+              <SlidersHorizontal size={20} />
+              Filter &amp; sort
+            </button>
+            <span />
+          </div>
+        </div>
+
+        {/* Active facet chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-row flex-wrap" style={{ marginBottom: '16px' }} aria-live="polite">
+            {chips.map((chip) => (
+              <button
+                key={chip.key}
+                onClick={chip.clear}
+                className="inline-flex items-center gap-2 underline underline-offset-4"
+                style={{ height: '34px', padding: '0 12px', margin: '0 15px 15px 0', fontSize: '13px', color: '#222' }}
+              >
+                {chip.label}
+                <X size={14} />
+              </button>
+            ))}
+            <button
+              onClick={() => { setApplied(emptyFilters); setDraft(emptyFilters); }}
+              className="underline underline-offset-4"
+              style={{ height: '34px', padding: '0 12px', margin: '0 0 15px 0', fontSize: '13px', color: '#222' }}
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
+        <ProductGrid products={pagedProducts} columns={4} mobileSingle={mobileCols === 1} />
+
+        {/* Pagination — live text-link style */}
+        {totalPages > 1 && (
+          <nav className="text-center" style={{ marginTop: '48px' }} aria-label="Pagination">
+            <ul className="inline-flex items-center" style={{ gap: '20px' }}>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <li key={i}>
+                  {safePage === i + 1 ? (
+                    <span aria-current="page" className="font-medium underline underline-offset-4" style={{ fontSize: '15px' }}>
+                      {i + 1}
+                    </span>
+                  ) : (
+                    <button onClick={() => gotoPage(i + 1)} className="underline underline-offset-4 hover:opacity-70" style={{ fontSize: '15px' }}>
+                      {i + 1}
+                    </button>
+                  )}
+                </li>
+              ))}
+              {safePage < totalPages && (
+                <li>
+                  <button onClick={() => gotoPage(safePage + 1)} className="inline-flex items-center underline underline-offset-4 hover:opacity-70" style={{ fontSize: '15px' }}>
+                    Next
+                    <ChevronNext />
+                  </button>
+                </li>
+              )}
+            </ul>
+          </nav>
+        )}
+        <div style={{ height: '48px' }} />
+      </div>
+
+      {/* Filter drawer — f-facets */}
       {filterOpen && (
         <>
           <div className="fixed inset-0 z-[100] animate-fade-in" style={{ background: 'rgba(68,68,68,0.64)' }} onClick={() => setFilterOpen(false)} />
-          <aside className="fixed top-0 left-0 h-full w-full max-w-[360px] bg-white z-[101] flex flex-col animate-slide-in-left">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-[#ededed]">
-              <h2 className="text-[13px] font-medium tracking-[1.5px] uppercase">Filter</h2>
-              <button onClick={() => setFilterOpen(false)} aria-label="Close filters" className="p-1 hover:opacity-70">
-                <X size={20} />
-              </button>
+          <aside className="fixed top-0 left-0 h-full w-full max-w-[400px] bg-white z-[101] flex flex-col animate-slide-in-left" role="dialog" aria-label="Filters">
+            <div className="flex items-center justify-between border-b border-[#ededed]" style={{ padding: '16px 20px', height: '60px' }}>
+              <h2 className="font-heading" style={{ fontSize: '18px', marginBottom: 0 }}>Filter:</h2>
+              <div className="flex items-center gap-3">
+                <span role="status" className="text-[13px]" style={{ color: 'rgba(34,34,34,.75)' }}>
+                  {filteredProducts.length} products
+                </span>
+                <button onClick={() => setFilterOpen(false)} aria-label="Close filters" className="p-1 hover:opacity-70">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
-              <div>
-                <h3 className="text-[13px] font-medium uppercase tracking-[1px]" style={{ marginBottom: '12px' }}>Availability</h3>
+
+            <div className="flex-1 overflow-y-auto px-5">
+              {/* Mobile sort block */}
+              <div className="md:hidden" style={{ borderBottom: '1px solid #ededed', paddingBottom: '16px', marginTop: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Sort by</h3>
+                {sortSelect('sort-mobile', true)}
+              </div>
+
+              <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Availability</h3>
                 {[
                   { v: 'in', label: `In stock (${baseProducts.length})` },
                   { v: 'out', label: 'Out of stock (0)' },
                 ].map((o) => (
-                  <label key={o.v} className="flex items-center gap-2.5 text-[15px] py-1.5 cursor-pointer">
-                    <input type="radio" name="availability" checked={draft.availability === o.v} onChange={() => setDraft({ ...draft, availability: o.v })} className="accent-black" />
+                  <label key={o.v} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
+                    <input
+                      type="checkbox"
+                      checked={draft.availability.includes(o.v)}
+                      onChange={() => setDraft({ ...draft, availability: toggleList(draft.availability, o.v) })}
+                      className="accent-black"
+                      style={{ width: '16px', height: '16px' }}
+                    />
                     {o.label}
                   </label>
                 ))}
+                <div style={{ height: '16px' }} />
               </div>
-              <div>
-                <h3 className="text-[13px] font-medium uppercase tracking-[1px]" style={{ marginBottom: '12px' }}>Price</h3>
-                <div className="flex items-center gap-2">
-                  <input type="number" min={0} placeholder="From $" value={draft.priceFrom} onChange={(e) => setDraft({ ...draft, priceFrom: e.target.value })} className="form-control" aria-label="Price from" />
-                  <span className="text-gray-400">–</span>
-                  <input type="number" min={0} placeholder="To $" value={draft.priceTo} onChange={(e) => setDraft({ ...draft, priceTo: e.target.value })} className="form-control" aria-label="Price to" />
+
+              <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Price</h3>
+                <RangeSlider
+                  min={PRICE_MIN}
+                  max={PRICE_MAX}
+                  step={100}
+                  lo={sliderLo}
+                  hi={sliderHi}
+                  onChange={(lo, hi) => setDraft({ ...draft, priceFrom: lo === PRICE_MIN ? '' : String(lo), priceTo: hi === PRICE_MAX ? '' : String(hi) })}
+                />
+                <div className="flex items-center" style={{ gap: '8px', marginTop: '12px' }}>
+                  <label className="flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
+                    <span className="text-[15px] text-gray-500" style={{ paddingLeft: '12px' }}>$</span>
+                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="From" aria-label="Price from" value={draft.priceFrom} onChange={(e) => setDraft({ ...draft, priceFrom: e.target.value })} className="flex-1 min-w-0 bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px' }} />
+                  </label>
+                  <span className="text-[15px] text-gray-500">to</span>
+                  <label className="flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
+                    <span className="text-[15px] text-gray-500" style={{ paddingLeft: '12px' }}>$</span>
+                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="To" aria-label="Price to" value={draft.priceTo} onChange={(e) => setDraft({ ...draft, priceTo: e.target.value })} className="flex-1 min-w-0 bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px' }} />
+                  </label>
                 </div>
+                <div style={{ height: '16px' }} />
               </div>
-              <div>
-                <h3 className="text-[13px] font-medium uppercase tracking-[1px]" style={{ marginBottom: '12px' }}>Diamond Shape</h3>
+
+              <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Diamond Shape</h3>
                 {Object.keys(shapeCounts).sort().map((s) => (
-                  <label key={s} className="flex items-center gap-2.5 text-[15px] py-1.5 cursor-pointer">
+                  <label key={s} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
                     <input
                       type="checkbox"
                       checked={draft.shapes.includes(s)}
                       onChange={() => setDraft({ ...draft, shapes: toggleList(draft.shapes, s) })}
                       className="accent-black"
+                      style={{ width: '16px', height: '16px' }}
                     />
-                    {s} ({shapeCounts[s]})
+                    {s}
+                    <span style={{ color: 'rgba(34,34,34,.75)', fontSize: '13px' }}>({shapeCounts[s]})</span>
                   </label>
                 ))}
+                <div style={{ height: '16px' }} />
               </div>
-              <div>
-                <h3 className="text-[13px] font-medium uppercase tracking-[1px]" style={{ marginBottom: '12px' }}>Metal</h3>
-                <p className="text-[13px] text-gray-500" style={{ marginBottom: '8px' }}>Karat</p>
+
+              <div style={{ marginTop: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Metal</h3>
+                <p className="text-[13px]" style={{ color: 'rgba(34,34,34,.75)', marginBottom: '8px' }}>Karat</p>
                 {metalKts.map((k) => (
-                  <label key={k} className="flex items-center gap-2.5 text-[15px] py-1.5 cursor-pointer">
+                  <label key={k} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
                     <input
                       type="checkbox"
                       checked={draft.kts.includes(k)}
                       onChange={() => setDraft({ ...draft, kts: toggleList(draft.kts, k) })}
                       className="accent-black"
+                      style={{ width: '16px', height: '16px' }}
                     />
                     {k}
                   </label>
                 ))}
-                <p className="text-[13px] text-gray-500" style={{ marginBottom: '8px', marginTop: '12px' }}>Color</p>
-                {metalColors.map((c) => (
-                  <label key={c} className="flex items-center gap-2.5 text-[15px] py-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={draft.colors.includes(c)}
-                      onChange={() => setDraft({ ...draft, colors: toggleList(draft.colors, c) })}
-                      className="accent-black"
-                    />
-                    {c}
-                  </label>
-                ))}
+                <p className="text-[13px]" style={{ color: 'rgba(34,34,34,.75)', marginBottom: '12px', marginTop: '16px' }}>Color</p>
+                <div className="flex" style={{ gap: '12px', paddingBottom: '8px' }}>
+                  {metalColors.map((c) => {
+                    const selected = draft.colors.includes(c.name);
+                    return (
+                      <button
+                        key={c.name}
+                        onClick={() => setDraft({ ...draft, colors: toggleList(draft.colors, c.name) })}
+                        title={c.name}
+                        aria-label={c.name}
+                        aria-pressed={selected}
+                        className="rounded-full"
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          backgroundColor: c.swatch,
+                          border: selected ? 'none' : '1px solid #ededed',
+                          boxShadow: selected ? 'inset 0 0 0 3px #fff, 0 0 0 4px #222' : 'none',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div style={{ height: '16px' }} />
               </div>
             </div>
-            <div className="border-t border-[#ededed] px-6 py-4 flex gap-3">
-              <button
-                onClick={() => {
-                  const reset = { availability: 'in', priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [] };
-                  setDraft(reset);
-                  setApplied(reset);
-                }}
-                className="flex-1 py-3 border border-[#222] text-[13px] font-medium uppercase tracking-wider hover:bg-gray-50"
-              >
-                Clear all
-              </button>
+
+            <div style={{ padding: '16px 20px 24px' }}>
               <button
                 onClick={() => { setApplied(draft); setFilterOpen(false); }}
-                className="flex-1 py-3 bg-[#222] text-white text-[13px] font-medium uppercase tracking-wider hover:bg-black"
+                className="btn btn--primary w-full"
               >
                 Apply
               </button>
@@ -294,6 +450,10 @@ export default function Collection() {
           </aside>
         </>
       )}
+      <style>{`
+        #collection-wrapper { margin-top: 30px; }
+        @media (min-width: 768px) { #collection-wrapper { margin-top: 96px; } }
+      `}</style>
     </section>
   );
 }

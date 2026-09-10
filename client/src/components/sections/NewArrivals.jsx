@@ -20,7 +20,7 @@ export default function NewArrivals() {
         </div>
 
         {/* 5 featured products — one clean row on desktop */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5" style={{ columnGap: '16px', rowGap: '32px' }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-x-6 gap-y-[51px] xl:gap-x-12 xl:gap-y-12 animate-fade-in-up">
           {newProducts.map((product) => (
             <ProductCard key={product.slug} product={product} />
           ))}
