@@ -324,13 +324,16 @@ export default function Diamond() {
           <h2 className="font-heading coming-soon-title" style={{ color: '#222', marginBottom: '16px' }}>
             Coming Soon
           </h2>
-          <p className="text-gray-600 mx-auto" style={{ fontSize: '15px', lineHeight: 1.7, maxWidth: '480px', marginBottom: '32px' }}>
+          <p className="text-gray-600 mx-auto" style={{ fontSize: '15px', lineHeight: 1.7, maxWidth: '480px', marginBottom: '32px', textAlign: 'center' }}>
             Our diamond search is launching soon — browse our certified settings in the meantime.
           </p>
           <Link to="/collections/rings" className="btn btn--primary">
-            Shop Settings
+            Shop Now
           </Link>
         </div>
+
+        {/* Bottom breathing room above the footer (same rhythm as Collection) */}
+        <div style={{ height: '48px' }} aria-hidden="true" />
 
       </div>
       <style>{`
