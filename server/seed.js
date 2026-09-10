@@ -1,0 +1,266 @@
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const Product = require('./models/Product');
+
+dotenv.config();
+
+const products = [
+  {
+    name: 'The Pear Accent Diamond Engagement Ring',
+    slug: 'pear-accent-diamond-engagement-ring',
+    price: 1500,
+    description: 'A stunning pear-shaped diamond engagement ring with accent stones, crafted for timeless elegance.',
+    shortDescription: 'Lab Grown Pear Diamond Ring',
+    category: 'solitaire-rings',
+    images: ['/images/products/product-1-1.webp', '/images/products/product-1-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1500, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1500, color: '#E8E8E8', material: 'White Gold' },
+      { name: 'Yellow Gold', price: 1500, color: '#FFD700', material: 'Yellow Gold' },
+    ],
+    tags: ['new', 'bestseller'],
+    badge: 'new',
+    featured: true,
+  },
+  {
+    name: 'Liora Oval Hidden Halo Setting',
+    slug: 'liora-oval-hidden-halo-setting',
+    price: 1500,
+    description: 'An oval diamond with a hidden halo setting that creates a mesmerizing circle of brilliance.',
+    shortDescription: 'Oval Hidden Halo Ring',
+    category: 'halo-rings',
+    images: ['/images/products/product-2-1.webp', '/images/products/product-2-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1500, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1500, color: '#E8E8E8', material: 'White Gold' },
+      { name: 'Yellow Gold', price: 1500, color: '#FFD700', material: 'Yellow Gold' },
+    ],
+    tags: ['new'],
+    badge: 'new',
+    featured: true,
+  },
+  {
+    name: 'Pear-Cut Split-Shank Solitaire',
+    slug: 'pear-cut-split-shank-solitaire',
+    price: 1200,
+    description: 'A pear-cut diamond set on a split-shank band for a modern, architectural look.',
+    shortDescription: 'Pear-Cut Split-Shank Ring',
+    category: 'solitaire-rings',
+    images: ['/images/products/product-3-1.webp', '/images/products/product-3-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1200, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1200, color: '#E8E8E8', material: 'White Gold' },
+      { name: 'Yellow Gold', price: 1200, color: '#FFD700', material: 'Yellow Gold' },
+    ],
+    tags: ['bestseller'],
+    featured: true,
+  },
+  {
+    name: 'Emerald-Cut Split-Shank Solitaire',
+    slug: 'emerald-cut-split-shank-solitaire',
+    price: 1100,
+    description: 'An emerald-cut diamond with split-shank detailing, offering clean lines and modern sophistication.',
+    shortDescription: 'Emerald-Cut Solitaire Ring',
+    category: 'solitaire-rings',
+    images: ['/images/products/product-4-1.webp', '/images/products/product-4-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1100, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1100, color: '#E8E8E8', material: 'White Gold' },
+      { name: 'Yellow Gold', price: 1100, color: '#FFD700', material: 'Yellow Gold' },
+    ],
+    tags: [],
+    featured: true,
+  },
+  {
+    name: 'The Round Brilliant Split-Shank Solitaire',
+    slug: 'round-brilliant-split-shank-solitaire',
+    price: 1200,
+    description: 'A classic round brilliant diamond on a split-shank band, combining tradition with contemporary design.',
+    shortDescription: 'Round Brilliant Solitaire',
+    category: 'solitaire-rings',
+    images: ['/images/products/product-5-1.webp', '/images/products/product-5-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1200, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1200, color: '#E8E8E8', material: 'White Gold' },
+      { name: 'Yellow Gold', price: 1200, color: '#FFD700', material: 'Yellow Gold' },
+    ],
+    tags: ['bestseller'],
+    featured: true,
+  },
+  {
+    name: 'The Celestine Halo Ring',
+    slug: 'celestine-halo-ring',
+    price: 1800,
+    description: 'A round brilliant center stone surrounded by a delicate halo of pavé diamonds.',
+    shortDescription: 'Round Halo Pavé Ring',
+    category: 'halo-rings',
+    images: ['/images/products/product-6-1.webp', '/images/products/product-6-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1800, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1800, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: ['new'],
+    badge: 'new',
+    featured: false,
+  },
+  {
+    name: 'Three Stone Pavé Engagement Ring',
+    slug: 'three-stone-pave-engagement-ring',
+    price: 2200,
+    description: 'Three stunning lab-grown diamonds set in a pavé band, symbolizing past, present, and future.',
+    shortDescription: 'Three Stone Pavé Ring',
+    category: 'three-stone-rings',
+    images: ['/images/products/product-7-1.webp', '/images/products/product-7-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 2200, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 2200, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: [],
+    featured: false,
+  },
+  {
+    name: 'The Eternal Band',
+    slug: 'eternal-band',
+    price: 800,
+    description: 'A timeless wedding band with pavé-set diamonds for everyday elegance.',
+    shortDescription: 'Pavé Wedding Band',
+    category: 'bands',
+    images: ['/images/products/product-8-1.webp', '/images/products/product-8-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 800, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 800, color: '#E8E8E8', material: 'White Gold' },
+      { name: 'Yellow Gold', price: 800, color: '#FFD700', material: 'Yellow Gold' },
+    ],
+    tags: ['bestseller'],
+    featured: false,
+  },
+  {
+    name: 'The Lumina Engagement Ring',
+    slug: 'lumina-engagement-ring',
+    price: 1600,
+    description: 'A luminous engagement ring featuring a round diamond with delicate side stones.',
+    shortDescription: 'Round Diamond Side Stone Ring',
+    category: 'engagement-rings',
+    images: ['/images/products/product-9-1.webp', '/images/products/product-9-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1600, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1600, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: ['new'],
+    badge: 'new',
+    featured: false,
+  },
+  {
+    name: 'The Aspen Drop Earrings',
+    slug: 'aspen-drop-earrings',
+    price: 950,
+    description: 'Elegant drop earrings featuring pear-shaped lab-grown diamonds with a delicate setting.',
+    shortDescription: 'Pear Diamond Drop Earrings',
+    category: 'earrings',
+    images: ['/images/products/product-10-1.webp', '/images/products/product-10-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 950, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 950, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: ['new'],
+    badge: 'new',
+    featured: false,
+  },
+  {
+    name: 'The Serene Tennis Bracelet',
+    slug: 'serene-tennis-bracelet',
+    price: 2500,
+    description: 'A classic tennis bracelet with round brilliant lab-grown diamonds in a seamless setting.',
+    shortDescription: 'Diamond Tennis Bracelet',
+    category: 'bracelets',
+    images: ['/images/products/product-11-1.webp', '/images/products/product-11-2.webp'],
+    variants: [
+      { name: 'White Gold', price: 2500, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: [],
+    featured: false,
+  },
+  {
+    name: 'The Aria Pendant Necklace',
+    slug: 'aria-pendant-necklace',
+    price: 1100,
+    description: 'A delicate pendant necklace featuring a single round brilliant diamond on a fine chain.',
+    shortDescription: 'Round Diamond Pendant',
+    category: 'necklaces',
+    images: ['/images/products/product-12-1.webp', '/images/products/product-12-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1100, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1100, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: ['new'],
+    badge: 'new',
+    featured: false,
+  },
+  {
+    name: 'The Trilogy Three-Stone Ring',
+    slug: 'trilogy-three-stone-ring',
+    price: 2800,
+    description: 'Three oval diamonds set in a trilogy arrangement, representing your journey together.',
+    shortDescription: 'Oval Trilogy Ring',
+    category: 'three-stone-rings',
+    images: ['/images/products/product-13-1.webp', '/images/products/product-13-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 2800, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 2800, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: [],
+    featured: false,
+  },
+  {
+    name: 'The Velvet Halo Earrings',
+    slug: 'velvet-halo-earrings',
+    price: 1300,
+    description: 'Stud earrings with a halo of pavé diamonds surrounding a center round brilliant stone.',
+    shortDescription: 'Halo Stud Earrings',
+    category: 'earrings',
+    images: ['/images/products/product-14-1.webp', '/images/products/product-14-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 1300, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 1300, color: '#E8E8E8', material: 'White Gold' },
+    ],
+    tags: [],
+    featured: false,
+  },
+  {
+    name: 'The Minimalist Wedding Band',
+    slug: 'minimalist-wedding-band',
+    price: 600,
+    description: 'A clean, polished wedding band with no stones — pure and timeless.',
+    shortDescription: 'Polished Wedding Band',
+    category: 'bands',
+    images: ['/images/products/product-15-1.webp', '/images/products/product-15-2.webp'],
+    variants: [
+      { name: 'Rose Gold', price: 600, color: '#E0BFB8', material: 'Rose Gold' },
+      { name: 'White Gold', price: 600, color: '#E8E8E8', material: 'White Gold' },
+      { name: 'Yellow Gold', price: 600, color: '#FFD700', material: 'Yellow Gold' },
+    ],
+    tags: ['bestseller'],
+    featured: false,
+  },
+];
+
+const seedDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('MongoDB connected for seeding');
+
+    await Product.deleteMany({});
+    console.log('Cleared existing products');
+
+    await Product.insertMany(products);
+    console.log(`Seeded ${products.length} products`);
+
+    await mongoose.disconnect();
+    console.log('Database seeded successfully!');
+  } catch (error) {
+    console.error('Seeding error:', error);
+    process.exit(1);
+  }
+};
+
+seedDB();

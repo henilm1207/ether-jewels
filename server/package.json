@@ -1,0 +1,15 @@
+{
+  "name": "mitva-server",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "seed": "node seed.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.0",
+    "mongoose": "^8.8.0"
+  }
+}

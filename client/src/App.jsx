@@ -1,0 +1,65 @@
+import { useState, useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import Header from './components/layout/Header';
+import Footer from './components/layout/Footer';
+import CartDrawer from './components/layout/CartDrawer';
+import MobileNav from './components/layout/MobileNav';
+import Home from './pages/Home';
+import Collection from './pages/Collection';
+import ProductDetail from './pages/ProductDetail';
+import Diamond from './pages/Diamond';
+import Contact from './pages/Contact';
+import About from './pages/About';
+import NewsletterPopup from './components/ui/NewsletterPopup';
+import AgeVerifier from './components/ui/AgeVerifier';
+import CookieConsent from './components/ui/CookieConsent';
+
+function App() {
+  const [cartOpen, setCartOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+
+  useEffect(() => {
+    if (cartOpen || mobileNavOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [cartOpen, mobileNavOpen]);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header
+        onCartClick={() => setCartOpen(true)}
+        onMenuClick={() => setMobileNavOpen(true)}
+        onSearchClick={() => setSearchOpen(!searchOpen)}
+        searchOpen={searchOpen}
+      />
+
+      <main className="flex-1" style={{ paddingTop: isHome ? 0 : '63px' }}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/collections/:category" element={<Collection />} />
+          <Route path="/products/:slug" element={<ProductDetail />} />
+          <Route path="/pages/diamond" element={<Diamond />} />
+          <Route path="/pages/contact" element={<Contact />} />
+          <Route path="/pages/about-us" element={<About />} />
+        </Routes>
+      </main>
+
+      <Footer />
+
+      <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
+      <NewsletterPopup />
+      <AgeVerifier />
+      <CookieConsent />
+    </div>
+  );
+}
+
+export default App;
