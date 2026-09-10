@@ -120,8 +120,8 @@ export default function Contact() {
               >
                 Email
               </h3>
-              <a href="mailto:info@mitvajewels.com" className="text-[14px] text-gray-600 hover:text-[#222]">
-                info@mitvajewels.com
+              <a href="mailto:etherstarjewels@gmail.com" className="text-[14px] text-gray-600 hover:text-[#222]">
+                etherstarjewels@gmail.com
               </a>
             </div>
             <div>

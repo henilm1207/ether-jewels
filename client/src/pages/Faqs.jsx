@@ -3,7 +3,7 @@ import InfoShell from './InfoShell';
 const faqs = [
   {
     q: 'Are your diamonds real?',
-    a: 'Yes. Every MITVA diamond is a real, lab-grown diamond — physically, chemically and optically identical to mined diamonds — and certified by GIA, IGI or SHC.',
+    a: 'Yes. Every ETHERSTAR diamond is a real, lab-grown diamond — physically, chemically and optically identical to mined diamonds — and certified by GIA, IGI or SHC.',
   },
   {
     q: 'What does “Setting Only — Center Diamond Not Included” mean?',
@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     q: 'Can I customize a design?',
-    a: 'Absolutely. Choose the shape, diamond and metal, or share a custom idea — our experts will guide you 1-on-1 over WhatsApp (+971 58 606 2080) or email (sales@mitvajewels.com).',
+    a: 'Absolutely. Choose the shape, diamond and metal, or share a custom idea — our experts will guide you 1-on-1 over WhatsApp (+91 9725756046) or email (etherstarjewels@gmail.com).',
   },
   {
     q: 'What is your return policy?',

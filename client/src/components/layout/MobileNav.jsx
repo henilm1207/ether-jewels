@@ -38,7 +38,7 @@ export default function MobileNav({ isOpen, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#ededed]">
           <Link to="/" onClick={onClose}>
-            <img src="/images/logo.png" alt="MITVA JEWELS" className="h-[28px] w-auto" />
+            <img src="/images/logo.png" alt="ETHERSTAR JEWELS" className="h-[28px] w-auto" />
           </Link>
           <button onClick={onClose} className="p-1 hover:opacity-70">
             <X size={22} />

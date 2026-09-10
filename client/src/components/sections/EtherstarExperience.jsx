@@ -26,7 +26,7 @@ function SectionHeader({ className = '' }) {
   return (
     <div className={className}>
       <p className="section__subheading">
-        THE MITVA EXPERIENCE
+        THE ETHERSTAR EXPERIENCE
       </p>
       <h2
         className="font-heading exp-title"
@@ -40,7 +40,7 @@ function SectionHeader({ className = '' }) {
   );
 }
 
-export default function MitvaExperience() {
+export default function EtherstarExperience() {
   const [activeTab, setActiveTab] = useState(0);
 
   return (
@@ -75,7 +75,7 @@ export default function MitvaExperience() {
             {/* Desktop header inside content column */}
             <div className="hidden md:block text-left" style={{ paddingBottom: '40px' }}>
               <p className="section__subheading">
-                THE MITVA EXPERIENCE
+                THE ETHERSTAR EXPERIENCE
               </p>
               <h2 className="font-heading exp-title" style={{ marginBottom: 0 }}>
                 Made To Be<br />

@@ -7,7 +7,7 @@ export default function LifestyleGrid() {
           <div className="overflow-hidden aspect-square">
             <img
               src="/images/lifestyle-1.jpg"
-              alt="MITVA Lifestyle"
+              alt="Etherstar Lifestyle"
               loading="lazy"
               className="w-full h-full object-cover"
             />
@@ -15,7 +15,7 @@ export default function LifestyleGrid() {
           <div className="overflow-hidden aspect-square">
             <img
               src="/images/lifestyle-2.jpg"
-              alt="MITVA Lifestyle"
+              alt="Etherstar Lifestyle"
               loading="lazy"
               className="w-full h-full object-cover"
             />

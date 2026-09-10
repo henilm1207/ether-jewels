@@ -8,7 +8,7 @@ const testimonials = [
   { name: 'Rakesh Mehta', location: 'India', text: 'Absolutely stunning craftsmanship. The diamond sparkles beyond expectation and the setting is flawless.' },
   { name: 'John Miller', location: 'UK', text: 'From selection to delivery, everything was seamless. Certified, beautiful, and exactly as pictured.' },
   { name: 'Jason', location: 'New York', text: 'She said yes! The ring is perfect — brilliant, elegant, and clearly made with care.' },
-  { name: 'Leo Adams', location: 'California', text: 'Transparent pricing and a certified diamond. I compared everywhere — Mitva was the best value.' },
+  { name: 'Leo Adams', location: 'California', text: 'Transparent pricing and a certified diamond. I compared everywhere — Etherstar was the best value.' },
   { name: 'N. Harris', location: 'Texas', text: 'The hidden halo catches light from every angle. Customer service helped me pick the perfect size.' },
   { name: 'M. Reed', location: 'Seattle', text: 'Insured shipping arrived quickly and safely. The ring looks even better in person.' },
 ];
@@ -350,15 +350,15 @@ export default function ProductDetail() {
           </ul>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-[14px]">
             <a
-              href="https://wa.me/971586062080"
+              href="https://wa.me/919725756046"
               target="_blank"
               rel="noreferrer"
               className="btn btn--primary"
             >
-              WhatsApp: +971 58 606 2080
+              WhatsApp: +91 9725756046
             </a>
-            <a href="mailto:sales@mitvajewels.com" className="btn btn--secondary">
-              Email: sales@mitvajewels.com
+            <a href="mailto:etherstarjewels@gmail.com" className="btn btn--secondary">
+              Email: etherstarjewels@gmail.com
             </a>
           </div>
           <p className="text-[13px] text-gray-500 mt-4">We reply within 24 hours. WhatsApp is fastest.</p>
@@ -394,11 +394,11 @@ export default function ProductDetail() {
         </div>
       </section>
 
-      {/* Mitva Standard closing banner (reference PDP) */}
+      {/* Etherstar Standard closing banner */}
       <section className="bg-[#1A1A1A] text-white" style={{ paddingTop: '96px', paddingBottom: '96px' }}>
         <div className="container text-center max-w-2xl mx-auto">
           <p className="mb-3" style={{ fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.7)' }}>
-            The Mitva Standard
+            The Etherstar Standard
           </p>
           <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', letterSpacing: '1px', lineHeight: 1.2 }}>
             From selection to setting, every detail is handled at the source

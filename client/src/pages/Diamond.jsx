@@ -17,7 +17,7 @@ export default function Diamond() {
             The Diamond Guide
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto text-[15px]">
-            Every MITVA diamond is lab-grown, IGI certified, and crafted to the highest standards
+            Every ETHERSTAR diamond is lab-grown, IGI certified, and crafted to the highest standards
             of quality and sustainability.
           </p>
         </div>

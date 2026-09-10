@@ -7,14 +7,14 @@ export const useCart = () => useContext(CartContext);
 export const CartProvider = ({ children }) => {
   const [items, setItems] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('mitva-cart')) || [];
+      return JSON.parse(localStorage.getItem('etherstar-cart')) || [];
     } catch {
       return [];
     }
   });
 
   useEffect(() => {
-    localStorage.setItem('mitva-cart', JSON.stringify(items));
+    localStorage.setItem('etherstar-cart', JSON.stringify(items));
   }, [items]);
 
   const addItem = (product, variant, quantity = 1) => {

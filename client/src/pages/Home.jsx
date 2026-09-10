@@ -4,7 +4,7 @@ import NewArrivals from '../components/sections/NewArrivals';
 import TrustBadges from '../components/sections/TrustBadges';
 import LifestyleGrid from '../components/sections/LifestyleGrid';
 import GoldComparison from '../components/sections/GoldComparison';
-import MitvaExperience from '../components/sections/MitvaExperience';
+import EtherstarExperience from '../components/sections/EtherstarExperience';
 
 export default function Home() {
   return (
@@ -15,7 +15,7 @@ export default function Home() {
       <TrustBadges />
       <LifestyleGrid />
       <GoldComparison />
-      <MitvaExperience />
+      <EtherstarExperience />
     </>
   );
 }

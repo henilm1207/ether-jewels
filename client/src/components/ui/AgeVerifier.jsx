@@ -5,7 +5,7 @@ export default function AgeVerifier() {
   const [rejected, setRejected] = useState(false);
 
   useEffect(() => {
-    const verified = localStorage.getItem('mitva-age-verified');
+    const verified = localStorage.getItem('etherstar-age-verified');
     if (!verified) {
       setOpen(true);
     }
@@ -13,7 +13,7 @@ export default function AgeVerifier() {
 
   const handleVerify = (isAdult) => {
     if (isAdult) {
-      localStorage.setItem('mitva-age-verified', 'true');
+      localStorage.setItem('etherstar-age-verified', 'true');
       setOpen(false);
     } else {
       setRejected(true);

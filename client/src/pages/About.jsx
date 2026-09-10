@@ -12,7 +12,7 @@ export default function About() {
               className="font-heading mb-4"
               style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', letterSpacing: '1px' }}
             >
-              About MITVA
+              About ETHERSTAR
             </h1>
           </div>
 
@@ -21,7 +21,7 @@ export default function About() {
             <div className="aspect-[4/5] bg-[#f7f2ef] overflow-hidden">
               <img
                 src="/images/experience-1.png"
-                alt="MITVA Craftsmanship"
+                alt="Etherstar Craftsmanship"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -33,7 +33,7 @@ export default function About() {
                 Crafted with Purpose
               </h2>
               <p className="text-gray-600 leading-relaxed mb-4 text-[15px]">
-                MITVA JEWELS is a lab-grown diamond jewelry brand born from a passion for creating
+                ETHERSTAR JEWELS is a lab-grown diamond jewelry brand born from a passion for creating
                 beautiful, sustainable, and accessible fine jewelry. Every piece is designed to
                 celebrate life's most meaningful moments.
               </p>
@@ -86,7 +86,7 @@ export default function About() {
               className="font-heading mb-4"
               style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '1px' }}
             >
-              The MITVA Promise
+              The ETHERSTAR Promise
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed mb-6 text-[15px]">
               We believe that fine jewelry should be both exquisite and accessible. That's why we

@@ -4,19 +4,19 @@ export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('mitva-cookie-consent');
+    const consent = localStorage.getItem('etherstar-cookie-consent');
     if (!consent) {
       setVisible(true);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem('mitva-cookie-consent', 'accepted');
+    localStorage.setItem('etherstar-cookie-consent', 'accepted');
     setVisible(false);
   };
 
   const handleDecline = () => {
-    localStorage.setItem('mitva-cookie-consent', 'declined');
+    localStorage.setItem('etherstar-cookie-consent', 'declined');
     setVisible(false);
   };
 

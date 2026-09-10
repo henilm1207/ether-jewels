@@ -173,7 +173,7 @@ export default function Footer() {
           {/* Logo — 20% */}
           <div className="lg:order-1 lg:basis-[20%] mb-8 lg:mb-0 lg:pr-6">
             <Link to="/">
-              <img src="/images/logo.png" alt="MITVA JEWELS" style={{ maxWidth: '150px' }} />
+              <img src="/images/logo.png" alt="ETHERSTAR JEWELS" style={{ maxWidth: '150px' }} />
             </Link>
           </div>
 
@@ -181,7 +181,7 @@ export default function Footer() {
           <div className="order-2 lg:order-9 lg:basis-[36%] mb-8 lg:mb-0 lg:pl-6">
             <div className="lg:max-w-[420px] lg:ml-auto">
               <h6 className="mb-3" style={blockTitleStyle}>
-                Join the Mitva Club
+                Join the Etherstar Club
               </h6>
               <p className="text-sm mb-4" style={{ color: 'rgba(34,34,34,.8)' }}>
                 Subscribe for store updates and discounts.
@@ -267,7 +267,7 @@ export default function Footer() {
       <div style={{ borderTop: '0.1rem solid #ededed' }}>
         <div className="container pt-4 pb-[3.2rem] lg:pt-[5rem] lg:pb-[6rem]">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-gray-500">© 2026, MITVA JEWELS L.L.C.</p>
+            <p className="text-xs text-gray-500">© 2026, ETHERSTAR JEWELS</p>
             <div className="flex items-center flex-wrap justify-center" style={{ gap: '1rem' }}>
               {paymentMethods.map((method) => (
                 <span key={method.name} title={method.name} className="inline-flex">

@@ -7,7 +7,7 @@ export default function NewsletterPopup() {
   const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
-    const dismissed = sessionStorage.getItem('mitva-newsletter-dismissed');
+    const dismissed = sessionStorage.getItem('etherstar-newsletter-dismissed');
     if (dismissed) return;
 
     const timer = setTimeout(() => {
@@ -16,7 +16,7 @@ export default function NewsletterPopup() {
     }, 5000);
 
     const handleScroll = () => {
-      if (window.scrollY > 300 && !sessionStorage.getItem('mitva-newsletter-dismissed')) {
+      if (window.scrollY > 300 && !sessionStorage.getItem('etherstar-newsletter-dismissed')) {
         setOpen(true);
       }
     };
@@ -37,7 +37,7 @@ export default function NewsletterPopup() {
 
   const handleClose = () => {
     setOpen(false);
-    sessionStorage.setItem('mitva-newsletter-dismissed', 'true');
+    sessionStorage.setItem('etherstar-newsletter-dismissed', 'true');
   };
 
   const handleSubmit = async (e) => {
@@ -80,14 +80,14 @@ export default function NewsletterPopup() {
         <div className="w-full md:w-[45%] aspect-square md:aspect-auto bg-[#f7f2ef] flex-shrink-0">
           <img
             src="/images/newsletter-popup.png"
-            alt="Welcome to MITVA"
+            alt="Welcome to ETHERSTAR"
             className="w-full h-full object-cover"
           />
         </div>
 
         {/* Content — live inner padding 30px */}
         <div className="flex-1 flex flex-col justify-center" style={{ padding: '30px' }}>
-          <h2 className="font-heading" style={{ fontSize: '24px', marginBottom: '12px' }}>Welcome to MITVA</h2>
+          <h2 className="font-heading" style={{ fontSize: '24px', marginBottom: '12px' }}>Welcome to ETHERSTAR</h2>
           <p className="text-[15px] text-gray-600" style={{ marginBottom: '24px' }}>
             Enjoy <strong>5% off your first order</strong> and early access to new collections.
           </p>

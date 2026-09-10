@@ -10,7 +10,7 @@ export default function ShippingPolicy() {
       <InfoH>Duties & Taxes</InfoH>
       <InfoP>Product prices include applicable taxes. Any import duties for your country are calculated and shown at checkout where applicable.</InfoP>
       <InfoH>Questions</InfoH>
-      <InfoP>WhatsApp +971 58 606 2080 (fastest) or sales@mitvajewels.com — we reply within 24 hours.</InfoP>
+      <InfoP>WhatsApp +91 9725756046 (fastest) or etherstarjewels@gmail.com — we reply within 24 hours.</InfoP>
     </InfoShell>
   );
 }
