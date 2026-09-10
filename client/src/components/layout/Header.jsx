@@ -163,20 +163,20 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
               ))}
             </nav>
 
-            {/* Right: Icons */}
-            <div className="flex items-center gap-1">
-              <button onClick={onSearchClick} className="p-2 hover:opacity-70 transition-opacity" aria-label="Search">
-                <Search size={20} className={headerTextColor} />
+            {/* Right: Icons — live site-header__addons */}
+            <div className="flex items-center header-addons">
+              <button onClick={onSearchClick} className="hover:opacity-70 transition-opacity flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Search">
+                <Search size={24} className={headerTextColor} />
               </button>
-              <Link to="/account/login" className="p-2 hover:opacity-70 transition-opacity hidden md:block" aria-label="Account">
-                <User size={20} className={headerTextColor} />
+              <Link to="/account/login" className="hover:opacity-70 transition-opacity hidden md:flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Account">
+                <User size={24} strokeWidth={1.5} className={headerTextColor} />
               </Link>
-              <button onClick={onCartClick} className="p-2 hover:opacity-70 transition-opacity relative" aria-label="Cart">
-                <ShoppingBag size={20} className={headerTextColor} />
+              <button onClick={onCartClick} className="hover:opacity-70 transition-opacity relative flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Cart">
+                <ShoppingBag size={24} strokeWidth={1.5} className={headerTextColor} />
                 {totalItems > 0 && (
                   <span
-                    className="absolute top-0 right-0 bg-[#ecddd4] text-[#222] flex items-center justify-center rounded-full"
-                    style={{ height: '18px', minWidth: '18px', fontSize: '12px', lineHeight: '16px', padding: '0 4px' }}
+                    className="absolute flex items-center justify-center rounded-full"
+                    style={{ height: '18px', minWidth: '18px', fontSize: '12px', lineHeight: '16px', padding: '0 3px', left: '14px', bottom: '10px', background: '#ecddd4', color: '#222' }}
                   >
                     {totalItems}
                   </span>
@@ -194,6 +194,8 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
           .nav-item:hover .nav-link::after { width: calc(100% - 48px); }
           @media (max-width: 1279.98px) { .header-bar { padding: 12px 0 !important; } }
           @media (max-width: 640.02px) { .header-bar { padding: 6px 0 !important; min-height: 60px; } }
+          .header-addons { margin: 0; }
+          @media (min-width: 1280px) { .header-addons { margin: 0 -12px; } }
         `}</style>
       </header>
 
