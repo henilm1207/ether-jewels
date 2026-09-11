@@ -13,6 +13,7 @@ import About from './pages/About';
 import Search from './pages/Search';
 import Cart from './pages/Cart';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ReturnPolicy from './pages/ReturnPolicy';
@@ -85,6 +86,7 @@ function App() {
             <Route path="/search" element={<Search />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/account/login" element={<Login />} />
+            <Route path="/account/register" element={<Register />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ErrorBoundary>

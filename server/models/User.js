@@ -17,6 +17,8 @@ const addressSchema = new mongoose.Schema(
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
+    firstName: { type: String, required: true, trim: true, minlength: 2, maxlength: 50 },
+    lastName: { type: String, required: true, trim: true, minlength: 2, maxlength: 50 },
     email: {
       type: String,
       required: true,
@@ -26,7 +28,14 @@ const userSchema = new mongoose.Schema(
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email'],
     },
     passwordHash: { type: String, required: true, select: false },
-    phone: { type: String, trim: true, maxlength: 30 },
+    phone: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      maxlength: 30,
+      match: [/^[+]?[0-9\s\-()]{7,20}$/, 'Invalid mobile number'],
+    },
     addresses: { type: [addressSchema], default: [] },
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],

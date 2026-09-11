@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, User, ShoppingBag, Menu, X } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { products } from '../../data/products';
 
 const navItems = [
@@ -26,6 +27,9 @@ const ANNOUNCEMENT_TEXT = import.meta.env.VITE_ANNOUNCEMENT_TEXT || '';
 
 export default function Header({ onCartClick, onMenuClick, onSearchClick, searchOpen }) {
   const { totalItems } = useCart();
+  const { user, logout } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(null);
@@ -50,6 +54,15 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
   useEffect(() => {
     setSearchValue('');
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onDown = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [accountOpen]);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -168,9 +181,40 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
               <button onClick={onSearchClick} className="hover:opacity-70 transition-opacity flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Search">
                 <Search size={24} className={headerTextColor} />
               </button>
-              <Link to="/account/login" className="hover:opacity-70 transition-opacity hidden md:flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Account">
-                <User size={24} strokeWidth={1.5} className={headerTextColor} />
-              </Link>
+              {user ? (
+                <div ref={accountRef} className="relative hidden md:flex items-center justify-center" style={{ width: '44px', height: '44px' }}>
+                  <button
+                    onClick={() => setAccountOpen((v) => !v)}
+                    className="hover:opacity-70 transition-opacity flex items-center justify-center w-full h-full"
+                    aria-label={`Account — ${user.firstName || user.name}`}
+                    aria-expanded={accountOpen}
+                    title={user.firstName || user.name}
+                  >
+                    <span className="flex items-center justify-center rounded-full bg-[#222] text-white text-sm font-medium" style={{ width: '28px', height: '28px' }}>
+                      {(user.firstName || user.name || 'A').charAt(0).toUpperCase()}
+                    </span>
+                  </button>
+                  {accountOpen && (
+                    <div className="absolute right-0 top-full bg-white border border-[#ededed] shadow-lg z-50" style={{ minWidth: '200px' }}>
+                      <p className="text-sm font-medium truncate" style={{ padding: '12px 16px 4px' }}>
+                        Hi, {user.firstName || user.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate" style={{ padding: '0 16px 12px' }}>{user.email}</p>
+                      <button
+                        onClick={() => { logout(); setAccountOpen(false); navigate('/'); }}
+                        className="block w-full text-left text-sm underline hover:opacity-70"
+                        style={{ padding: '12px 16px', borderTop: '1px solid #ededed' }}
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link to="/account/login" className="hover:opacity-70 transition-opacity hidden md:flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Account">
+                  <User size={24} strokeWidth={1.5} className={headerTextColor} />
+                </Link>
+              )}
               <button onClick={onCartClick} className="hover:opacity-70 transition-opacity relative flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Cart">
                 <ShoppingBag size={24} strokeWidth={1.5} className={headerTextColor} />
                 {totalItems > 0 && (

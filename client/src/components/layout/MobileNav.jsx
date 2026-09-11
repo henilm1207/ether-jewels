@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const menuItems = [
   {
@@ -21,6 +22,7 @@ const menuItems = [
 
 export default function MobileNav({ isOpen, onClose }) {
   const [expandedMenu, setExpandedMenu] = useState(null);
+  const { user, logout } = useAuth();
 
   if (!isOpen) return null;
 
@@ -94,13 +96,25 @@ export default function MobileNav({ isOpen, onClose }) {
 
         {/* Footer */}
         <div className="border-t border-[#ededed] px-6 py-4">
-          <Link
-            to="/account/login"
-            onClick={onClose}
-            className="block w-full py-3 border border-[#222] text-center text-[13px] font-medium uppercase tracking-wider hover:bg-[#222] hover:text-white transition-colors"
-          >
-            Log in
-          </Link>
+          {user ? (
+            <div className="text-center">
+              <p className="text-sm font-medium">Hi, {user.firstName || user.name}</p>
+              <button
+                onClick={() => { logout(); onClose(); }}
+                className="mt-2 w-full py-3 border border-[#222] text-center text-[13px] font-medium uppercase tracking-wider hover:bg-[#222] hover:text-white transition-colors"
+              >
+                Log out
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/account/login"
+              onClick={onClose}
+              className="block w-full py-3 border border-[#222] text-center text-[13px] font-medium uppercase tracking-wider hover:bg-[#222] hover:text-white transition-colors"
+            >
+              Log in
+            </Link>
+          )}
         </div>
       </div>
     </>
