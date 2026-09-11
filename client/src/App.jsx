@@ -6,6 +6,7 @@ import CartDrawer from './components/layout/CartDrawer';
 import MobileNav from './components/layout/MobileNav';
 import Home from './pages/Home';
 import Collection from './pages/Collection';
+import Collections from './pages/Collections';
 import ProductDetail from './pages/ProductDetail';
 import Diamond from './pages/Diamond';
 import Contact from './pages/Contact';
@@ -116,6 +117,7 @@ function App() {
 
           <Route element={<StorefrontLayout />}>
             <Route path="/" element={<Home />} />
+            <Route path="/collections" element={<Collections />} />
             <Route path="/collections/:category" element={<Collection />} />
             <Route path="/products/:slug" element={<ProductDetail />} />
             <Route path="/pages/diamond" element={<Diamond />} />

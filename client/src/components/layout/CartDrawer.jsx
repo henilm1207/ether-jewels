@@ -43,7 +43,10 @@ export default function CartDrawer({ isOpen, onClose }) {
       <div role="dialog" aria-modal="true" aria-label={`Your cart, ${totalItems} items`} className="fixed top-0 right-0 h-full w-full max-w-[350px] bg-white z-[101] flex flex-col animate-slide-in-right">
         {/* Header — live 60px */}
         <div className="flex items-center justify-between border-b border-[#ededed]" style={{ height: '60px', padding: '16px 20px' }}>
-          <h2 className="text-[15px] font-medium">
+          <h2
+            className="text-[15px] font-medium"
+            style={{ margin: 0, textTransform: 'none', letterSpacing: 'normal', lineHeight: '24px' }}
+          >
             Your cart ({items.length} {items.length === 1 ? 'item' : 'items'})
           </h2>
           <button onClick={onClose} className="p-1 hover:opacity-70" aria-label="Close cart">

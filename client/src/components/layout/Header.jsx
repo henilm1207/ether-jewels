@@ -5,17 +5,13 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config';
 
+import { getMenuTree } from '../../lib/categoryTree';
+
 const navItems = [
   {
-    label: 'Rings',
-    to: '/collections/rings',
-    children: [
-      { label: 'Solitaire Rings', to: '/collections/solitaire-rings' },
-      { label: 'Halo Rings', to: '/collections/halo-rings-1' },
-      { label: 'Engagement Rings', to: '/collections/engagement-rings' },
-      { label: 'Three Stone Rings', to: '/collections/three-stone-rings' },
-      { label: 'Bands', to: '/collections/bands' },
-    ],
+    label: 'Jewellery',
+    to: '/collections',
+    dynamic: true, // children (variant groups) load live from DB categories
   },
   { label: 'Diamonds', to: '/pages/diamond' },
   { label: 'Contact', to: '/pages/contact' },
@@ -82,6 +78,15 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
   };
 
   const [suggestions, setSuggestions] = useState([]);
+  const [menuGroups, setMenuGroups] = useState(null); // null = loading, [] = empty DB
+
+  useEffect(() => {
+    let live = true;
+    getMenuTree()
+      .then((tree) => { if (live) setMenuGroups(tree); })
+      .catch(() => { if (live) setMenuGroups([]); });
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     const q = searchValue.trim();
@@ -146,12 +151,15 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
 
             {/* Center: Desktop Navigation — 15px/500/uppercase, underline hover */}
             <nav className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2" style={{ margin: '-10px 0' }}>
-              {navItems.map((item) => (
+              {navItems.map((base) => {
+                const item = base.dynamic ? { ...base, children: true, groups: menuGroups } : base;
+                const hasMenu = base.dynamic || item.children;
+                return (
                 <div
                   key={item.label}
                   className="relative nav-item"
-                  onMouseEnter={() => item.children && handleMouseEnter(item.label)}
-                  onMouseLeave={item.children ? handleMouseLeave : undefined}
+                  onMouseEnter={() => hasMenu && handleMouseEnter(item.label)}
+                  onMouseLeave={hasMenu ? handleMouseLeave : undefined}
                 >
                   <Link
                     to={item.to || '#'}
@@ -159,35 +167,70 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                     style={{ lineHeight: '40px', padding: '10px 24px', fontSize: '15px', fontWeight: 500 }}
                   >
                     {item.label}
-                    {item.children && (
+                    {hasMenu && (
                       <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1" style={{ marginInlineStart: '8px' }}>
                         <path d="M1 3.5L4.5 7L8 3.5" />
                       </svg>
                     )}
                   </Link>
 
-                  {item.children && dropdownOpen === item.label && (
+                  {hasMenu && dropdownOpen === item.label && (
                     <div
                       className="absolute top-full left-1/2 -translate-x-1/2 bg-white z-50"
-                      style={{ minWidth: '230px', padding: '18px 21px', boxShadow: '0 12px 20px rgba(0,0,0,0.07)', border: '1px solid #ededed' }}
+                      style={{ minWidth: '230px', maxWidth: 'min(1060px, calc(100vw - 40px))', padding: '18px 21px', boxShadow: '0 12px 20px rgba(0,0,0,0.07)', border: '1px solid #ededed' }}
                       onMouseEnter={() => handleMouseEnter(item.label)}
                       onMouseLeave={handleMouseLeave}
                     >
-                      {item.children.map((child) => (
-                        <Link
-                          key={child.label}
-                          to={child.to}
-                          className="block text-[#222] hover:opacity-70 transition-opacity"
-                          style={{ padding: '8px 0', lineHeight: '24px', fontSize: '15px' }}
-                          onClick={() => setDropdownOpen(null)}
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
+                      {base.dynamic ? (
+                        menuGroups === null ? (
+                          <span className="block text-[#222]" style={{ padding: '8px 0', lineHeight: '24px', fontSize: '15px' }}>Loading…</span>
+                        ) : menuGroups.length === 0 ? (
+                          <span className="block text-[#222]" style={{ padding: '8px 0', lineHeight: '24px', fontSize: '15px', opacity: 0.6 }}>New collections coming soon</span>
+                        ) : (
+                          <div className="mega-menu-columns" style={{ display: 'flex', gap: '36px', overflowX: 'auto' }}>
+                            {menuGroups.map((g) => (
+                              <div key={g.label} style={{ flex: '1 0 150px', minWidth: '150px' }}>
+                                <Link
+                                  to={g.to}
+                                  className="block uppercase hover:opacity-70 transition-opacity"
+                                  style={{ padding: '8px 0 4px', lineHeight: '24px', fontSize: '13px', fontWeight: 500, letterSpacing: '1px', whiteSpace: 'nowrap' }}
+                                  onClick={() => setDropdownOpen(null)}
+                                >
+                                  {g.label}
+                                </Link>
+                                {(g.children || []).map((child) => (
+                                  <Link
+                                    key={child.label}
+                                    to={child.to}
+                                    className="block text-[#222] hover:opacity-70 transition-opacity"
+                                    style={{ padding: '6px 0', lineHeight: '24px', fontSize: '15px', whiteSpace: 'nowrap' }}
+                                    onClick={() => setDropdownOpen(null)}
+                                  >
+                                    {child.label}
+                                  </Link>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        item.children.map((child) => (
+                          <Link
+                            key={child.label}
+                            to={child.to}
+                            className="block text-[#222] hover:opacity-70 transition-opacity"
+                            style={{ padding: '8px 0', lineHeight: '24px', fontSize: '15px' }}
+                            onClick={() => setDropdownOpen(null)}
+                          >
+                            {child.label}
+                          </Link>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </nav>
 
             {/* Right: Icons — live site-header__addons */}

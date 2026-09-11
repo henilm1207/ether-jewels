@@ -82,9 +82,7 @@ router.get('/', async (req, res, next) => {
       limit = '50',
     } = req.query;
 
-    // Public list is active-only; other statuses need admin
-    const isAdmin = req.headers.authorization; // cheap hint; real check in admin routes
-    void isAdmin;
+    // Public list is active-only; other statuses need the admin list below.
     const filter = { status: 'active' };
     if (status && status !== 'active') {
       return res.status(403).json({ message: 'Use admin product list for non-active status' });
@@ -223,6 +221,57 @@ router.delete('/:id', authRequired, requireAdmin, async (req, res, next) => {
     );
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json({ message: 'Archived', product });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// DELETE /:id/permanent — irreversible: removes the product AND purges its
+// Cloudinary images. Reviews are kept as history (no cascade).
+router.delete('/:id/permanent', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    const purged = [];
+    const failed = [];
+    let cloudinary = null;
+    const needsCloud = (product.images || []).some(
+      (u) => typeof u === 'string' && u.includes('res.cloudinary.com')
+    );
+    if (needsCloud) {
+      const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
+      if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET) {
+        cloudinary = require('cloudinary').v2;
+        cloudinary.config({
+          cloud_name: CLOUDINARY_CLOUD_NAME,
+          api_key: CLOUDINARY_API_KEY,
+          api_secret: CLOUDINARY_API_SECRET,
+        });
+      }
+    }
+    for (const src of product.images || []) {
+      const m = String(src || '').match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
+      const publicId = m && m[1];
+      if (!publicId || !publicId.startsWith('ether-jewels/')) continue;
+      if (!cloudinary) {
+        failed.push(publicId);
+        continue;
+      }
+      try {
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+        purged.push(publicId);
+      } catch {
+        failed.push(publicId);
+      }
+    }
+
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({
+      message: `Deleted ${product.name}`,
+      purged: purged.length,
+      failed,
+    });
   } catch (e) {
     next(e);
   }

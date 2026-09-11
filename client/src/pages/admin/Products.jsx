@@ -37,6 +37,10 @@ export default function Products() {
 
   useEffect(() => { load(); }, [load]);
 
+  const [deleting, setDeleting] = useState(null); // product pending type-to-confirm
+  const [confirmText, setConfirmText] = useState('');
+  const [deletingBusy, setDeletingBusy] = useState(false);
+
   const archive = async (p) => {
     if (!window.confirm(`Archive "${p.name}"? It will disappear from the store.`)) return;
     try {
@@ -44,6 +48,26 @@ export default function Products() {
       load();
     } catch (e) {
       setError(e.message);
+    }
+  };
+
+  const destroy = async (e) => {
+    e.preventDefault();
+    if (!deleting || confirmText.trim() !== deleting.slug) return;
+    setDeletingBusy(true);
+    try {
+      const res = await adminFetch(`/api/products/${deleting._id}/permanent`, { method: 'DELETE' });
+      setDeleting(null);
+      setConfirmText('');
+      setError('');
+      load();
+      if (res.failed && res.failed.length) {
+        setError(`Deleted, but ${res.failed.length} image(s) need manual removal in Cloudinary.`);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingBusy(false);
     }
   };
 
@@ -94,8 +118,9 @@ export default function Products() {
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
               <Link to={`/admin/products/${p._id}`} className="underline text-sm mr-3">Edit</Link>
               {p.status !== 'archived' && (
-                <button onClick={() => archive(p)} className="underline text-sm text-red-700">Archive</button>
+                <button onClick={() => archive(p)} className="underline text-sm text-red-700 mr-3">Archive</button>
               )}
+              <button onClick={() => { setDeleting(p); setConfirmText(''); setError(''); }} className="underline text-sm text-red-700 font-medium">Delete</button>
             </td>
           </tr>
         ))}
@@ -105,6 +130,41 @@ export default function Products() {
         <span>Page {page}</span>
         <button disabled={items.length < 20} onClick={() => setPage((p) => p + 1)} className="underline disabled:opacity-40">Next →</button>
       </div>
+
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ padding: '16px' }}>
+          <div className="absolute inset-0 bg-black/50" onClick={() => !deletingBusy && setDeleting(null)} />
+          <form onSubmit={destroy} className="relative bg-white rounded w-full" style={{ maxWidth: '440px', padding: '20px' }}>
+            <h2 className="font-heading text-red-700">Delete forever?</h2>
+            <p className="text-sm mt-2">
+              <strong>{deleting.name}</strong> will be permanently removed and its Cloudinary images purged.
+              Reviews stay as history. This cannot be undone — archiving hides it reversibly instead.
+            </p>
+            <label className="block text-sm mt-3">
+              Type <span className="font-mono font-medium">{deleting.slug}</span> to confirm:
+              <input
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                className="mt-1 w-full bg-white border border-[#d9d9d9] rounded text-sm font-mono"
+                style={{ padding: '10px 12px' }}
+                autoFocus
+                autoComplete="off"
+              />
+            </label>
+            <div className="flex gap-3 mt-4">
+              <button
+                type="submit"
+                disabled={deletingBusy || confirmText.trim() !== deleting.slug}
+                className="btn btn--primary text-sm disabled:opacity-40"
+                style={{ background: '#B00020' }}
+              >
+                {deletingBusy ? 'Deleting…' : 'Delete forever'}
+              </button>
+              <button type="button" onClick={() => setDeleting(null)} disabled={deletingBusy} className="underline text-sm">Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

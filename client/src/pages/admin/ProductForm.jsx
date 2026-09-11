@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adminFetch } from '../../components/admin/api';
 import AiCopyButton from '../../components/admin/AiCopyButton';
+import { clearMenuCache } from '../../lib/categoryTree';
+import { VARIANTS, SUBS, RING_LEAVES } from '../../data/catalog';
 import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, RING_SIZES, isRingCategory } from '../../components/admin/ui';
 
 const EMPTY = {
@@ -106,18 +108,104 @@ export default function ProductForm() {
   const [form, setForm] = useState(EMPTY);
   const [variants, setVariants] = useState([{ ...EMPTY_VARIANT }]);
   const [categories, setCategories] = useState([]);
+  const [variantKey, setVariantKey] = useState(''); // selected variant (Category dropdown)
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState('');
   const [savedNote, setSavedNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!isNew);
+  const [qa, setQa] = useState(null); // { kind: 'variant'|'sub', name: '' } | null
+  const [qaSaving, setQaSaving] = useState(false);
+  const [confirmSlug, setConfirmSlug] = useState('');
+  const [destroying, setDestroying] = useState(false);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setImages = (images) => setForm((f) => ({ ...f, images }));
 
+  // Variant (Category) options: STATIC list first (always complete), DB extras
+  // (quick-added customs) merged in marked with •. Same for sub-categories.
+  // Static and DB share the key scheme, so both UIs always agree.
+  const dbByKey = {};
+  categories.forEach((c) => { dbByKey[c.key] = c; });
+  const variantOptions = [
+    ...VARIANTS.map((v) => ({ ...(dbByKey[v.key] || {}), key: v.key, name: (dbByKey[v.key] || {}).name || v.name, custom: !dbByKey[v.key] })),
+    ...categories
+      .filter((c) => c.parent === 'Collection' && !c.aliasOf && !c.shape && !VARIANTS.some((v) => v.key === c.key))
+      .map((c) => ({ ...c, custom: true })),
+  ];
+  const staticSubs = SUBS[variantKey] || [];
+  const variantDoc = variantOptions.find((x) => x.key === variantKey);
+  const dbSubs = variantDoc && !variantDoc.custom
+    ? categories.filter((c) => c.parent === variantDoc.name && !c.aliasOf && !c.shape && c.key !== variantDoc.key && !staticSubs.some((s) => s.key === c.key))
+    : [];
+  const subOptions = [
+    ...staticSubs.map((s) => ({ ...(dbByKey[s.key] || {}), key: s.key, name: (dbByKey[s.key] || {}).name || s.name })),
+    ...dbSubs.map((c) => ({ ...c, custom: true })),
+  ];
+  const storedDoc = categories.find((c) => c.key === form.category);
+  // Static leaves count as valid shelves for UI gating; the server leaf-guard
+  // is the final judge at save time (it needs the matching DB doc).
+  const inStatic = Object.values(SUBS).some((arr) => arr.some((s) => s.key === form.category));
+  const leafDoc = storedDoc && isLeaf(storedDoc) ? storedDoc : null;
+  const staleCategory = form.category && !leafDoc && !inStatic;
+  const storedIsAggregate = !!(storedDoc && storedDoc.aggregateKeys && storedDoc.aggregateKeys.length);
+  // Ring sizes follow the DB category flag (custom ring leaves work too).
+  // Inline quick-add: new variant (parent Collection) or new sub under the
+  // chosen variant — no page leave, form data preserved.
+  const quickAdd = async (e) => {
+    e.preventDefault();
+    if (!qa || !qa.name.trim()) return;
+    const variantDoc = variantOptions.find((x) => x.key === variantKey);
+    if (qa.kind === 'sub' && !variantDoc) {
+      setError('Pick a category first, then add its sub-category.');
+      return;
+    }
+    setQaSaving(true);
+    setError('');
+    try {
+      const created = await adminFetch('/api/categories', {
+        method: 'POST',
+        body: {
+          name: qa.name.trim(),
+          parent: qa.kind === 'variant' ? 'Collection' : variantDoc.name,
+          ...(qa.kind === 'variant' ? { requiresSize: false } : {}),
+        },
+      });
+      const list = await adminFetch('/api/categories');
+      setCategories(Array.isArray(list) ? list : []);
+      clearMenuCache(); // new shelves appear in menus immediately
+      if (qa.kind === 'variant') {
+        setVariantKey(created.key);
+        set('category', '');
+      } else {
+        set('category', created.key);
+      }
+      setQa(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setQaSaving(false);
+    }
+  };
+
   useEffect(() => {
     adminFetch('/api/categories').then(setCategories).catch(() => setCategories([]));
   }, []);
+
+  // Once categories arrive, point the Category dropdown at the variant that
+  // owns the stored leaf (edit mode). Static SUBS entries resolve without DB.
+  useEffect(() => {
+    if (!form.category || variantKey) return;
+    const leafVariantKey = Object.keys(SUBS).find((vk) => SUBS[vk].some((s) => s.key === form.category));
+    if (leafVariantKey) {
+      setVariantKey(leafVariantKey);
+      return;
+    }
+    const leaf = categories.find((c) => c.key === form.category);
+    if (!leaf) return;
+    const v = categories.find((x) => x.parent === 'Collection' && !x.aliasOf && !x.shape && x.name === leaf.parent);
+    if (v) setVariantKey(v.key);
+  }, [categories, form.category, variantKey]);
 
   useEffect(() => {
     if (isNew) return;
@@ -155,7 +243,9 @@ export default function ProductForm() {
     })();
   }, [id, isNew]);
 
-  const ring = isRingCategory(form.category);
+  // Ring sizes follow the DB category flag (custom ring leaves work too).
+  // Ring sizes: DB flag wins, static ring leaves next, legacy helper last.
+  const ring = leafDoc ? !!leafDoc.requiresSize : (RING_LEAVES.has(form.category) || isRingCategory(form.category));
 
   const save = async (e) => {
     e.preventDefault();
@@ -163,6 +253,7 @@ export default function ProductForm() {
     setSavedNote('');
     if (!form.images.length) return setError('Add at least one product image.');
     if (!variants.length) return setError('Add at least one metal variant.');
+    if (!leafDoc && !inStatic) return setError('Pick a valid category + sub-category before saving.');
     setSaving(true);
     try {
       const num = (v) => (v === '' || v == null ? undefined : Number(v));
@@ -221,6 +312,15 @@ export default function ProductForm() {
     <div>
       <PageHead title={isNew ? 'New product' : 'Edit product'} sub="Prices are USD, 14KT base — 18KT adds the delta" />
       <ErrorMsg error={error} />
+      {staleCategory && (
+        <p role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px', marginBottom: '14px' }}>
+          {storedIsAggregate ? (
+            <>“{form.category}” is a collection shelf, not a shelf item — pick its sub-category below, then save.</>
+          ) : (
+            <>Saved category “{form.category}” no longer exists as a leaf — pick a valid category + sub-category, then save.</>
+          )}
+        </p>
+      )}
       <form onSubmit={save}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
@@ -235,13 +335,59 @@ export default function ProductForm() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Field label="Category *">
-                  <select value={form.category} onChange={(e) => set('category', e.target.value)} required className={inputCls} style={inputStyle}>
+                  <select
+                    value={variantKey}
+                    onChange={(e) => { setVariantKey(e.target.value); set('category', ''); }}
+                    required
+                    className={inputCls}
+                    style={inputStyle}
+                  >
                     <option value="">Select…</option>
-                    {categories.filter((c) => !c.aliasOf && !c.shape && !(c.aggregateKeys && c.aggregateKeys.length)).map((c) => (
-                      <option key={c.key} value={c.key}>{c.name} ({c.key})</option>
+                    {variantOptions.map((c) => (
+                      <option key={c.key} value={c.key}>{c.name}{c.custom ? ' •' : ''}</option>
                     ))}
                   </select>
                 </Field>
+                <Field label="Sub-category *">
+                  <select
+                    value={subOptions.some((s) => s.key === form.category) || leafDoc ? form.category : ''}
+                    onChange={(e) => set('category', e.target.value)}
+                    required
+                    disabled={!variantKey}
+                    className={inputCls}
+                    style={inputStyle}
+                  >
+                    <option value="">{variantKey ? (subOptions.length ? 'Select…' : 'No sub-categories — add one below') : 'Pick a category first'}</option>
+                    {subOptions.map((c) => (
+                      <option key={c.key} value={c.key}>{c.name} ({c.key}){c.custom ? ' •' : ''}</option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="sm:col-span-2 flex flex-wrap items-center gap-4" style={{ paddingBottom: '14px' }}>
+                  <button type="button" onClick={() => setQa({ kind: 'variant', name: '' })} className="underline text-sm">+ New category</button>
+                  <button type="button" onClick={() => setQa({ kind: 'sub', name: '' })} disabled={!variantKey} className="underline text-sm disabled:opacity-40" title={variantKey ? '' : 'Pick a category first'}>+ New sub-category</button>
+                </div>
+                {qa && (
+                  <form onSubmit={quickAdd} className="sm:col-span-3 flex flex-wrap items-end gap-2 bg-[#fafafa] border border-[#e5e5e5] rounded" style={{ padding: '12px' }}>
+                    <p className="text-sm font-medium w-full">
+                      New {qa.kind === 'variant' ? 'category' : `sub-category under “${(variantOptions.find((x) => x.key === variantKey) || {}).name || ''}”`}
+                    </p>
+                    <input
+                      value={qa.name}
+                      onChange={(e) => setQa({ ...qa, name: e.target.value })}
+                      placeholder={qa.kind === 'variant' ? 'e.g. Anklets' : 'e.g. Charm Bands'}
+                      required
+                      autoFocus
+                      className={inputCls}
+                      style={{ ...inputStyle, maxWidth: '280px' }}
+                      aria-label={qa.kind === 'variant' ? 'New category name' : 'New sub-category name'}
+                    />
+                    <button type="submit" disabled={qaSaving} className="btn btn--secondary text-sm disabled:opacity-50">
+                      {qaSaving ? 'Adding…' : 'Add'}
+                    </button>
+                    <button type="button" onClick={() => setQa(null)} className="underline text-sm">Cancel</button>
+                  </form>
+                )}
                 <Field label="Diamond shape">
                   <select value={form.shape} onChange={(e) => set('shape', e.target.value)} className={inputCls} style={inputStyle}>
                     <option value="">None (band)</option>
@@ -378,6 +524,85 @@ export default function ProductForm() {
               </button>
               {savedNote && <p role="status" className="text-sm text-green-700 mt-2">{savedNote}</p>}
             </Card>
+            {!isNew && (
+              <>
+                <div style={{ height: '16px' }} />
+                <Card>
+                  <h2 className="font-medium text-sm mb-1 text-red-700">DANGER ZONE</h2>
+                  <p className="text-xs text-gray-500 mb-3">Archiving hides the product reversibly. Deleting removes it and purges its Cloudinary images forever.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm(`Archive "${form.name}"? It will disappear from the store.`)) return;
+                        setError('');
+                        try {
+                          await adminFetch(`/api/products/${id}`, { method: 'DELETE' });
+                          setSavedNote('Archived — product hidden from the store.');
+                        } catch (e) {
+                          setError(e.message);
+                        }
+                      }}
+                      className="underline text-sm text-red-700"
+                    >
+                      Archive
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmSlug('__ask')}
+                      className="underline text-sm text-red-700 font-medium"
+                    >
+                      Delete forever
+                    </button>
+                  </div>
+                  {confirmSlug && (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        setDestroying(true);
+                        setError('');
+                        try {
+                          const res = await adminFetch(`/api/products/${id}/permanent`, { method: 'DELETE' });
+                          navigate('/admin/products', { replace: true });
+                          if (res.failed && res.failed.length) {
+                            window.alert(`Deleted, but ${res.failed.length} image(s) need manual removal in Cloudinary.`);
+                          }
+                        } catch (err) {
+                          setError(err.message);
+                          setConfirmSlug('');
+                        } finally {
+                          setDestroying(false);
+                        }
+                      }}
+                      className="mt-3"
+                    >
+                      <label className="block text-sm">
+                        Type <span className="font-mono font-medium">{form.slug}</span> to confirm permanent deletion:
+                        <input
+                          value={confirmSlug === '__ask' ? '' : confirmSlug}
+                          onChange={(e) => setConfirmSlug(e.target.value)}
+                          className="mt-1 w-full bg-white border border-[#d9d9d9] rounded text-sm font-mono"
+                          style={{ padding: '10px 12px' }}
+                          autoFocus
+                          autoComplete="off"
+                        />
+                      </label>
+                      <div className="flex gap-3 mt-3">
+                        <button
+                          type="submit"
+                          disabled={destroying || confirmSlug.trim() !== form.slug}
+                          className="text-sm text-white rounded disabled:opacity-40"
+                          style={{ padding: '10px 20px', background: '#B00020' }}
+                        >
+                          {destroying ? 'Deleting…' : 'Delete forever'}
+                        </button>
+                        <button type="button" onClick={() => setConfirmSlug('')} className="underline text-sm">Cancel</button>
+                      </div>
+                    </form>
+                  )}
+                </Card>
+              </>
+            )}
           </div>
         </div>
       </form>

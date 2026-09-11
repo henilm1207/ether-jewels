@@ -1,20 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getMenuTree } from '../../lib/categoryTree';
 
 const menuItems = [
-  {
-    label: 'Rings',
-    to: '/collections/rings',
-    children: [
-      { label: 'Solitaire Rings', to: '/collections/solitaire-rings' },
-      { label: 'Halo Rings', to: '/collections/halo-rings-1' },
-      { label: 'Engagement Rings', to: '/collections/engagement-rings' },
-      { label: 'Three Stone Rings', to: '/collections/three-stone-rings' },
-      { label: 'Bands', to: '/collections/bands' },
-    ],
-  },
+  { label: 'Jewellery', to: '/collections', dynamic: true },
   { label: 'Diamonds', to: '/pages/diamond' },
   { label: 'Contact', to: '/pages/contact' },
   { label: 'About', to: '/pages/about-us' },
@@ -22,7 +13,18 @@ const menuItems = [
 
 export default function MobileNav({ isOpen, onClose }) {
   const [expandedMenu, setExpandedMenu] = useState(null);
+  const [expandedGroup, setExpandedGroup] = useState(null);
+  const [menuGroups, setMenuGroups] = useState(null); // null = loading, [] = empty DB
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let live = true;
+    getMenuTree()
+      .then((tree) => { if (live) setMenuGroups(tree); })
+      .catch(() => { if (live) setMenuGroups([]); });
+    return () => { live = false; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -49,10 +51,25 @@ export default function MobileNav({ isOpen, onClose }) {
 
         {/* Menu */}
         <nav className="flex-1 overflow-y-auto">
-          {menuItems.map((item) => (
+          {menuItems.map((item) => {
+            const groups = item.dynamic ? menuGroups : null;
+            const hasKids = item.dynamic || item.children;
+            if (!hasKids) {
+              return (
+                <div key={item.label} className="border-b border-[#ededed]">
+                  <Link
+                    to={item.to}
+                    onClick={onClose}
+                    className="block px-6 py-4 text-[15px] font-medium"
+                  >
+                    {item.label}
+                  </Link>
+                </div>
+              );
+            }
+            return (
             <div key={item.label} className="border-b border-[#ededed]">
-              {item.children ? (
-                <>
+              <>
                   <button
                     onClick={() =>
                       setExpandedMenu(expandedMenu === item.label ? null : item.label)
@@ -68,30 +85,81 @@ export default function MobileNav({ isOpen, onClose }) {
                   </button>
                   {expandedMenu === item.label && (
                     <div className="bg-gray-50 pb-2">
-                      {item.children.map((child) => (
-                        <Link
-                          key={child.label}
-                          to={child.to}
-                          onClick={onClose}
-                          className="block px-8 py-3 text-sm text-gray-600 hover:text-[#222] hover:bg-gray-100"
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
+                      {item.dynamic ? (
+                        groups === null ? (
+                          <p className="px-8 py-3 text-sm text-gray-500">Loading…</p>
+                        ) : groups.length === 0 ? (
+                          <>
+                            <p className="px-8 py-3 text-sm text-gray-500">New collections coming soon</p>
+                            <Link
+                              to="/collections"
+                              onClick={onClose}
+                              className="block px-8 py-3 text-sm text-gray-600 hover:text-[#222] hover:bg-gray-100 underline"
+                            >
+                              View all collections
+                            </Link>
+                          </>
+                        ) : (
+                          <>
+                            <Link
+                              to="/collections"
+                              onClick={onClose}
+                              className="block px-8 py-3 text-sm font-medium underline"
+                            >
+                              View all collections
+                            </Link>
+                            {groups.map((g) => (
+                              <div key={g.label}>
+                                <button
+                                  onClick={() => setExpandedGroup(expandedGroup === g.label ? null : g.label)}
+                                  className="w-full flex items-center justify-between px-8 py-3 text-sm font-medium"
+                                >
+                                  {g.label}
+                                  {expandedGroup === g.label ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </button>
+                                {expandedGroup === g.label && (
+                                  <div className="pb-1">
+                                    <Link
+                                      to={g.to}
+                                      onClick={onClose}
+                                      className="block px-10 py-2.5 text-sm text-gray-600 hover:text-[#222] hover:bg-gray-100 underline"
+                                    >
+                                      Shop all {g.label}
+                                    </Link>
+                                    {(g.children || []).map((child) => (
+                                      <Link
+                                        key={child.label}
+                                        to={child.to}
+                                        onClick={onClose}
+                                        className="block px-10 py-2.5 text-sm text-gray-600 hover:text-[#222] hover:bg-gray-100"
+                                      >
+                                        {child.label}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </>
+                        )
+                      ) : (
+                        item.children.map((child) => (
+                          <Link
+                            key={child.label}
+                            to={child.to}
+                            onClick={onClose}
+                            className="block px-8 py-3 text-sm text-gray-600 hover:text-[#222] hover:bg-gray-100"
+                          >
+                            {child.label}
+                          </Link>
+                        ))
+                      )}
                     </div>
                   )}
                 </>
-              ) : (
-                <Link
-                  to={item.to}
-                  onClick={onClose}
-                  className="block px-6 py-4 text-[15px] font-medium"
-                >
-                  {item.label}
-                </Link>
-              )}
             </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Footer */}

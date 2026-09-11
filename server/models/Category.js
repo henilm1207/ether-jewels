@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 
 /**
  * Category collection — source of truth for collections.
- * v1 seeds 8 product categories + `rings` aggregate + shape collections.
- * v2: insert `hiphop` / reworked bracelets/necklaces here only.
+ * Managed via /admin (Categories) or scripts/ensure-catalog.js.
  * Product.category stays a String key so new categories need no migration.
  */
 const categorySchema = new mongoose.Schema(
@@ -19,7 +18,7 @@ const categorySchema = new mongoose.Schema(
     aggregateKeys: { type: [String], default: [] },
     // Alias slugs e.g. halo-rings-1 -> halo-rings
     aliasOf: { type: String, default: null },
-    // Jewelry rules per category (future-proof for hiphop chain lengths etc.)
+    // Jewelry rules per category (e.g. requiresLength for future chain lengths)
     requiresSize: { type: Boolean, default: false },
     requiresLength: { type: Boolean, default: false },
     attributes: { type: [String], default: [] },

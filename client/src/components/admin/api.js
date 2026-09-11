@@ -1,4 +1,3 @@
-import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config';
 
 // Thin admin API client — attaches the admin JWT, throws Error(message) on failure.

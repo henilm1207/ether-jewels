@@ -46,9 +46,9 @@ ether-jewels/
 │   ├── config/
 │   │   ├── db.js              # connectDB()
 │   │   └── catalog.js         # Shared rules: RING_CATEGORIES, shapes,
-│   │                          #   metal colors, DEFAULT_RING_SIZES, isRingCategory()
+│   │                          #   DEFAULT_RING_SIZES, isRingCategory()
 │   ├── models/                # User, Product, Category, Order, Coupon,
-│   │                          #   Review, Inquiry, Subscriber, Diamond (v2 stub)
+│   │                          #   Review, Inquiry, Subscriber
 │   ├── routes/                # auth, products, categories, orders, coupons,
 │   │                          #   reviews, inquiries, newsletter, dbViewer
 │   └── middleware/auth.js     # signToken, authOptional/Required, requireAdmin
@@ -94,13 +94,13 @@ Connection: `server/.env` → `MONGO_URI` (Atlas `mongodb+srv://…/etherstar-je
 `.env` is gitignored — never commit secrets; `.env.example` holds placeholders.
 
 Collections: `users, products, categories, orders, coupons, reviews, inquiries, subscribers`
-(+ `diamonds` model stubbed for v2 — Diamond page is Coming Soon).
+(Diamond page is a Coming Soon placeholder; loose-diamond inventory is not modeled yet).
 
 Jewelry rules enforced in code:
 - **USD-only** (`currency: 'USD'` on Product/Order).
 - **Ring sizes required only for ring categories** (`rings, solitaire-rings, halo-rings, engagement-rings, three-stone-rings, bands`); forbidden otherwise. Orders reject ring items without `size`.
 - Products are **settings only** (center diamond excluded) — `price` = 14KT base, `kt18Delta` added for 18KT; `styleCode` = SKU (`MJ72R`); `legacySlugs[]` keeps old URLs working; `shape`, metal `variants[]`, `images[]` + optional `video`.
-- `Category.key` is the source of truth (supports aggregates like `rings`, shape collections, aliases like `halo-rings-1`) — new categories (e.g. future `hiphop`) are seed-only, no migration.
+- `Category.key` is the source of truth (supports aggregates like `rings`, shape collections, aliases) — new categories need no migration.
 - Reviews denormalize `ratingAvg/ratingCount` onto Product on approve.
 
 Seed data mirrors `client/src/data/products.js` (the catalog truth).

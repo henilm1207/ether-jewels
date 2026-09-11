@@ -28,7 +28,7 @@ const productSchema = new mongoose.Schema(
     currency: { type: String, enum: ['USD'], default: 'USD', required: true },
     description: { type: String, default: '' },
     shortDescription: { type: String, default: '' },
-    // String key into Category.key (not strict enum so v2 hiphop needs no migration)
+    // String key into Category.key (not strict enum so new categories need no migration)
     category: { type: String, required: true, trim: true },
     images: {
       type: [String],
