@@ -13,6 +13,8 @@ const orderRoutes = require('./routes/orders');
 const couponRoutes = require('./routes/coupons');
 const reviewRoutes = require('./routes/reviews');
 const inquiryRoutes = require('./routes/inquiries');
+const uploadRoutes = require('./routes/uploads');
+const aiRoutes = require('./routes/ai');
 const dbViewerRoutes = require('./routes/dbViewer');
 const { authRequired, requireAdmin } = require('./middleware/auth');
 
@@ -41,7 +43,7 @@ app.use(mongoSanitize());
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
-app.use(['/api/auth/login', '/api/auth/register', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews'], strictLimiter);
+app.use(['/api/auth/login', '/api/auth/register', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 
 app.use('/api/products', productRoutes);
 app.use('/api/newsletter', newsletterRoutes);
@@ -51,6 +53,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/inquiries', inquiryRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Read-only browser DB viewer — dev only, explicitly enabled, admin only
 if (
@@ -75,10 +79,45 @@ app.use((err, _req, res, _next) => {
   if (err && (err.name === 'CastError' || err.name === 'ValidationError')) {
     return res.status(400).json({ message: 'Invalid request data' });
   }
+  if (err && Number.isInteger(err.status) && err.status >= 400 && err.status < 600) {
+    const msg = err.status < 500 || process.env.NODE_ENV !== 'production' ? err.message : 'Server error';
+    return res.status(err.status).json({ message: msg });
+  }
   console.error('Unhandled error:', err && err.message);
   const msg = process.env.NODE_ENV === 'production' ? 'Server error' : (err && err.message) || 'Server error';
   res.status(500).json({ message: msg });
 });
+
+async function ensureAdmin() {
+  const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || '';
+  if (!email && !password) return; // bootstrap not configured
+  if (!email || password.length < 8) {
+    console.warn('ADMIN_EMAIL/ADMIN_PASSWORD incomplete — skipping admin bootstrap (password must be 8+ chars)');
+    return;
+  }
+  const User = require('./models/User');
+  const existing = await User.findOne({ email });
+  if (existing) {
+    if (existing.role !== 'admin') {
+      console.warn(`Admin bootstrap: ${email} exists but is not admin — leaving untouched`);
+    }
+    return;
+  }
+  const nameParts = (process.env.ADMIN_NAME || 'Store Admin').trim().split(/\s+/);
+  const firstName = nameParts[0] || 'Store';
+  const lastName = nameParts.slice(1).join(' ') || 'Admin';
+  await User.create({
+    firstName,
+    lastName,
+    name: `${firstName} ${lastName}`.slice(0, 100),
+    email,
+    passwordHash: await User.hashPassword(password),
+    phone: process.env.ADMIN_PHONE || '+10000000000',
+    role: 'admin',
+  });
+  console.log(`Admin bootstrap: created admin ${email}`);
+}
 
 async function boot() {
   validateEnv();
@@ -87,6 +126,11 @@ async function boot() {
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
     process.exit(1);
+  }
+  try {
+    await ensureAdmin();
+  } catch (error) {
+    console.error('Admin bootstrap failed:', error.message);
   }
   const PORT = process.env.PORT || 5001;
   const HOST = process.env.HOST || '0.0.0.0';
@@ -98,3 +142,4 @@ async function boot() {
 if (require.main === module) boot();
 
 module.exports = app;
+module.exports.ensureAdmin = ensureAdmin;

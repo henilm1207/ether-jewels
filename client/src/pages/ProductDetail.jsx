@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { findProduct } from '../data/products';
+import { apiUrl } from '../config';
 import { useCart } from '../context/CartContext';
 import { Truck, ShieldCheck, Gem } from 'lucide-react';
 
@@ -19,7 +19,9 @@ function formatPrice(value) {
 
 export default function ProductDetail() {
   const { slug } = useParams();
-  const product = findProduct(slug);
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const { addItem } = useCart();
 
   const [selectedVariant, setSelectedVariant] = useState(0);
@@ -33,7 +35,53 @@ export default function ProductDetail() {
     setSelectedKt('14KT');
     setSelectedImage(0);
     setQuantity(1);
+    setLoading(true);
+    setLoadError('');
+    setProduct(null);
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/products/${encodeURIComponent(slug)}`));
+        if (res.status === 404) {
+          if (live) setProduct(null);
+          return;
+        }
+        if (!res.ok) throw new Error('Could not load this product.');
+        const data = await res.json();
+        if (live) setProduct(data);
+      } catch (e) {
+        if (live) setLoadError(e.message || 'Could not load this product.');
+      } finally {
+        if (live) setLoading(false);
+      }
+    })();
+    return () => { live = false; };
   }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="container py-20" aria-hidden="true">
+        <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-[#f1ece8] aspect-square" />
+          <div>
+            <div className="bg-[#f1ece8]" style={{ height: '28px', width: '70%' }} />
+            <div className="bg-[#f1ece8]" style={{ height: '16px', width: '40%', marginTop: '12px' }} />
+            <div className="bg-[#f1ece8]" style={{ height: '46px', width: '200px', marginTop: '24px' }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="py-20 text-center">
+        <h1 className="font-heading text-2xl mb-4">Could not load product</h1>
+        <p className="text-gray-600 text-[15px]" style={{ marginBottom: '16px' }}>{loadError}</p>
+        <button onClick={() => window.location.reload()} className="btn btn--secondary">Retry</button>
+      </div>
+    );
+  }
 
   if (!product) {
     return (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { shapes } from '../data/products';
+import { shapes } from '../data/shapes';
 import RangeSlider from '../components/filters/RangeSlider';
 
 // Diamond search tool styled like the live Nivoda panel.

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { X, SlidersHorizontal } from 'lucide-react';
-import { resolveCategory, productsForCategory } from '../data/products';
+import { apiUrl } from '../config';
 import ProductGrid from '../components/product/ProductGrid';
 import RangeSlider from '../components/filters/RangeSlider';
 
@@ -63,7 +63,11 @@ function ChevronNext() {
 export default function Collection() {
   const { category } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { key: resolvedKey, info: categoryInfo } = resolveCategory(category);
+  const [resolvedKey, setResolvedKey] = useState(category);
+  const [categoryInfo, setCategoryInfo] = useState(null);
+  const [baseProducts, setBaseProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [sortBy, setSortBy] = useState('featured');
   const [filterOpen, setFilterOpen] = useState(false);
   const [mobileCols, setMobileCols] = useState(2);
@@ -78,10 +82,43 @@ export default function Collection() {
     setApplied({ ...emptyFilters, availability: [] });
     setSortBy('featured');
     setSearchParams({}, { replace: true });
+    setLoading(true);
+    setLoadError('');
+    setBaseProducts([]);
+    setCategoryInfo(null);
+    let live = true;
+    (async () => {
+      try {
+        // Category info first (server resolves aliases); unknown key → 404 → not-found state.
+        let info = null;
+        try {
+          const res = await fetch(apiUrl(`/api/categories/${encodeURIComponent(category)}`));
+          if (res.ok) info = await res.json();
+        } catch { /* offline → error below */ }
+        if (!live) return;
+        if (!info) {
+          setResolvedKey(category);
+          setCategoryInfo(null);
+          setBaseProducts([]);
+          setLoading(false);
+          return;
+        }
+        setResolvedKey(info.key);
+        setCategoryInfo(info);
+        const res = await fetch(apiUrl(`/api/products?category=${encodeURIComponent(category)}&limit=100`));
+        if (!res.ok) throw new Error('Could not load products');
+        const data = await res.json();
+        if (!live) return;
+        setBaseProducts(Array.isArray(data.items) ? data.items : []);
+      } catch (e) {
+        if (live) setLoadError(e.message || 'Could not load this collection.');
+      } finally {
+        if (live) setLoading(false);
+      }
+    })();
+    return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
-
-  const baseProducts = useMemo(() => productsForCategory(resolvedKey), [resolvedKey]);
 
   const shapeCounts = useMemo(() => {
     const counts = {};
@@ -168,6 +205,7 @@ export default function Collection() {
   const sliderHi = draft.priceTo !== '' ? numOr(draft.priceTo, PRICE_MAX) : PRICE_MAX;
 
   const description =
+    categoryInfo?.description ||
     descriptions[resolvedKey] ||
     (categoryInfo?.shape ? shapeDescription(categoryInfo.shape) : null) ||
     'Explore our complete collection of certified, handcrafted fine jewellery.';
@@ -295,9 +333,26 @@ export default function Collection() {
         )}
 
         <p role="status" className="text-[13px]" style={{ color: 'rgba(34,34,34,.75)', marginBottom: '16px' }}>
-          {filteredProducts.length} products
+          {loading ? 'Loading products…' : `${filteredProducts.length} products`}
         </p>
-        <ProductGrid products={pagedProducts} columns={3} mobileSingle={mobileCols === 1} />
+        {loadError ? (
+          <div className="text-center" style={{ padding: '40px 0' }}>
+            <p className="text-gray-600 text-[15px]" style={{ marginBottom: '16px' }}>{loadError}</p>
+            <button onClick={() => window.location.reload()} className="btn btn--secondary">Retry</button>
+          </div>
+        ) : loading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-[51px]" aria-hidden="true">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-[#f1ece8] aspect-square" />
+                <div className="bg-[#f1ece8] mx-auto" style={{ height: '14px', width: '70%', marginTop: '12px' }} />
+                <div className="bg-[#f1ece8] mx-auto" style={{ height: '14px', width: '40%', marginTop: '8px' }} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ProductGrid products={pagedProducts} columns={3} mobileSingle={mobileCols === 1} />
+        )}
 
         {/* Pagination — live text-link style */}
         {totalPages > 1 && (

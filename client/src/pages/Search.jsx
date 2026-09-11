@@ -1,42 +1,54 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon } from 'lucide-react';
-import { products } from '../data/products';
+import { apiUrl } from '../config';
 import ProductGrid from '../components/product/ProductGrid';
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   const [value, setValue] = useState(query);
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
   useEffect(() => {
     setValue(query);
   }, [query]);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return products.filter((p) =>
-      [
-        p.name,
-        p.category,
-        p.shape,
-        p.shortDescription,
-        p.style,
-        (p.tags || []).join(' '),
-        (p.variants || []).map((v) => `${v.name} ${v.material || ''}`).join(' '),
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(q)
-    );
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    setLoading(true);
+    let live = true;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/products?search=${encodeURIComponent(q)}&limit=50`));
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (live) setResults(Array.isArray(data.items) ? data.items : []);
+      } catch {
+        if (live) setResults([]);
+      } finally {
+        if (live) {
+          setLoading(false);
+          setSearched(true);
+        }
+      }
+    }, 250);
+    return () => { live = false; clearTimeout(t); };
   }, [query]);
 
   const submit = (e) => {
     e.preventDefault();
     setSearchParams(value.trim() ? { q: value.trim() } : {});
   };
+
+  const count = useMemo(() => results.length, [results]);
 
   return (
     <section className="py-10 md:py-14">
@@ -63,15 +75,24 @@ export default function Search() {
         {query.trim() ? (
           <>
             <p role="status" className="text-center text-[13px] text-gray-500" style={{ marginBottom: '32px' }}>
-              {results.length} product{results.length === 1 ? '' : 's'} for &ldquo;{query.trim()}&rdquo;
+              {loading ? 'Searching…' : `${count} product${count === 1 ? '' : 's'} for “${query.trim()}”`}
             </p>
-            {results.length > 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-[51px]" aria-hidden="true">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-[#f1ece8] aspect-square" />
+                    <div className="bg-[#f1ece8] mx-auto" style={{ height: '14px', width: '70%', marginTop: '12px' }} />
+                  </div>
+                ))}
+              </div>
+            ) : results.length > 0 ? (
               <ProductGrid products={results} columns={4} />
-            ) : (
+            ) : searched ? (
               <p className="text-center text-gray-500 text-[15px]">
-                No results found. Try &ldquo;solitaire&rdquo;, &ldquo;halo&rdquo; or &ldquo;oval&rdquo;.
+                No results found. Try “solitaire”, “halo” or “oval”.
               </p>
-            )}
+            ) : null}
           </>
         ) : (
           <p className="text-center text-gray-500 text-[15px]">

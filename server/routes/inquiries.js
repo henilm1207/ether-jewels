@@ -40,8 +40,7 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.get('/', authRequired, requireAdmin, async (req, res, next) => {
-  try {
+router.get('/', authRequired, requireAdmin, async (req, res, next) => {  try {
     const { status, type, page = '1', limit = '20' } = req.query;
     const filter = {};
     if (status) {
@@ -56,6 +55,25 @@ router.get('/', authRequired, requireAdmin, async (req, res, next) => {
     const pg = Math.max(1, parseInt(page, 10) || 1);
     const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     res.json(await Inquiry.find(filter).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim));
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch('/:id', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: 'Invalid inquiry id' });
+    const { status } = req.body || {};
+    if (!['new', 'replied', 'closed'].includes(status))
+      return res.status(400).json({ message: 'Invalid status' });
+    const inquiry = await Inquiry.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    );
+    if (!inquiry) return res.status(404).json({ message: 'Inquiry not found' });
+    res.json(inquiry);
   } catch (e) {
     next(e);
   }

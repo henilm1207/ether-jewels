@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, User, ShoppingBag, Menu, X } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { products } from '../../data/products';
+import { apiUrl } from '../../config';
 
 const navItems = [
   {
@@ -81,12 +81,26 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
     timeoutRef.current = setTimeout(() => setDropdownOpen(null), 200);
   };
 
-  const suggestions = useMemo(() => {
-    const q = searchValue.trim().toLowerCase();
-    if (!q) return [];
-    return products.filter((p) =>
-      [p.name, p.category, p.shape].filter(Boolean).join(' ').toLowerCase().includes(q)
-    ).slice(0, 4);
+  const [suggestions, setSuggestions] = useState([]);
+
+  useEffect(() => {
+    const q = searchValue.trim();
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+    let live = true;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/products?search=${encodeURIComponent(q)}&limit=4`));
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (live) setSuggestions(Array.isArray(data.items) ? data.items : []);
+      } catch {
+        if (live) setSuggestions([]);
+      }
+    }, 200);
+    return () => { live = false; clearTimeout(t); };
   }, [searchValue]);
 
   const submitSearch = (e) => {
@@ -200,6 +214,16 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                         Hi, {user.firstName || user.name}
                       </p>
                       <p className="text-xs text-gray-500 truncate" style={{ padding: '0 16px 12px' }}>{user.email}</p>
+                      {user.role === 'admin' && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setAccountOpen(false)}
+                          className="block w-full text-left text-sm font-medium underline hover:opacity-70"
+                          style={{ padding: '12px 16px', borderTop: '1px solid #ededed' }}
+                        >
+                          Admin panel
+                        </Link>
+                      )}
                       <button
                         onClick={() => { logout(); setAccountOpen(false); navigate('/'); }}
                         className="block w-full text-left text-sm underline hover:opacity-70"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import CartDrawer from './components/layout/CartDrawer';
@@ -20,6 +20,16 @@ import ReturnPolicy from './pages/ReturnPolicy';
 import ShippingPolicy from './pages/ShippingPolicy';
 import Faqs from './pages/Faqs';
 import NotFound from './pages/NotFound';
+import RequireAdmin from './components/admin/RequireAdmin';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminProducts from './pages/admin/Products';
+import AdminProductForm from './pages/admin/ProductForm';
+import AdminOrders from './pages/admin/Orders';
+import AdminCoupons from './pages/admin/Coupons';
+import AdminReviews from './pages/admin/Reviews';
+import AdminInquiries from './pages/admin/Inquiries';
+import AdminCategories from './pages/admin/Categories';
 import NewsletterPopup from './components/ui/NewsletterPopup';
 import CookieConsent from './components/ui/CookieConsent';
 import ErrorBoundary from './components/ui/ErrorBoundary';
@@ -32,7 +42,7 @@ function ScrollToTop() {
   return null;
 }
 
-function App() {
+function StorefrontLayout() {
   const [cartOpen, setCartOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -48,18 +58,8 @@ function App() {
     return () => { document.body.style.overflow = ''; };
   }, [cartOpen, mobileNavOpen, searchOpen]);
 
-  useEffect(() => {
-    const titles = {
-      '/': 'EtherStar Jewels — Lab-Grown Diamond Jewelry',
-      '/search': 'Search — EtherStar Jewels',
-      '/cart': 'Your Cart — EtherStar Jewels',
-    };
-    document.title = titles[location.pathname] || 'EtherStar Jewels';
-  }, [location.pathname]);
-
   return (
     <div className="min-h-screen flex flex-col">
-      <ScrollToTop />
       <Header
         onCartClick={() => setCartOpen(true)}
         onMenuClick={() => setMobileNavOpen(true)}
@@ -70,8 +70,51 @@ function App() {
       />
 
       <main className={`flex-1${isHome ? '' : ' page-offset'}`}>
-        <ErrorBoundary>
-          <Routes>
+        <Outlet />
+      </main>
+
+      <Footer />
+
+      <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
+      <NewsletterPopup />
+      <CookieConsent />
+    </div>
+  );
+}
+
+function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const titles = {
+      '/': 'EtherStar Jewels — Lab-Grown Diamond Jewelry',
+      '/search': 'Search — EtherStar Jewels',
+      '/cart': 'Your Cart — EtherStar Jewels',
+      '/admin': 'Admin — EtherStar Jewels',
+    };
+    document.title = titles[location.pathname] || 'EtherStar Jewels';
+  }, [location.pathname]);
+
+  return (
+    <>
+      <ScrollToTop />
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="products/new" element={<AdminProductForm />} />
+            <Route path="products/:id" element={<AdminProductForm />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="coupons" element={<AdminCoupons />} />
+            <Route path="reviews" element={<AdminReviews />} />
+            <Route path="inquiries" element={<AdminInquiries />} />
+            <Route path="categories" element={<AdminCategories />} />
+          </Route>
+
+          <Route element={<StorefrontLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/collections/:category" element={<Collection />} />
             <Route path="/products/:slug" element={<ProductDetail />} />
@@ -88,18 +131,10 @@ function App() {
             <Route path="/account/login" element={<Login />} />
             <Route path="/account/register" element={<Register />} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </ErrorBoundary>
-      </main>
-
-      <Footer />
-
-      <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
-      <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-
-      <NewsletterPopup />
-      <CookieConsent />
-    </div>
+          </Route>
+        </Routes>
+      </ErrorBoundary>
+    </>
   );
 }
 

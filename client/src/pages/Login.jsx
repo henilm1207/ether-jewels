@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state && location.state.from ? location.state.from : '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -12,7 +14,8 @@ export default function Login() {
   const [error, setError] = useState('');
 
   if (user) {
-    navigate('/', { replace: true });
+    const home = user.role === 'admin' ? '/admin' : (from.startsWith('/admin') ? '/' : from);
+    navigate(home, { replace: true });
     return null;
   }
 
@@ -21,8 +24,9 @@ export default function Login() {
     setError('');
     setSending(true);
     try {
-      await login(email.trim(), password);
-      navigate('/', { replace: true });
+      const me = await login(email.trim(), password);
+      if (me.role === 'admin') navigate('/admin', { replace: true });
+      else navigate(from.startsWith('/admin') ? '/' : from, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid email or password.');
     } finally {

@@ -1,5 +1,4 @@
 import { useState, createContext, useContext, useEffect } from 'react';
-import { findProduct } from '../data/products';
 
 const CartContext = createContext(null);
 const STORAGE_KEY = 'etherstar-cart';
@@ -75,11 +74,10 @@ export const CartProvider = ({ children }) => {
             : item
         );
       }
-      // Snapshot minimal fields; rehydrate name/price from catalog when possible
-      const fresh = findProduct(product.slug) || product;
+      // Snapshot the product as passed (always fresh from the live PDP)
       return [
         ...prev,
-        { key, product: fresh, variant: resolvedVariant, quantity: qty },
+        { key, product, variant: resolvedVariant, quantity: qty },
       ];
     });
   };

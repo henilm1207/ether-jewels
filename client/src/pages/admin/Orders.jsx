@@ -1,0 +1,105 @@
+import { useCallback, useEffect, useState } from 'react';
+import { adminFetch } from '../../components/admin/api';
+import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
+
+const STATUSES = ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'];
+const NEXT = { pending: ['confirmed', 'cancelled'], confirmed: ['making', 'cancelled'], making: ['shipped', 'cancelled'], shipped: ['delivered'], delivered: [], cancelled: [] };
+
+export default function Orders() {
+  const [orders, setOrders] = useState([]);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [open, setOpen] = useState(null);
+
+  const load = useCallback(async () => {
+    setError('');
+    try {
+      setOrders(await adminFetch(`/api/orders${status ? `?status=${status}` : ''}`));
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [status]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const move = async (o, next) => {
+    try {
+      const updated = await adminFetch(`/api/orders/${o._id}/status`, { method: 'PATCH', body: { status: next } });
+      setOrders((list) => list.map((x) => (x._id === o._id ? updated : x)));
+      setOpen(updated);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const sel = open && orders.find((o) => o._id === open._id);
+
+  return (
+    <div>
+      <PageHead title="Orders" sub={`${orders.length} shown`} />
+      <ErrorMsg error={error} />
+      <div className="mb-4">
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-white border border-[#d9d9d9] rounded text-sm" style={{ padding: '10px 12px' }} aria-label="Filter by status">
+          <option value="">All statuses</option>
+          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+      <Table head={['Order', 'Customer', 'Total', 'Payment', 'Status', '']}>
+        {orders.length === 0 ? (
+          <tr><td colSpan={6} style={td}>No orders.</td></tr>
+        ) : orders.map((o) => (
+          <tr key={o._id}>
+            <td style={td}>
+              <p className="font-mono text-xs">{o._id.slice(-8).toUpperCase()}</p>
+              <p className="text-xs text-gray-500">{new Date(o.createdAt).toLocaleString()} · {o.items.reduce((n, i) => n + i.qty, 0)} items</p>
+            </td>
+            <td style={td}>
+              <p className="text-sm">{o.shippingAddress?.fullName || o.contact?.name || '—'}</p>
+              <p className="text-xs text-gray-500">{o.contact?.email}</p>
+            </td>
+            <td style={td}>${Number(o.pricing?.total || 0).toFixed(2)}{o.couponCode && <p className="text-xs text-gray-500">{o.couponCode} (−${Number(o.pricing?.discount || 0).toFixed(2)})</p>}</td>
+            <td style={td}><Pill value={o.payment?.status} /> <span className="text-xs text-gray-500">{o.payment?.method}</span></td>
+            <td style={td}><Pill value={o.status} /></td>
+            <td style={td}><button onClick={() => setOpen(o)} className="underline text-sm">Open</button></td>
+          </tr>
+        ))}
+      </Table>
+
+      {sel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ padding: '16px' }}>
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(null)} />
+          <div className="relative bg-white rounded w-full overflow-y-auto" style={{ maxWidth: '640px', maxHeight: '90vh', padding: '20px' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading">Order {sel._id.slice(-8).toUpperCase()}</h2>
+              <button onClick={() => setOpen(null)} className="underline text-sm">Close</button>
+            </div>
+            {sel.items.map((it, i) => (
+              <div key={i} className="flex justify-between text-sm border-b border-[#f0f0f0]" style={{ padding: '8px 0' }}>
+                <span>{it.name} {it.size && `(size ${it.size})`} × {it.qty} <span className="text-gray-500">· {it.metal?.karat} {it.metal?.color}</span></span>
+                <span>${Number(it.lineTotal).toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="text-sm mt-3 space-y-1">
+              <p>Subtotal: ${Number(sel.pricing?.subtotal || 0).toFixed(2)}</p>
+              <p>Discount: −${Number(sel.pricing?.discount || 0).toFixed(2)}</p>
+              <p className="font-medium">Total: ${Number(sel.pricing?.total || 0).toFixed(2)} USD</p>
+              <p className="text-gray-600">{sel.shippingAddress?.fullName}, {sel.shippingAddress?.line1}, {sel.shippingAddress?.city} {sel.shippingAddress?.zip}, {sel.shippingAddress?.country} · {sel.shippingAddress?.phone}</p>
+              {sel.orderNote && <p className="text-gray-600">Note: {sel.orderNote}</p>}
+            </div>
+            <div className="mt-4">
+              <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">Move status (now: {sel.status})</p>
+              <div className="flex flex-wrap gap-2">
+                {(NEXT[sel.status] || []).map((n) => (
+                  <button key={n} onClick={() => move(sel, n)} className="text-sm border border-[#222] rounded px-3 py-1.5 hover:bg-[#222] hover:text-white transition-colors">
+                    → {n}
+                  </button>
+                ))}
+                {(NEXT[sel.status] || []).length === 0 && <span className="text-sm text-gray-500">Terminal state.</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

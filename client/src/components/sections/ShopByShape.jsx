@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { shapes } from '../../data/products';
+import { shapes } from '../../data/shapes';
 
 export default function ShopByShape() {
   return (

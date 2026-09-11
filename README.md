@@ -41,8 +41,8 @@ ether-jewels/
 ├── server/                    # API (Express + Mongoose)
 │   ├── server.js              # App entry: middleware + route mounting
 │   ├── local.js               # Offline launcher: in-memory Mongo on 27017 + API
-│   ├── seed.js                # Seeds 22 categories + 15 products (migrated
-│   │                          #   from client/src/data/products.js)
+│   ├── seed.js                # Neutralized (was: 22 categories + 15 products);
+│   │                          #   catalog now managed via /admin panel
 │   ├── config/
 │   │   ├── db.js              # connectDB()
 │   │   └── catalog.js         # Shared rules: RING_CATEGORIES, shapes,
@@ -84,7 +84,7 @@ Offline fallback (ephemeral data, reseeds on restart):
 | root | `npm run install-all` | Install root + server + client |
 | server | `node server.js` / `npm start` | API against Atlas |
 | server | `npm run local` | API against in-memory Mongo |
-| server | `npm run seed` | (Re)seed categories + products |
+| server | `npm run seed` | No-op (seed data neutralized; use /admin) |
 | client | `npm run dev` / `build` / `preview` | Vite dev / prod build / preview |
 | client | `npm run lint` | oxlint |
 
@@ -143,7 +143,7 @@ Conventions: section air lives in container `pt-/pb-` pairs (mobile + `lg:`) wit
 1. `git clone … && cd ether-jewels && npm run install-all`
 2. Copy `.env.example` → `server/.env`, fill `MONGO_URI` (Atlas: Database → Connect → Drivers → `mongodb+srv://user:pass@host/etherstar-jewels`), set a long `JWT_SECRET`
 3. Atlas: Database user + Network Access `0.0.0.0/0` (dev) — same steps as cloud.mongodb.com onboarding
-4. `cd server && npm run seed` → expect `Seeded 22 categories / 15 products`
+4. Add your catalog in `/admin` (categories first, then products) — `npm run seed` is neutralized
 5. `node server.js` + `cd client && npm run dev` → open `http://localhost:3000`
 6. Browse data: `http://localhost:5001/admin/db` or Atlas → Browse Collections
 

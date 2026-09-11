@@ -31,8 +31,7 @@ router.get('/', authRequired, requireAdmin, async (_req, res, next) => {
   }
 });
 
-router.post('/', authRequired, requireAdmin, async (req, res, next) => {
-  try {
+router.post('/', authRequired, requireAdmin, async (req, res, next) => {  try {
     const { code, type, value, minOrder = 0, maxUses = null, active = true, expiresAt = null } = req.body || {};
     if (!code || typeof code !== 'string' || !code.trim())
       return res.status(400).json({ message: 'code required' });
@@ -55,6 +54,27 @@ router.post('/', authRequired, requireAdmin, async (req, res, next) => {
   } catch (e) {
     if (e && e.code === 11000) return res.status(400).json({ message: 'Coupon code exists' });
     e.status = 400;
+    next(e);
+  }
+});
+
+router.patch('/:id', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: 'Invalid coupon id' });
+    const patch = {};
+    if (req.body.active !== undefined) patch.active = req.body.active !== false;
+    if (req.body.maxUses !== undefined)
+      patch.maxUses = req.body.maxUses == null ? null : Math.max(1, parseInt(req.body.maxUses, 10));
+    if (req.body.expiresAt !== undefined) patch.expiresAt = req.body.expiresAt || null;
+    if (req.body.minOrder !== undefined) patch.minOrder = Math.max(0, Number(req.body.minOrder) || 0);
+    const coupon = await Coupon.findByIdAndUpdate(req.params.id, patch, {
+      new: true,
+      runValidators: true,
+    });
+    if (!coupon) return res.status(404).json({ message: 'Coupon not found' });
+    res.json(coupon);
+  } catch (e) {
     next(e);
   }
 });

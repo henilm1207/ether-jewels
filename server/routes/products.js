@@ -18,6 +18,18 @@ const pick = (obj, keys) => {
 };
 const escapeRegExp = (s) => String(s).slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Products must live in a real (leaf) category — aggregates (e.g. `rings`)
+// and aliases match no collection expansion, so such products would be
+// purchasable by direct link yet invisible in every collection page.
+async function assertLeafCategory(key) {
+  const cat = await Category.findOne({ key });
+  if (!cat) throw Object.assign(new Error(`Unknown category '${key}'`), { status: 400 });
+  if (cat.aliasOf) throw Object.assign(new Error(`'${key}' is an alias of '${cat.aliasOf}' — use the canonical key`), { status: 400 });
+  if (cat.aggregateKeys && cat.aggregateKeys.length)
+    throw Object.assign(new Error(`'${key}' is an aggregate collection — pick a specific sub-category`), { status: 400 });
+  if (cat.shape) throw Object.assign(new Error(`'${key}' is a shape collection — pick a product category`), { status: 400 });
+}
+
 function buildSort(sort) {
   switch (sort) {
     case 'price-asc':
@@ -173,10 +185,12 @@ router.post('/', authRequired, requireAdmin, async (req, res, next) => {
     body.currency = 'USD';
     delete body.ratingAvg;
     delete body.ratingCount;
+    if (!body.category) return res.status(400).json({ message: 'category required' });
+    await assertLeafCategory(String(body.category));
     const product = await Product.create(body);
     res.status(201).json(product);
   } catch (e) {
-    e.status = 400;
+    e.status = e.status || 400;
     next(e);
   }
 });
@@ -187,6 +201,7 @@ router.put('/:id', authRequired, requireAdmin, async (req, res, next) => {
     body.currency = 'USD';
     delete body.ratingAvg;
     delete body.ratingCount;
+    if (body.category !== undefined) await assertLeafCategory(String(body.category));
     const product = await Product.findByIdAndUpdate(req.params.id, body, {
       new: true,
       runValidators: true,
@@ -194,7 +209,7 @@ router.put('/:id', authRequired, requireAdmin, async (req, res, next) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json(product);
   } catch (e) {
-    e.status = 400;
+    e.status = e.status || 400;
     next(e);
   }
 });

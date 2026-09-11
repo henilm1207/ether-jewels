@@ -5,8 +5,27 @@ const { authRequired, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/product/:productId', async (req, res, next) => {
+// Admin: list all reviews (filter by status)
+router.get('/', authRequired, requireAdmin, async (req, res, next) => {
   try {
+    const { status, page = '1', limit = '20' } = req.query;
+    const filter = {};
+    if (status) {
+      if (!['pending', 'approved', 'rejected'].includes(String(status)))
+        return res.status(400).json({ message: 'Invalid status' });
+      filter.status = status;
+    }
+    const pg = Math.max(1, parseInt(page, 10) || 1);
+    const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    res.json(
+      await Review.find(filter).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim)
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/product/:productId', async (req, res, next) => {  try {
     const { productId } = req.params;
     if (!mongoose.Types.ObjectId.isValid(productId))
       return res.status(400).json({ message: 'Invalid product id' });

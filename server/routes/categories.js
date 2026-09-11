@@ -1,7 +1,18 @@
 const express = require('express');
 const Category = require('../models/Category');
+const { authRequired, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+const CATEGORY_FIELDS = [
+  'key', 'name', 'parent', 'description', 'image', 'shape',
+  'aggregateKeys', 'aliasOf', 'requiresSize', 'requiresLength',
+  'attributes', 'sortOrder', 'active',
+];
+const pick = (obj, keys) => {
+  const out = {};
+  for (const k of keys) if (obj && obj[k] !== undefined) out[k] = obj[k];
+  return out;
+};
 
 async function resolveCategory(key) {
   const seen = new Set();
@@ -36,6 +47,44 @@ router.get('/:key', async (req, res, next) => {
     if (!cat) return res.status(404).json({ message: 'Category not found' });
     res.json(cat);
   } catch (e) {
+    next(e);
+  }
+});
+
+// Admin: full list (including inactive)
+router.get('/admin/all', authRequired, requireAdmin, async (_req, res, next) => {
+  try {
+    res.json(await Category.find().sort({ sortOrder: 1 }));
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    const body = pick(req.body, CATEGORY_FIELDS);
+    if (!body.key || !body.name)
+      return res.status(400).json({ message: 'key and name required' });
+    const cat = await Category.create(body);
+    res.status(201).json(cat);
+  } catch (e) {
+    if (e && e.code === 11000) return res.status(400).json({ message: 'Category key exists' });
+    e.status = 400;
+    next(e);
+  }
+});
+
+router.put('/:key', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    const body = pick(req.body, CATEGORY_FIELDS.filter((k) => k !== 'key'));
+    const cat = await Category.findOneAndUpdate({ key: req.params.key }, body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!cat) return res.status(404).json({ message: 'Category not found' });
+    res.json(cat);
+  } catch (e) {
+    e.status = 400;
     next(e);
   }
 });
