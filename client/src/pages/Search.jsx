@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon } from 'lucide-react';
 import { products } from '../data/products';
@@ -9,11 +9,23 @@ export default function Search() {
   const query = searchParams.get('q') || '';
   const [value, setValue] = useState(query);
 
+  useEffect(() => {
+    setValue(query);
+  }, [query]);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return products.filter((p) =>
-      [p.name, p.category, p.shape, p.shortDescription]
+      [
+        p.name,
+        p.category,
+        p.shape,
+        p.shortDescription,
+        p.style,
+        (p.tags || []).join(' '),
+        (p.variants || []).map((v) => `${v.name} ${v.material || ''}`).join(' '),
+      ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
@@ -50,7 +62,7 @@ export default function Search() {
 
         {query.trim() ? (
           <>
-            <p className="text-center text-[13px] text-gray-500" style={{ marginBottom: '32px' }}>
+            <p role="status" className="text-center text-[13px] text-gray-500" style={{ marginBottom: '32px' }}>
               {results.length} product{results.length === 1 ? '' : 's'} for &ldquo;{query.trim()}&rdquo;
             </p>
             {results.length > 0 ? (

@@ -26,7 +26,7 @@ function SectionHeader({ className = '' }) {
   return (
     <div className={className}>
       <p className="section__subheading">
-        THE ETHERSTAR EXPERIENCE
+        THE ETHER EXPERIENCE
       </p>
       <h2
         className="font-heading exp-title"
@@ -75,7 +75,7 @@ export default function EtherstarExperience() {
             {/* Desktop header inside content column */}
             <div className="hidden md:block text-left" style={{ paddingBottom: '30px' }}>
               <p className="section__subheading">
-                THE ETHERSTAR EXPERIENCE
+                THE ETHER EXPERIENCE
               </p>
               <h2 className="font-heading exp-title" style={{ marginBottom: 0 }}>
                 Made To Be<br />

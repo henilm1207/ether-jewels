@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { findProduct } from '../data/products';
 import { useCart } from '../context/CartContext';
@@ -28,6 +28,13 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const carouselRef = useRef(null);
 
+  useEffect(() => {
+    setSelectedVariant(0);
+    setSelectedKt('14KT');
+    setSelectedImage(0);
+    setQuantity(1);
+  }, [slug]);
+
   if (!product) {
     return (
       <div className="py-20 text-center">
@@ -38,8 +45,8 @@ export default function ProductDetail() {
   }
 
   const currentVariant = product.variants?.[selectedVariant] || null;
-  const basePrice = currentVariant?.price || product.price;
-  const ktDelta = selectedKt === '18KT' ? (product.kt18Delta || 200) : 0;
+  const basePrice = Number(currentVariant?.price ?? product.price) || 0;
+  const ktDelta = selectedKt === '18KT' ? Number(product.kt18Delta ?? 200) : 0;
   const currentPrice = basePrice + ktDelta;
 
   const handleAddToCart = () => {
@@ -87,7 +94,7 @@ export default function ProductDetail() {
             <span className="text-[#222]">{product.name}</span>
           </nav>
 
-          <div className="pdp-grid">
+          <div className="pdp-grid mb-10">
             {/* Gallery — live: 61.8575% media, thumb row under main (6-up/4-up) */}
             <div className="pdp-media">
               {/* Desktop main */}
@@ -319,7 +326,7 @@ export default function ProductDetail() {
       </section>
 
       {/* Customize CTA (reference PDP) */}
-      <section className="bg-[#f7f2ef]" style={{ paddingTop: '56px', paddingBottom: '56px' }}>
+      <section className="bg-[#f7f2ef]" style={{ marginTop: '48px', paddingTop: '56px', paddingBottom: '56px' }}>
         <div className="container text-center max-w-2xl mx-auto">
           <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '1px', lineHeight: 1.3 }}>
             Design your dream ring, your way
@@ -334,7 +341,7 @@ export default function ProductDetail() {
       </section>
 
       {/* Diamond expert advisor (reference PDP) */}
-      <section className="bg-white section-padding-lg">
+      <section className="bg-white section-padding-lg mt-8">
         <div className="container max-w-3xl mx-auto text-center">
           <p className="section__subheading">Need Help?</p>
           <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '1px' }}>
@@ -395,7 +402,7 @@ export default function ProductDetail() {
       </section>
 
       {/* Etherstar Standard closing banner */}
-      <section className="bg-[#1A1A1A] text-white" style={{ paddingTop: '96px', paddingBottom: '96px' }}>
+      <section className="bg-[#1A1A1A] text-white" style={{ paddingTop: '96px', paddingBottom: '96px', marginBottom: '80px' }}>
         <div className="container text-center max-w-2xl mx-auto">
           <p className="mb-3" style={{ fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.7)' }}>
             The Etherstar Standard

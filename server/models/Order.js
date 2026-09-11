@@ -12,9 +12,9 @@ const orderItemSchema = new mongoose.Schema(
       color: String, // e.g. Rose Gold
     },
     size: { type: String, default: null }, // required for ring categories (enforced in route)
-    qty: { type: Number, required: true, min: 1 },
-    unitPrice: { type: Number, required: true, min: 0 },
-    lineTotal: { type: Number, required: true, min: 0 },
+    qty: { type: Number, required: true, min: 1, max: 10 },
+    unitPrice: { type: Number, required: true, min: 0, max: 1000000 },
+    lineTotal: { type: Number, required: true, min: 0, max: 10000000 },
   },
   { _id: false }
 );
@@ -25,7 +25,10 @@ const orderSchema = new mongoose.Schema(
     items: {
       type: [orderItemSchema],
       required: true,
-      validate: (v) => Array.isArray(v) && v.length > 0,
+      validate: {
+        validator: (v) => Array.isArray(v) && v.length > 0 && v.length <= 20,
+        message: 'items must contain 1-20 entries',
+      },
     },
     pricing: {
       subtotal: { type: Number, required: true, min: 0 },
@@ -42,27 +45,33 @@ const orderSchema = new mongoose.Schema(
       default: 'pending',
     },
     payment: {
-      method: { type: String, enum: ['cod', 'card', 'upi', 'bank'], default: 'card' },
+      method: { type: String, enum: ['card', 'cod'], default: 'card' },
       status: {
         type: String,
         enum: ['pending', 'paid', 'failed', 'refunded'],
         default: 'pending',
       },
-      txnId: String,
+      txnId: { type: String, trim: true, maxlength: 100 },
     },
     shippingAddress: {
-      fullName: String,
-      line1: String,
-      city: String,
-      country: String,
-      zip: String,
-      phone: String,
+      fullName: { type: String, required: true, trim: true, maxlength: 100 },
+      line1: { type: String, required: true, trim: true, maxlength: 200 },
+      city: { type: String, required: true, trim: true, maxlength: 100 },
+      country: { type: String, required: true, trim: true, maxlength: 100 },
+      zip: { type: String, required: true, trim: true, maxlength: 20 },
+      phone: { type: String, trim: true, maxlength: 30 },
     },
-    orderNote: { type: String, default: '' },
+    orderNote: { type: String, default: '', maxlength: 1000 },
     contact: {
-      name: String,
-      email: String,
-      phone: String,
+      name: { type: String, trim: true, maxlength: 100 },
+      email: {
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true,
+        match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email'],
+      },
+      phone: { type: String, trim: true, maxlength: 30 },
     },
   },
   { timestamps: true }

@@ -28,8 +28,8 @@ const shapeDescription = (name) =>
   `${name}-cut certified designs, handcrafted with precision, brilliance, and enduring elegance. Choose your setting, diamond and metal — made to be adorned, loved, and remembered.`;
 
 const sortOptions = [
-  { value: 'most-relevant', label: 'Most relevant' },
   { value: 'featured', label: 'Featured' },
+  { value: 'most-relevant', label: 'Most relevant' },
   { value: 'best-selling', label: 'Best selling' },
   { value: 'name-asc', label: 'Alphabetically, A-Z' },
   { value: 'name-desc', label: 'Alphabetically, Z-A' },
@@ -48,9 +48,9 @@ const metalKts = ['14K', '18K'];
 
 const PRICE_MIN = 600;
 const PRICE_MAX = 3000;
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 12;
 
-const emptyFilters = { availability: ['in'], priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [] };
+const emptyFilters = { availability: [], priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [] };
 
 function ChevronNext() {
   return (
@@ -64,18 +64,19 @@ export default function Collection() {
   const { category } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { key: resolvedKey, info: categoryInfo } = resolveCategory(category);
-  const [sortBy, setSortBy] = useState('most-relevant');
+  const [sortBy, setSortBy] = useState('featured');
   const [filterOpen, setFilterOpen] = useState(false);
   const [mobileCols, setMobileCols] = useState(2);
-  const [draft, setDraft] = useState(emptyFilters);
-  const [applied, setApplied] = useState(emptyFilters);
+  const [draft, setDraft] = useState({ ...emptyFilters, availability: [] });
+  const [applied, setApplied] = useState({ ...emptyFilters, availability: [] });
 
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const rawPage = parseInt(searchParams.get('page') || '1', 10);
+  const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1;
 
   useEffect(() => {
-    setDraft(emptyFilters);
-    setApplied(emptyFilters);
-    setSortBy('most-relevant');
+    setDraft({ ...emptyFilters, availability: [] });
+    setApplied({ ...emptyFilters, availability: [] });
+    setSortBy('featured');
     setSearchParams({}, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
@@ -92,7 +93,7 @@ export default function Collection() {
 
   const filteredProducts = useMemo(() => {
     let list = [...baseProducts];
-    // Availability: everything is in stock; "out" alone yields none.
+    // Availability: empty = all; "out" alone yields none (everything is in stock).
     if (applied.availability.length > 0 && !applied.availability.includes('in')) list = [];
     const from = parseFloat(applied.priceFrom);
     const to = parseFloat(applied.priceTo);
@@ -108,15 +109,22 @@ export default function Collection() {
     }
     // KT: every setting is offered in 14K and 18K, so KT never excludes.
     const sorted = [...list];
+    if (sortBy === 'featured' || sortBy === 'most-relevant') sorted.sort((a, b) => Number(b.featured || false) - Number(a.featured || false));
+    if (sortBy === 'best-selling') sorted.sort((a, b) => Number((b.tags || []).includes('bestseller')) - Number((a.tags || []).includes('bestseller')));
     if (sortBy === 'price-asc') sorted.sort((a, b) => a.price - b.price);
     if (sortBy === 'price-desc') sorted.sort((a, b) => b.price - a.price);
     if (sortBy === 'name-asc') sorted.sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === 'name-desc') sorted.sort((a, b) => b.name.localeCompare(a.name));
+    if (sortBy === 'date-asc' || sortBy === 'date-desc') sorted.sort((a, b) => Number(b.featured || false) - Number(a.featured || false));
     return sorted;
   }, [baseProducts, applied, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
+  useEffect(() => {
+    if (page !== safePage) setSearchParams(safePage === 1 ? {} : { page: String(safePage) }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safePage]);
   const pagedProducts = filteredProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const gotoPage = (p) => {
@@ -127,29 +135,37 @@ export default function Collection() {
   const toggleList = (list, value) =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
-  // Active facet chips
+  // Active facet chips (clear syncs applied + draft so drawer reopens clean)
+  const syncClear = (patch) => {
+    setApplied((p) => ({ ...p, ...patch }));
+    setDraft((d) => ({ ...d, ...patch }));
+  };
   const chips = [];
   applied.availability.forEach((v) => {
-    chips.push({ key: `avail-${v}`, label: v === 'in' ? 'In stock' : 'Out of stock', clear: () => setApplied({ ...applied, availability: applied.availability.filter((x) => x !== v) }) });
+    chips.push({ key: `avail-${v}`, label: v === 'in' ? 'In stock' : 'Out of stock', clear: () => syncClear({ availability: applied.availability.filter((x) => x !== v) }) });
   });
   if (applied.priceFrom !== '' || applied.priceTo !== '') {
     const from = applied.priceFrom !== '' ? `$${applied.priceFrom}` : `$${PRICE_MIN}`;
     const to = applied.priceTo !== '' ? `$${applied.priceTo}` : `$${PRICE_MAX}`;
-    chips.push({ key: 'price', label: `${from} – ${to}`, clear: () => setApplied({ ...applied, priceFrom: '', priceTo: '' }) });
+    chips.push({ key: 'price', label: `${from} – ${to}`, clear: () => syncClear({ priceFrom: '', priceTo: '' }) });
   }
   applied.shapes.forEach((s) => {
-    chips.push({ key: `shape-${s}`, label: s, clear: () => setApplied({ ...applied, shapes: applied.shapes.filter((x) => x !== s) }) });
+    chips.push({ key: `shape-${s}`, label: s, clear: () => syncClear({ shapes: applied.shapes.filter((x) => x !== s) }) });
   });
   applied.kts.forEach((k) => {
-    chips.push({ key: `kt-${k}`, label: k, clear: () => setApplied({ ...applied, kts: applied.kts.filter((x) => x !== k) }) });
+    chips.push({ key: `kt-${k}`, label: `${k} (all settings offered in 14K & 18K)`, clear: () => syncClear({ kts: applied.kts.filter((x) => x !== k) }) });
   });
   applied.colors.forEach((c) => {
-    chips.push({ key: `color-${c}`, label: c, clear: () => setApplied({ ...applied, colors: applied.colors.filter((x) => x !== c) }) });
+    chips.push({ key: `color-${c}`, label: c, clear: () => syncClear({ colors: applied.colors.filter((x) => x !== c) }) });
   });
   const hasActiveFilters = chips.length > 0;
 
-  const sliderLo = draft.priceFrom !== '' ? Math.max(PRICE_MIN, Math.min(PRICE_MAX, Number(draft.priceFrom))) : PRICE_MIN;
-  const sliderHi = draft.priceTo !== '' ? Math.max(PRICE_MIN, Math.min(PRICE_MAX, Number(draft.priceTo))) : PRICE_MAX;
+  const numOr = (v, fallback) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.max(PRICE_MIN, Math.min(PRICE_MAX, n)) : fallback;
+  };
+  const sliderLo = draft.priceFrom !== '' ? numOr(draft.priceFrom, PRICE_MIN) : PRICE_MIN;
+  const sliderHi = draft.priceTo !== '' ? numOr(draft.priceTo, PRICE_MAX) : PRICE_MAX;
 
   const description =
     descriptions[resolvedKey] ||
@@ -190,7 +206,7 @@ export default function Collection() {
           className="font-heading"
           style={{ fontSize: 'clamp(32px, 5vw, 64px)', lineHeight: 1.2, marginBottom: 0 }}
         >
-          {categoryInfo?.name || 'All Products'}
+          {categoryInfo?.name || 'Collection not found'}
         </h1>
         <p
           className="mx-auto"
@@ -278,7 +294,10 @@ export default function Collection() {
           </div>
         )}
 
-        <ProductGrid products={pagedProducts} columns={4} mobileSingle={mobileCols === 1} />
+        <p role="status" className="text-[13px]" style={{ color: 'rgba(34,34,34,.75)', marginBottom: '16px' }}>
+          {filteredProducts.length} products
+        </p>
+        <ProductGrid products={pagedProducts} columns={3} mobileSingle={mobileCols === 1} />
 
         {/* Pagination — live text-link style */}
         {totalPages > 1 && (

@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const Product = require('./models/Product');
 const Category = require('./models/Category');
-const { DEFAULT_RING_SIZES, RING_CATEGORIES } = require('./config/catalog');
+const { DEFAULT_RING_SIZES, isRingCategory } = require('./config/catalog');
 
 dotenv.config();
 
-const isRing = (cat) => RING_CATEGORIES.includes(cat);
+const isRing = (cat) => isRingCategory(cat);
 
 const categories = [
   {
@@ -24,13 +24,13 @@ const categories = [
   { key: 'engagement-rings', name: 'Engagement Rings', parent: 'Rings', requiresSize: true, sortOrder: 4 },
   { key: 'three-stone-rings', name: 'Three Stone Rings', parent: 'Rings', requiresSize: true, sortOrder: 5 },
   { key: 'bands', name: 'Bands', parent: 'Rings', requiresSize: true, sortOrder: 6 },
-  { key: 'earrings', name: 'EarRings', parent: 'EarRings', sortOrder: 7 },
-  { key: 'bracelets', name: 'Bracelets', parent: 'Bracelets', sortOrder: 8 },
-  { key: 'necklaces', name: 'Necklaces', parent: 'Necklaces', sortOrder: 9 },
+  { key: 'earrings', name: 'Earrings', parent: 'Collection', sortOrder: 7 },
+  { key: 'bracelets', name: 'Bracelets', parent: 'Collection', sortOrder: 8 },
+  { key: 'necklaces', name: 'Necklaces', parent: 'Collection', sortOrder: 9 },
   // Aliases (kept for old URLs)
-  { key: 'rings-1', name: 'Rings', parent: 'Collection: Rings', aliasOf: 'rings' },
+  { key: 'rings-1', name: 'Rings', parent: 'Collection', aliasOf: 'rings' },
   { key: 'halo-rings-1', name: 'Halo Rings', parent: 'Rings', aliasOf: 'halo-rings' },
-  { key: 'bracelets-1', name: 'Bracelets', parent: 'Bracelets', aliasOf: 'bracelets' },
+  { key: 'bracelets-1', name: 'Bracelets', parent: 'Collection', aliasOf: 'bracelets' },
   { key: 'marquise-1', name: 'Marquise', parent: 'Shop By Shape', aliasOf: 'marquise' },
   // Shop By Shape
   ...['Round', 'Emerald', 'Princess', 'Cushion', 'Oval', 'Pear', 'Marquise', 'Asscher', 'Heart'].map(
@@ -317,7 +317,7 @@ const products = raw.map((p) => ({
   styleCode: p.style || undefined,
   shape: p.shape || null,
   price: p.price,
-  kt18Delta: p.kt18Delta || 200,
+  kt18Delta: p.kt18Delta ?? 200,
   currency: 'USD',
   description: p.description,
   shortDescription: p.shortDescription,
@@ -339,6 +339,10 @@ const products = raw.map((p) => ({
 }));
 
 const seedDB = async () => {
+  if (process.env.NODE_ENV === 'production' && !process.argv.includes('--force-prod')) {
+    console.error('Refusing to seed in production without --force-prod');
+    process.exit(1);
+  }
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('MongoDB connected for seeding');
@@ -361,4 +365,6 @@ const seedDB = async () => {
   }
 };
 
-seedDB();
+if (require.main === module) seedDB();
+
+module.exports = { seedDB };

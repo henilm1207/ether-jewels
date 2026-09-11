@@ -60,7 +60,8 @@ const DEFAULT_RING_SIZES = [
 ];
 
 function isRingCategory(category) {
-  return RING_CATEGORIES.includes(category);
+  if (typeof category !== 'string') return false;
+  return RING_CATEGORIES.includes(category.trim().toLowerCase());
 }
 
 module.exports = {

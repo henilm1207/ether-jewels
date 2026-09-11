@@ -182,36 +182,42 @@ function LinkBlock({ title, links }) {
 export default function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [status, setStatus] = useState('idle'); // idle | loading | error
+  const [error, setError] = useState('');
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email.trim() || status === 'loading') return;
+    setStatus('loading');
+    setError('');
     try {
-      const res = await fetch('/api/newsletter/subscribe', {
+      const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const res = await fetch(`${base}/api/newsletter/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim(), source: 'footer' }),
       });
-      if (res.ok) {
-        setSubscribed(true);
-        setEmail('');
-      }
-    } catch {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Subscription failed');
       setSubscribed(true);
       setEmail('');
+      setStatus('idle');
+    } catch (err) {
+      setStatus('error');
+      setError(err.message || 'Something went wrong. Please try again.');
     }
   };
 
   return (
     <footer className="site-footer site-footer--show-divider bg-[#ece7e3]">
       {/* site-footer__top — live: 8rem 0 1.5rem (mobile 3.2rem top) */}
-      <div className="container pt-[32px] pb-[15px] lg:pt-[80px] lg:pb-[15px]">
+      <div className="container pt-[51px] pb-[24px] lg:pt-[128px] lg:pb-[24px] mt-10" style={{ marginTop: '50px', marginBottom: '50px' }}>
         {/* f-column flex percentages — newsletter last in DOM, right on desktop */}
         <div className="flex flex-col lg:flex-row lg:items-start">
           {/* Logo — 20%, centered in its column on desktop */}
           <div className="order-1 lg:order-1 lg:basis-[20%] mb-8 lg:mb-0 lg:pr-[15px] lg:flex lg:justify-center">
             <Link to="/">
-              <img src="/images/logo.png" alt="ETHERSTAR JEWELS" style={{ maxWidth: '150px' }} />
+              <img src="/images/logo.png" alt="EtherStar Jewels" style={{ maxWidth: '150px' }} />
             </Link>
           </div>
 
@@ -234,7 +240,7 @@ export default function Footer() {
                     Subscribe for store updates and discounts.
                   </p>
                   {subscribed ? (
-                    <p className="text-sm text-green-700">Thank you for subscribing!</p>
+                    <p role="status" className="text-sm text-green-700">Thank you for subscribing!</p>
                   ) : (
                     <form
                       onSubmit={handleSubscribe}
@@ -251,14 +257,16 @@ export default function Footer() {
                         autoCapitalize="off"
                         autoComplete="off"
                         spellCheck={false}
+                        disabled={status === 'loading'}
                         className="w-full bg-white text-sm focus:outline-none focus-visible:outline-none placeholder:text-[rgba(34,34,34,0.75)] focus:shadow-[0_0_0_1px_#222]"
-                        style={{ height: '46px', border: '1px solid #ededed', borderRadius: 0, padding: '0 50px 0 13px', color: '#222' }}
+                        style={{ height: '46px', border: '1px solid #cccccc', borderRadius: 0, padding: '0 50px 0 13px', color: '#222' }}
                         required
                       />
                       <button
                         type="submit"
-                        aria-label="Subscribe"
-                        className="group/arrow absolute top-0 bottom-0 flex items-center justify-center"
+                        aria-label={status === 'loading' ? 'Subscribing…' : 'Subscribe'}
+                        disabled={status === 'loading'}
+                        className="group/arrow absolute top-0 bottom-0 flex items-center justify-center disabled:opacity-50"
                         style={{ right: 0, border: 0, background: 'transparent', padding: '0 15px', color: '#222' }}
                       >
                         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="transition-transform group-hover/arrow:translate-x-[2px]">
@@ -266,6 +274,7 @@ export default function Footer() {
                           <path d="M9 3.75L14.25 9L9 14.25" />
                         </svg>
                       </button>
+                      {status === 'error' && <p role="alert" className="text-xs text-red-700 mt-2">{error}</p>}
                     </form>
                   )}
                   <p className="text-[11px] mt-4 md:mt-3" style={{ color: 'rgba(34,34,34,.8)' }}>
@@ -323,13 +332,13 @@ export default function Footer() {
       {/* site-footer__bottom — live: 5rem 0 6rem (mobile 1rem/3.2rem), no divider */}
       <div>
         <div className="container pt-[10px] pb-[32px] lg:pt-[50px] lg:pb-[60px]">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-5">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-5" style={{ marginTop: '20px', marginBottom: '20px' }}>
             <p className="text-sm order-2 md:order-1" style={{ color: '#222' }}>
-              © 2026, <Link to="/" className="underline underline-offset-2 hover:opacity-70">ETHERSTAR JEWELS</Link>.
+              © 2026, <Link to="/" className="underline underline-offset-2 hover:opacity-70">EtherStar Jewels</Link>.
             </p>
             <div className="order-1 md:order-2 flex md:justify-end items-center">
               <span className="sr-only">Payment methods</span>
-              <ul className="list-none flex flex-wrap items-center justify-center md:justify-end" style={{ gap: '10px' }}>
+              <ul className="list-none payment-icons flex flex-wrap items-center justify-center md:justify-end" style={{ gap: '10px' }}>
                 {paymentMethods.map((method) => (
                   <li key={method.name} title={method.name} className="inline-flex">
                     {method.svg}
@@ -342,6 +351,8 @@ export default function Footer() {
       </div>
       <style>{`
         .site-footer--show-divider { border-top: 1px solid #ededed; }
+        .site-footer .payment-icons { gap: 10px; }
+        .site-footer .payment-icons svg { width: 40px; height: auto; }
         .site-footer .link--animated { position: relative; width: fit-content; }
         .site-footer .link--animated::after {
           content: ""; height: 1px; width: 0; background: currentColor;

@@ -1,34 +1,41 @@
 /* Shared dual-thumb range slider (collection + diamond tool).
    Track 6px #f5f5f5, fill `color`, 14px round thumbs that scale on hover.
    `lightThumbs`: white thumbs with dark edge (diamond tool style). */
-export default function RangeSlider({ min, max, step = 1, lo, hi, onChange, color = '#222', lightThumbs = false }) {
-  const loPct = ((lo - min) / (max - min)) * 100;
-  const hiPct = ((hi - min) / (max - min)) * 100;
+export default function RangeSlider({ min, max, step = 1, lo, hi, onChange, color = '#222', lightThumbs = false, label = 'Range' }) {
+  const span = max - min;
+  const pct = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || !Number.isFinite(span) || span <= 0) return 0;
+    return Math.min(100, Math.max(0, ((n - min) / span) * 100));
+  };
+  const loNum = Number(lo);
+  const hiNum = Number(hi);
+  const safeLo = Number.isFinite(loNum) ? Math.min(Math.max(loNum, min), max) : min;
+  const safeHi = Number.isFinite(hiNum) ? Math.min(Math.max(hiNum, min), max) : max;
+  const loPct = pct(safeLo);
+  const hiPct = pct(safeHi);
+  const thumbBg = lightThumbs ? '#fff' : color;
+  const thumbBorder = lightThumbs ? `1px solid ${color}` : 'none';
   return (
     <div>
-      <div className="relative" style={{ height: '14px' }}>
+      <div className="relative" style={{ height: '14px', '--thumb-color': thumbBg, '--thumb-border': thumbBorder }}>
         <div className="absolute w-full" style={{ top: '4px', height: '6px', background: '#f5f5f5', borderRadius: '3px' }} />
         <div className="absolute" style={{ left: `${loPct}%`, right: `${100 - hiPct}%`, top: '4px', height: '6px', background: color, borderRadius: '3px' }} />
         <input
-          type="range" min={min} max={max} step={step} value={lo}
-          onChange={(e) => onChange(Math.min(Number(e.target.value), hi), hi)}
-          aria-label="Minimum value"
-          className="range-thumb" style={{ zIndex: lo > min + (max - min) / 2 ? 5 : 3 }}
+          type="range" min={min} max={max} step={step} value={safeLo}
+          onChange={(e) => onChange(Math.min(Number(e.target.value), safeHi), safeHi)}
+          aria-label={`${label} minimum`}
+          className="range-thumb"
+          style={{ zIndex: safeLo > min + span / 2 ? 5 : 3, '--thumb-color': thumbBg, '--thumb-border': thumbBorder }}
         />
         <input
-          type="range" min={min} max={max} step={step} value={hi}
-          onChange={(e) => onChange(lo, Math.max(Number(e.target.value), lo))}
-          aria-label="Maximum value"
-          className="range-thumb" style={{ zIndex: 4 }}
+          type="range" min={min} max={max} step={step} value={safeHi}
+          onChange={(e) => onChange(safeLo, Math.max(Number(e.target.value), safeLo))}
+          aria-label={`${label} maximum`}
+          className="range-thumb"
+          style={{ zIndex: 4, '--thumb-color': thumbBg, '--thumb-border': thumbBorder }}
         />
       </div>
-      <style>{`
-        input[type=range].range-thumb { position: absolute; inset: 0; width: 100%; appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; margin: 0; height: 14px; }
-        input[type=range].range-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: ${lightThumbs ? '#fff' : color}; border: ${lightThumbs ? `1px solid ${color}` : 'none'}; pointer-events: auto; cursor: pointer; transition: transform .2s ease; }
-        input[type=range].range-thumb::-webkit-slider-thumb:hover { transform: scale(1.3); }
-        input[type=range].range-thumb::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: ${lightThumbs ? '#fff' : color}; border: ${lightThumbs ? `1px solid ${color}` : 'none'}; pointer-events: auto; cursor: pointer; }
-        input[type=range].range-thumb::-moz-range-track { background: transparent; }
-      `}</style>
     </div>
   );
 }

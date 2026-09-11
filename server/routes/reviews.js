@@ -1,35 +1,68 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const { authRequired, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/product/:productId', async (req, res) => {
-  const reviews = await Review.find({
-    product: req.params.productId,
-    status: 'approved',
-  }).sort({ createdAt: -1 });
-  res.json(reviews);
-});
-
-router.post('/', async (req, res) => {
+router.get('/product/:productId', async (req, res, next) => {
   try {
-    const review = await Review.create(req.body);
-    res.status(201).json(review);
+    const { productId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(productId))
+      return res.status(400).json({ message: 'Invalid product id' });
+    const reviews = await Review.find({ product: productId, status: 'approved' })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    res.json(reviews);
   } catch (e) {
-    res.status(400).json({ message: e.message });
+    next(e);
   }
 });
 
-router.patch('/:id/approve', authRequired, requireAdmin, async (req, res) => {
-  const review = await Review.findByIdAndUpdate(
-    req.params.id,
-    { status: req.body.status || 'approved' },
-    { new: true }
-  );
-  if (!review) return res.status(404).json({ message: 'Review not found' });
-  await Review.recalcProduct(review.product);
-  res.json(review);
+router.post('/', async (req, res, next) => {
+  try {
+    const { product, name, rating, title, text, location } = req.body || {};
+    if (!product || !mongoose.Types.ObjectId.isValid(String(product)))
+      return res.status(400).json({ message: 'Valid product id required' });
+    const r = Number(rating);
+    if (!Number.isInteger(r) || r < 1 || r > 5)
+      return res.status(400).json({ message: 'Rating must be an integer 1-5' });
+    const review = await Review.create({
+      product,
+      name: typeof name === 'string' ? name.trim().slice(0, 100) : '',
+      rating: r,
+      title: typeof title === 'string' ? title.trim().slice(0, 200) : undefined,
+      text: typeof text === 'string' ? text.slice(0, 5000) : '',
+      location: typeof location === 'string' ? location.trim().slice(0, 100) : undefined,
+      status: 'pending',
+      verifiedPurchase: false,
+      user: null,
+    });
+    res.status(201).json(review);
+  } catch (e) {
+    e.status = 400;
+    next(e);
+  }
+});
+
+router.patch('/:id/approve', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: 'Invalid review id' });
+    const status = (req.body && req.body.status) || 'approved';
+    if (!['approved', 'rejected', 'pending'].includes(status))
+      return res.status(400).json({ message: 'Invalid status' });
+    const review = await Review.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    );
+    if (!review) return res.status(404).json({ message: 'Review not found' });
+    await Review.recalcProduct(review.product);
+    res.json(review);
+  } catch (e) {
+    next(e);
+  }
 });
 
 module.exports = router;

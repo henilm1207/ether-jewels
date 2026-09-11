@@ -47,7 +47,7 @@ export default function About() {
       <section className="relative overflow-hidden flex items-center">
         <img
           src="/images/about/hero.jpg"
-          alt="ETHERSTAR JEWELS"
+          alt="EtherStar Jewels"
           loading="eager"
           fetchPriority="high"
           className="absolute inset-0 w-full h-full object-cover"
@@ -59,7 +59,7 @@ export default function About() {
             style={{ maxWidth: '750px' }}
           >
             <p className="text-subheading" style={{ color: '#fff', marginBottom: '12px' }}>
-              ETHERSTAR JEWELS
+              EtherStar Jewels
             </p>
             <h1
               className="font-heading"

@@ -3,7 +3,7 @@ import InfoShell from './InfoShell';
 const faqs = [
   {
     q: 'Are your diamonds real?',
-    a: 'Yes. Every ETHERSTAR diamond is a real, lab-grown diamond — physically, chemically and optically identical to mined diamonds — and certified by GIA, IGI or SHC.',
+    a: 'Yes. Every Ether diamond is a real, lab-grown diamond — physically, chemically and optically identical to mined diamonds — and certified by GIA, IGI or SHC.',
   },
   {
     q: 'What does “Setting Only — Center Diamond Not Included” mean?',

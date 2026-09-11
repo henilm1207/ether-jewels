@@ -2,36 +2,52 @@ const express = require('express');
 const router = express.Router();
 const Subscriber = require('../models/Subscriber');
 
-router.post('/subscribe', async (req, res) => {
-  try {
-    const { email, source = 'footer' } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email is required' });
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SOURCES = ['popup', 'footer', 'checkout'];
+const normEmail = (e) => String(e || '').trim().toLowerCase();
 
-    const existing = await Subscriber.findOne({ email: email.toLowerCase() });
+router.post('/subscribe', async (req, res, next) => {
+  try {
+    const { email, source = 'footer' } = req.body || {};
+    const clean = normEmail(email);
+    if (!EMAIL_RE.test(clean)) return res.status(400).json({ message: 'Valid email is required' });
+    const cleanSource = SOURCES.includes(source) ? source : 'footer';
+
+    const existing = await Subscriber.findOne({ email: clean });
     if (existing) {
       if (existing.active)
         return res.status(400).json({ message: 'You have already subscribed!' });
       existing.active = true;
       existing.unsubscribedAt = null;
-      existing.source = source;
+      existing.source = cleanSource;
       await existing.save();
       return res.status(200).json({ message: 'Resubscribed successfully!' });
     }
 
-    await Subscriber.create({ email: email.toLowerCase(), source });
+    await Subscriber.create({ email: clean, source: cleanSource });
     res.status(201).json({ message: 'Subscribed successfully!' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    if (error && error.code === 11000)
+      return res.status(400).json({ message: 'You have already subscribed!' });
+    if (error && error.name === 'ValidationError')
+      return res.status(400).json({ message: 'Invalid subscription data' });
+    next(error);
   }
 });
 
-router.post('/unsubscribe', async (req, res) => {
-  const sub = await Subscriber.findOne({ email: (req.body.email || '').toLowerCase() });
-  if (!sub) return res.status(404).json({ message: 'Not subscribed' });
-  sub.active = false;
-  sub.unsubscribedAt = new Date();
-  await sub.save();
-  res.json({ message: 'Unsubscribed' });
+router.post('/unsubscribe', async (req, res, next) => {
+  try {
+    const clean = normEmail(req.body && req.body.email);
+    if (!EMAIL_RE.test(clean)) return res.status(400).json({ message: 'Valid email required' });
+    const sub = await Subscriber.findOne({ email: clean });
+    if (!sub) return res.status(404).json({ message: 'Not subscribed' });
+    sub.active = false;
+    sub.unsubscribedAt = new Date();
+    await sub.save();
+    res.json({ message: 'Unsubscribed' });
+  } catch (e) {
+    next(e);
+  }
 });
 
 module.exports = router;

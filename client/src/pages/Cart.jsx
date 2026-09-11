@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { apiUrl } from '../config';
 
 export default function Cart() {
-  const { items, removeItem, updateQuantity, subtotal } = useCart();
+  const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart();
+  const navigate = useNavigate();
   const [note, setNote] = useState('');
   const [code, setCode] = useState('');
   const [appliedCode, setAppliedCode] = useState('');
+  const [placing, setPlacing] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(null);
 
   return (
     <section className="py-10 md:py-14">
@@ -40,15 +45,15 @@ export default function Cart() {
                     className="flex-shrink-0 bg-[#f7f2ef] overflow-hidden"
                     style={{ width: '80px', height: '80px' }}
                   >
-                    <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
+                    <img src={item.product.images?.[0] || '/images/placeholder.webp'} alt={item.product.name} loading="lazy" width={80} height={80} className="w-full h-full object-cover" />
                   </Link>
                   <div className="flex-1 min-w-0">
                     <Link to={`/products/${item.product.slug}`} className="text-[15px] font-medium hover:opacity-70 block truncate">
                       {item.product.name}
                     </Link>
-                    {item.variant && <p className="text-xs text-gray-500">{item.variant.name}</p>}
+                    {item.variant && <p className="text-xs text-gray-500">{item.variant.name}{item.variant.kt ? ` / ${item.variant.kt}` : ''}</p>}
                     <p className="text-[15px] font-medium" style={{ margin: '5px 0' }}>
-                      ${(item.variant?.price || item.product.price).toFixed(2)}
+                      ${(Number(item.variant?.price ?? item.product.price) || 0).toFixed(2)}
                     </p>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center border border-[#ededed]" style={{ height: '38px', width: '110px' }}>
@@ -111,14 +116,63 @@ export default function Cart() {
                 )}
                 <div className="flex items-center justify-between" style={{ marginTop: '24px', marginBottom: '8px' }}>
                   <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>Subtotal:</span>
-                  <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>${subtotal.toFixed(2)} USD</span>
+                  <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>${(Number(subtotal) || 0).toFixed(2)} USD</span>
                 </div>
                 <p className="text-xs text-gray-500" style={{ marginBottom: '16px' }}>
                   Tax included. <Link to="/pages/shipping-and-deliveries" className="underline">Shipping</Link> calculated at checkout.
                 </p>
+                {error && <p role="alert" className="text-sm text-red-700" style={{ marginBottom: '12px' }}>{error}</p>}
+                {done ? (
+                  <div role="status" className="bg-[#f7f2ef] p-4 text-sm">
+                    <p className="font-medium">Order {done._id} placed — ${Number(done.pricing?.total || 0).toFixed(2)} USD.</p>
+                    <p className="text-gray-600 mt-1">We emailed your confirmation. <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
+                  </div>
+                ) : (
                 <div className="flex gap-2">
-                  <button className="btn btn--primary flex-1">Check out</button>
+                  <button
+                    disabled={placing}
+                    onClick={async () => {
+                      setPlacing(true);
+                      setError('');
+                      try {
+                        // Minimal guest checkout — address collected at next step in v2.
+                        // For now require email via prompt-less fallback: use stored contact or ask.
+                        const email = window.prompt('Enter email for order confirmation:');
+                        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) throw new Error('Valid email required to place order');
+                        const res = await fetch(apiUrl('/api/orders'), {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            items: items.map((it) => ({
+                              product: it.product._id || it.product.id,
+                              qty: it.quantity,
+                              karat: it.variant?.kt || '14KT',
+                              metalColor: it.variant?.material || it.variant?.name,
+                              size: it.product?.sizes?.length ? (it.size || it.product.defaultSize || '7') : undefined,
+                            })),
+                            couponCode: appliedCode || undefined,
+                            shippingAddress: { fullName: 'Guest', line1: 'TBD', city: 'TBD', country: 'TBD', zip: '00000' },
+                            contact: { email: email.trim() },
+                            orderNote: note.slice(0, 1000),
+                            payment: { method: 'card' },
+                          }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.message || 'Checkout failed');
+                        setDone(data);
+                        clearCart();
+                      } catch (e) {
+                        setError(e.message);
+                      } finally {
+                        setPlacing(false);
+                      }
+                    }}
+                    className="btn btn--primary flex-1 disabled:opacity-50"
+                  >
+                    {placing ? 'Placing order…' : 'Check out'}
+                  </button>
                 </div>
+                )}
               </div>
             </div>
           </>

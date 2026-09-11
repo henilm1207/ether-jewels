@@ -16,16 +16,17 @@ const addressSchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
     email: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
       trim: true,
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email'],
     },
     passwordHash: { type: String, required: true, select: false },
-    phone: String,
+    phone: { type: String, trim: true, maxlength: 30 },
     addresses: { type: [addressSchema], default: [] },
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],

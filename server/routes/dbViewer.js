@@ -2,17 +2,32 @@ const express = require('express');
 const mongoose = require('mongoose');
 
 const router = express.Router();
+const ALLOWED = new Set(['products', 'categories']);
+const SENSITIVE = new Set(['passwordHash', 'password']);
 
 const esc = (v) =>
   String(v ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const redact = (doc) => {
+  if (!doc || typeof doc !== 'object') return doc;
+  const out = Array.isArray(doc) ? [] : {};
+  for (const [k, v] of Object.entries(doc)) {
+    if (SENSITIVE.has(k)) out[k] = '[redacted]';
+    else out[k] = v && typeof v === 'object' ? redact(v) : v;
+  }
+  return out;
+};
 
 async function collections() {
   const cols = await mongoose.connection.db.listCollections().toArray();
   const out = [];
   for (const c of cols.map((x) => x.name).sort()) {
+    if (!ALLOWED.has(c)) continue;
     out.push({ name: c, count: await mongoose.connection.db.collection(c).countDocuments() });
   }
   return out;
@@ -28,7 +43,7 @@ th{background:#f7f2ef}pre{background:#fafafa;border:1px solid #eee;padding:12px;
 .pill{display:inline-block;background:#37181d;color:#fff;border-radius:10px;padding:1px 10px;font-size:12px}</style>
 </head><body><p><a href="/admin/db">← all collections</a></p>${body}</body></html>`;
 
-// GET /admin/db — collection overview
+// GET /admin/db — collection overview (products + categories only)
 router.get('/', async (_req, res) => {
   try {
     const cols = await collections();
@@ -38,7 +53,7 @@ router.get('/', async (_req, res) => {
     res.send(
       page(
         'Database',
-        `<h1>Etherstar DB <span class="pill">${mongoose.connection.name}</span></h1>
+        `<h1>Etherstar DB <span class="pill">${esc(mongoose.connection.name)}</span></h1>
         <p>Read-only viewer · dev only · <a href="/api/health">api health</a></p>
         <table><tr><th>collection</th><th>documents</th></tr>${rows}</table>`
       )
@@ -51,9 +66,13 @@ router.get('/', async (_req, res) => {
 // GET /admin/db/:collection?page=&limit= — browse documents
 router.get('/:name', async (req, res) => {
   try {
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '20', 10)));
-    const pg = Math.max(1, parseInt(req.query.page || '1', 10));
-    const col = mongoose.connection.db.collection(req.params.name);
+    const name = String(req.params.name);
+    if (!ALLOWED.has(name)) return res.status(404).send(page('Not found', '<p>Unknown collection.</p>'));
+    const limRaw = parseInt(req.query.limit || '20', 10);
+    const pgRaw = parseInt(req.query.page || '1', 10);
+    const limit = Number.isFinite(limRaw) ? Math.min(50, Math.max(1, limRaw)) : 20;
+    const pg = Number.isFinite(pgRaw) ? Math.max(1, pgRaw) : 1;
+    const col = mongoose.connection.db.collection(name);
     const [docs, total] = await Promise.all([
       col.find({}).skip((pg - 1) * limit).limit(limit).toArray(),
       col.countDocuments(),
@@ -63,10 +82,10 @@ router.get('/:name', async (req, res) => {
       `<p>Page ${pg} of ${pages} · ${total} docs ` +
       (pg > 1 ? `<a href="?page=${pg - 1}&limit=${limit}">← prev</a> ` : '') +
       (pg < pages ? `<a href="?page=${pg + 1}&limit=${limit}">next →</a>` : '') + '</p>';
-    const body = docs.map((d) => `<pre>${esc(JSON.stringify(d, null, 2))}</pre>`).join('') || '<p>Empty.</p>';
-    res.send(page(req.params.name, `<h1>${esc(req.params.name)}</h1>${nav}${body}${nav}`));
+    const body = docs.map((d) => `<pre>${esc(JSON.stringify(redact(d), null, 2))}</pre>`).join('') || '<p>Empty.</p>';
+    res.send(page(name, `<h1>${esc(name)}</h1>${nav}${body}${nav}`));
   } catch (e) {
-    res.status(404).send(page('Not found', `<pre>${esc(e.message)}</pre>`));
+    res.status(400).send(page('Error', `<pre>${esc(e.message)}</pre>`));
   }
 });
 

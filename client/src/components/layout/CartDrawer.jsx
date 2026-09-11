@@ -1,19 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { FREE_SHIPPING_THRESHOLD } from '../../config';
 
-// Live: 350px drawer, $100 free-shipping goal, 80px thumbs, 38×110 qty.
+// Live: 350px drawer, $1000 free-shipping goal, 80px thumbs, 38×110 qty.
 export default function CartDrawer({ isOpen, onClose }) {
-  const { items, removeItem, updateQuantity, subtotal } = useCart();
+  const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
+  const navigate = useNavigate();
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
   const [code, setCode] = useState('');
   const [appliedCode, setAppliedCode] = useState('');
-  const FREE_SHIPPING_THRESHOLD = 100;
   const shippingProgress = Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+
+  const goCheckout = () => {
+    onClose();
+    navigate('/cart');
+  };
 
   return (
     <>
@@ -25,7 +40,7 @@ export default function CartDrawer({ isOpen, onClose }) {
       />
 
       {/* Drawer */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-[350px] bg-white z-[101] flex flex-col animate-slide-in-right">
+      <div role="dialog" aria-modal="true" aria-label={`Your cart, ${totalItems} items`} className="fixed top-0 right-0 h-full w-full max-w-[350px] bg-white z-[101] flex flex-col animate-slide-in-right">
         {/* Header — live 60px */}
         <div className="flex items-center justify-between border-b border-[#ededed]" style={{ height: '60px', padding: '16px 20px' }}>
           <h2 className="text-[15px] font-medium">
@@ -74,8 +89,8 @@ export default function CartDrawer({ isOpen, onClose }) {
             </div>
           ) : (
             <div>
-              {items.map((item) => (
-                <div key={item.key} className="flex" style={{ padding: '20px 0', marginTop: items.indexOf(item) === 0 ? '16px' : 0, borderBottom: '1px solid #ededed' }}>
+              {items.map((item, i) => (
+                <div key={item.key} className="flex" style={{ padding: '20px 0', marginTop: i === 0 ? '16px' : 0, borderBottom: '1px solid #ededed' }}>
                   <Link
                     to={`/products/${item.product.slug}`}
                     onClick={onClose}
@@ -83,9 +98,12 @@ export default function CartDrawer({ isOpen, onClose }) {
                     style={{ width: '80px', height: '80px' }}
                   >
                     <img
-                      src={item.product.images[0]}
+                      src={item.product.images?.[0] || '/images/placeholder.webp'}
                       alt={item.product.name}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      width={80}
+                      height={80}
                     />
                   </Link>
 
@@ -101,8 +119,8 @@ export default function CartDrawer({ isOpen, onClose }) {
                     {item.variant && (
                       <p className="text-xs text-gray-500">{item.variant.name}{item.variant.kt ? ` / ${item.variant.kt}` : ''}</p>
                     )}
-                    <p className="text-[15px] font-medium" style={{ margin: '-2px 0 5px' }}>
-                      ${(item.variant?.price || item.product.price).toFixed(2)}
+                    <p className="text-[15px] font-medium" style={{ margin: '5px 0' }}>
+                      ${(Number(item.variant?.price ?? item.product.price) || 0).toFixed(2)}
                     </p>
 
                     <div className="flex items-center">
@@ -189,7 +207,7 @@ export default function CartDrawer({ isOpen, onClose }) {
             </div>
             <p className="text-xs text-gray-500" style={{ marginBottom: '12px' }}>Tax included. Shipping calculated at checkout.</p>
             <div className="flex" style={{ gap: '8px' }}>
-              <button className="btn btn--primary flex-1">
+              <button onClick={goCheckout} className="btn btn--primary flex-1">
                 Check out
               </button>
             </div>

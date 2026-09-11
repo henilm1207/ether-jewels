@@ -25,9 +25,8 @@
   --font-shape-name: 'Libre Baskerville', Baskerville, Georgia, serif;
 }
 
-* {
-  margin: 0;
-  padding: 0;
+/* Tailwind Preflight already resets margins — do not wipe it globally. */
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -100,6 +99,17 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #222222;
   outline-offset: 2px;
+}
+
+input[type='range'].range-thumb { position: absolute; inset: 0; width: 100%; appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; margin: 0; height: 14px; }
+input[type='range'].range-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--thumb-color, #222); border: var(--thumb-border, none); pointer-events: auto; cursor: pointer; transition: transform .2s ease; }
+input[type='range'].range-thumb::-webkit-slider-thumb:hover { transform: scale(1.3); }
+input[type='range'].range-thumb::-webkit-slider-thumb:focus-visible { outline: 2px solid #222; outline-offset: 2px; }
+input[type='range'].range-thumb::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--thumb-color, #222); border: var(--thumb-border, none); pointer-events: auto; cursor: pointer; }
+input[type='range'].range-thumb::-moz-range-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
 /* ========== TYPOGRAPHY (live: 10px root → px equivalents) ========== */

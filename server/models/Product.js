@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { DIAMOND_SHAPES, METAL_COLORS, isRingCategory } = require('../config/catalog');
+const { DIAMOND_SHAPES, isRingCategory } = require('../config/catalog');
 
 const variantSchema = new mongoose.Schema(
   {
@@ -36,7 +36,7 @@ const productSchema = new mongoose.Schema(
       validate: (v) => Array.isArray(v) && v.length > 0,
     },
     video: { type: String, default: null },
-    variants: { type: [variantSchema], default: [] },
+    variants: { type: [variantSchema], default: [], validate: (v) => Array.isArray(v) && v.length >= 1 },
     tags: { type: [String], default: [] },
     badge: { type: String, enum: ['new', 'sale', 'hot', null], default: null },
     status: {
@@ -66,12 +66,10 @@ const productSchema = new mongoose.Schema(
 );
 
 // Validate metal color names loosely (allow future Platinum without breaking)
+const { DEFAULT_RING_SIZES } = require('../config/catalog');
 productSchema.pre('validate', function (next) {
   if (this.variants && this.variants.length) {
     for (const v of this.variants) {
-      if (v.material && !METAL_COLORS.includes(v.material)) {
-        // Allow but normalize — future metals should be added to catalog.js
-      }
       if (!v.material && v.name) v.material = v.name;
     }
   }
@@ -84,6 +82,8 @@ productSchema.pre('validate', function (next) {
         new Error(`sizes[] is required for ring category '${this.category}'`)
       );
     }
+    const bad = this.sizes.filter((s) => !DEFAULT_RING_SIZES.includes(s));
+    if (bad.length) return next(new Error(`Invalid ring sizes: ${bad.join(', ')}`));
     if (this.defaultSize && !this.sizes.includes(this.defaultSize)) {
       return next(new Error('defaultSize must be one of sizes[]'));
     }
@@ -92,6 +92,9 @@ productSchema.pre('validate', function (next) {
       return next(
         new Error(`sizes[] must be empty for non-ring category '${this.category}'`)
       );
+    }
+    if (this.defaultSize) {
+      return next(new Error('defaultSize must be empty for non-ring category'));
     }
   }
   next();

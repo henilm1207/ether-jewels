@@ -7,7 +7,7 @@ export default function HeroSlideshow() {
       <div className="absolute inset-0">
         <img
           src="/images/hero-banner.png"
-          alt="ETHERSTAR JEWELS - Engagement Rings"
+          alt="EtherStar Jewels - Engagement Rings"
           className="w-full h-full object-cover"
           loading="eager"
           fetchPriority="high"

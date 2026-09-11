@@ -1,23 +1,24 @@
 import { useState } from 'react';
 import { Phone, MapPin, Mail } from 'lucide-react';
+import { apiUrl, CONTACT } from '../config';
 
 const INFO = [
   {
     icon: Phone,
     label: 'Phone',
-    value: <a href="tel:+971586062080" className="hover:opacity-70">+971 58 606 2080</a>,
+    value: <a href={CONTACT.phoneHref} className="hover:opacity-70">{CONTACT.phone}</a>,
   },
   {
     icon: MapPin,
     label: 'Address',
-    value: 'Dubai, UAE',
+    value: CONTACT.address,
   },
   {
     icon: Mail,
     label: 'Email',
     value: (
-      <a href="mailto:etherstarjewels@gmail.com" className="hover:opacity-70">
-        etherstarjewels@gmail.com
+      <a href={`mailto:${CONTACT.email}`} className="hover:opacity-70">
+        {CONTACT.email}
       </a>
     ),
   },
@@ -36,14 +37,39 @@ const fieldStyle = {
 export default function Contact() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSending(true);
+    setError('');
+    try {
+      const res = await fetch(apiUrl('/api/inquiries'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'contact',
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim() || undefined,
+          message: form.message.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to send. Please try again.');
+      }
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
   };
 
   const inputClass =
@@ -73,7 +99,7 @@ export default function Contact() {
             </div>
 
             {submitted ? (
-              <div className="text-center py-12 bg-[#f7f2ef]">
+              <div role="status" className="text-center py-12 bg-[#f7f2ef]">
                 <h2
                   className="font-heading mb-3"
                   style={{ fontSize: '1.5rem', letterSpacing: '1px' }}
@@ -83,6 +109,9 @@ export default function Contact() {
                 <p className="text-gray-600 text-[15px]">
                   Your message has been sent. We&apos;ll get back to you within 24 hours.
                 </p>
+                <button type="button" onClick={() => { setSubmitted(false); setForm({ name: '', phone: '', email: '', message: '' }); }} className="btn btn--underline" style={{ color: '#222', marginTop: '16px' }}>
+                  Send another message
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -140,7 +169,7 @@ export default function Contact() {
                 </div>
 
                 <div>
-                  <label htmlFor="contact-message" className="sr-only">Message</label>
+                  <label htmlFor="contact-message" className="sr-only">Message (min 10 characters)</label>
                   <textarea
                     id="contact-message"
                     name="message"
@@ -148,6 +177,7 @@ export default function Contact() {
                     value={form.message}
                     onChange={handleChange}
                     required
+                    minLength={10}
                     aria-required="true"
                     rows={3}
                     className={inputClass}
@@ -155,13 +185,16 @@ export default function Contact() {
                   />
                 </div>
 
+                {error && <p role="alert" className="text-sm text-red-700 text-center">{error}</p>}
+
                 <div className="flex justify-center">
                   <button
                     type="submit"
-                    className="btn btn--underline"
+                    disabled={sending}
+                    className="btn btn--underline disabled:opacity-50"
                     style={{ color: '#222', marginTop: '10px' }}
                   >
-                    Submit Now
+                    {sending ? 'Sending…' : 'Submit Now'}
                   </button>
                 </div>
               </form>

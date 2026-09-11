@@ -112,8 +112,8 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                 <Menu size={22} className={headerTextColor} />
               </button>
               <Link to="/" className="flex-shrink-0" style={{ margin: 0, padding: '5px 0' }}>
-                <img src={logoSrc} alt="ETHERSTAR JEWELS" className="hidden md:block" style={{ width: '140px', height: 'auto' }} />
-                <img src={logoSrc} alt="ETHERSTAR JEWELS" className="md:hidden" style={{ width: '100px', height: 'auto' }} />
+                <img src={logoSrc} alt="EtherStar Jewels" className="hidden md:block" style={{ width: '140px', height: 'auto' }} />
+                <img src={logoSrc} alt="EtherStar Jewels" className="md:hidden" style={{ width: '100px', height: 'auto' }} />
               </Link>
             </div>
 

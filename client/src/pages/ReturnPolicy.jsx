@@ -4,7 +4,7 @@ export default function ReturnPolicy() {
   return (
     <InfoShell title="Returns & Refunds">
       <InfoH>Our Promise</InfoH>
-      <InfoP>Every ETHERSTAR piece is made-to-order and inspected before insured dispatch. If your jewellery arrives damaged or materially different from your confirmed order, contact us within 7 days of delivery and we will make it right — repair, remake, or refund.</InfoP>
+      <InfoP>Every Ether piece is made-to-order and inspected before insured dispatch. If your jewellery arrives damaged or materially different from your confirmed order, contact us within 7 days of delivery and we will make it right — repair, remake, or refund.</InfoP>
       <InfoH>Eligibility</InfoH>
       <InfoP>Unworn pieces in original condition with certificates may be returned within 14 days of delivery. Engraved, custom-designed, or resized pieces are final sale unless faulty.</InfoP>
       <InfoH>How to Start a Return</InfoH>

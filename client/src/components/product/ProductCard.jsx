@@ -4,6 +4,10 @@ import { Link } from 'react-router-dom';
 export default function ProductCard({ product, priority = false }) {
   const [hovered, setHovered] = useState(false);
 
+  // Live: "From $1,500.00 USD" — always From + thousands separator + 2 decimals + USD
+  const fmt = (v) =>
+    `From $${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+
   return (
     <Link
       to={`/products/${product.slug}`}
@@ -32,21 +36,7 @@ export default function ProductCard({ product, priority = false }) {
           />
         )}
 
-        {/* Badge — live: 10px offset */}
-        {product.badge && (
-          <span
-            className={`absolute px-2 py-1 text-[10px] font-medium uppercase text-white ${
-              product.badge === 'sale'
-                ? 'bg-[#ec635e]'
-                : product.badge === 'new'
-                ? 'bg-[#70c5d8]'
-                : 'bg-[#222]'
-            }`}
-            style={{ left: '10px', top: '10px', letterSpacing: '1px' }}
-          >
-            {product.badge}
-          </span>
-        )}
+        {/* Live: no badges on collection cards */}
 
         {/* Choose Options — live: always visible mobile, 540ms rise on desktop hover */}
         <div
@@ -75,10 +65,10 @@ export default function ProductCard({ product, priority = false }) {
         <p style={{ fontSize: '15px', lineHeight: 1.5, color: '#222' }}>
           {product.compareAtPrice && (
             <span className="line-through text-gray-400 mr-2">
-              ${product.compareAtPrice.toFixed(2)}
+              ${Number(product.compareAtPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           )}
-          From ${product.price.toFixed(2)} USD
+          {fmt(product.price)}
         </p>
       </div>
     </Link>

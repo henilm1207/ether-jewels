@@ -3,7 +3,7 @@ import InfoShell, { InfoH, InfoP } from './InfoShell';
 export default function PrivacyPolicy() {
   return (
     <InfoShell title="Privacy Policy">
-      <InfoP>ETHERSTAR JEWELS respects your privacy. This policy explains what information we collect and how we use it when you visit our website or place an order.</InfoP>
+      <InfoP>EtherStar Jewels respects your privacy. This policy explains what information we collect and how we use it when you visit our website or place an order.</InfoP>
       <InfoH>Information We Collect</InfoH>
       <InfoP>Contact details (name, email, phone, shipping address), order and payment information processed securely by our payment providers, and browsing data such as cookies that help the site function.</InfoP>
       <InfoH>How We Use It</InfoH>

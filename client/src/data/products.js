@@ -327,7 +327,7 @@ export function findProduct(slug) {
 /** Products for a (resolved) category key: aggregate, shape, or plain category. */
 export function productsForCategory(key) {
   const info = categories[key];
-  if (!info) return products;
+  if (!info) return [];
   if (info.aggregate) {
     return products.filter((p) => info.aggregate.includes(p.category));
   }

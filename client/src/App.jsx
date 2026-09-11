@@ -18,8 +18,18 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import ReturnPolicy from './pages/ReturnPolicy';
 import ShippingPolicy from './pages/ShippingPolicy';
 import Faqs from './pages/Faqs';
+import NotFound from './pages/NotFound';
 import NewsletterPopup from './components/ui/NewsletterPopup';
 import CookieConsent from './components/ui/CookieConsent';
+import ErrorBoundary from './components/ui/ErrorBoundary';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function App() {
   const [cartOpen, setCartOpen] = useState(false);
@@ -29,40 +39,55 @@ function App() {
   const isHome = location.pathname === '/';
 
   useEffect(() => {
-    if (cartOpen || mobileNavOpen) {
+    if (cartOpen || mobileNavOpen || searchOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [cartOpen, mobileNavOpen]);
+  }, [cartOpen, mobileNavOpen, searchOpen]);
+
+  useEffect(() => {
+    const titles = {
+      '/': 'EtherStar Jewels — Lab-Grown Diamond Jewelry',
+      '/search': 'Search — EtherStar Jewels',
+      '/cart': 'Your Cart — EtherStar Jewels',
+    };
+    document.title = titles[location.pathname] || 'EtherStar Jewels';
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen flex flex-col">
+      <ScrollToTop />
       <Header
         onCartClick={() => setCartOpen(true)}
         onMenuClick={() => setMobileNavOpen(true)}
-        onSearchClick={() => setSearchOpen(!searchOpen)}
+        onSearchOpen={() => setSearchOpen(true)}
+        onSearchClose={() => setSearchOpen(false)}
+        onSearchClick={() => setSearchOpen((v) => !v)}
         searchOpen={searchOpen}
       />
 
       <main className={`flex-1${isHome ? '' : ' page-offset'}`}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/collections/:category" element={<Collection />} />
-          <Route path="/products/:slug" element={<ProductDetail />} />
-          <Route path="/pages/diamond" element={<Diamond />} />
-          <Route path="/pages/contact" element={<Contact />} />
-          <Route path="/pages/about-us" element={<About />} />
-          <Route path="/pages/return-policy" element={<ReturnPolicy />} />
-          <Route path="/pages/shipping-and-deliveries" element={<ShippingPolicy />} />
-          <Route path="/pages/faqs" element={<Faqs />} />
-          <Route path="/policies/terms-of-service" element={<TermsOfService />} />
-          <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/account/login" element={<Login />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/collections/:category" element={<Collection />} />
+            <Route path="/products/:slug" element={<ProductDetail />} />
+            <Route path="/pages/diamond" element={<Diamond />} />
+            <Route path="/pages/contact" element={<Contact />} />
+            <Route path="/pages/about-us" element={<About />} />
+            <Route path="/pages/return-policy" element={<ReturnPolicy />} />
+            <Route path="/pages/shipping-and-deliveries" element={<ShippingPolicy />} />
+            <Route path="/pages/faqs" element={<Faqs />} />
+            <Route path="/policies/terms-of-service" element={<TermsOfService />} />
+            <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/account/login" element={<Login />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
 
       <Footer />

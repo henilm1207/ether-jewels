@@ -1,4 +1,4 @@
-export default function InfoShell({ title, eyebrow = 'ETHERSTAR JEWELS', children }) {
+export default function InfoShell({ title, eyebrow = 'EtherStar Jewels', children }) {
   return (
     <section className="py-10 md:py-14">
       <div className="container" style={{ maxWidth: '880px' }}>

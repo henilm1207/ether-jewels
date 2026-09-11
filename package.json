@@ -1,7 +1,7 @@
 {
-  "name": "mitva-jewels",
+  "name": "ether-jewels",
   "version": "1.0.0",
-  "description": "MITVA JEWELS - Lab Grown Diamond Jewelry",
+  "description": "EtherStar Jewels - Lab Grown Diamond Jewelry",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "client": "cd client && npm run dev",

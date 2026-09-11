@@ -3,7 +3,7 @@ import InfoShell, { InfoH, InfoP } from './InfoShell';
 export default function TermsOfService() {
   return (
     <InfoShell title="Terms of Service">
-      <InfoP>By accessing or purchasing from ETHERSTAR JEWELS, you agree to these Terms of Service. Please read them carefully before placing an order.</InfoP>
+      <InfoP>By accessing or purchasing from EtherStar Jewels, you agree to these Terms of Service. Please read them carefully before placing an order.</InfoP>
       <InfoH>Products & Pricing</InfoH>
       <InfoP>All jewellery is made-to-order with lab-grown, certified diamonds. Setting prices are shown without the center diamond unless stated. Final pricing depends on your selected diamond, karatage and metal. We reserve the right to correct pricing errors and cancel affected orders with a full refund.</InfoP>
       <InfoH>Made-to-Order & Delivery</InfoH>

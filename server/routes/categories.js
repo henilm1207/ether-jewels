@@ -3,24 +3,40 @@ const Category = require('../models/Category');
 
 const router = express.Router();
 
+async function resolveCategory(key) {
+  const seen = new Set();
+  let cur = String(key);
+  for (let i = 0; i < 5; i++) {
+    if (seen.has(cur)) return null; // cycle
+    seen.add(cur);
+    const cat = await Category.findOne({ key: cur, active: true });
+    if (!cat) return null;
+    if (cat.aliasOf) {
+      cur = cat.aliasOf;
+      continue;
+    }
+    return cat;
+  }
+  return null;
+}
+
 // List active categories (for nav / collection pages). Includes aggregates + shape maps.
-router.get('/', async (_req, res) => {
+router.get('/', async (_req, res, next) => {
   try {
     const cats = await Category.find({ active: true }).sort({ sortOrder: 1 });
     res.json(cats);
   } catch (e) {
-    res.status(500).json({ message: e.message });
+    next(e);
   }
 });
 
-router.get('/:key', async (req, res) => {
+router.get('/:key', async (req, res, next) => {
   try {
-    let cat = await Category.findOne({ key: req.params.key });
-    if (cat && cat.aliasOf) cat = await Category.findOne({ key: cat.aliasOf });
+    const cat = await resolveCategory(req.params.key);
     if (!cat) return res.status(404).json({ message: 'Category not found' });
     res.json(cat);
   } catch (e) {
-    res.status(500).json({ message: e.message });
+    next(e);
   }
 });
 
