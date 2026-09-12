@@ -6,6 +6,9 @@ const connectDB = async () => {
   }
   const conn = await mongoose.connect(process.env.MONGO_URI, {
     serverSelectionTimeoutMS: 5000,
+    // Force IPv4: Atlas access lists can't contain IPv6, and dual-stack
+    // machines otherwise egress over v6 and get rejected at the firewall.
+    family: 4,
   });
   console.log(`MongoDB connected: ${conn.connection.host}`);
   mongoose.connection.on('error', (e) => console.error('MongoDB error:', e.message));

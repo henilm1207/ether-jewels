@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
@@ -110,6 +112,17 @@ if (
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Single-domain production: serve the Vite build (client/dist) from Express
+// so https://<domain>/ serves the storefront and /api/* serves the API.
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+if (process.env.NODE_ENV === 'production' && fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist, { index: false, maxAge: '1y', immutable: true }));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 
