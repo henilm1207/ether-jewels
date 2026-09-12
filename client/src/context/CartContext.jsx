@@ -1,5 +1,5 @@
 import { useState, createContext, useContext, useEffect, useRef } from 'react';
-import { apiUrl } from '../config';
+import { apiUrl, MAX_CART_QTY } from '../config';
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
@@ -171,14 +171,22 @@ export const CartProvider = ({ children }) => {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  const cartTotal = (list) => list.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+
+  // Whole-cart cap: returns false (and changes nothing) when the change
+  // would push the cart over MAX_CART_QTY — callers redirect to Contact.
   const addItem = (product, variant, quantity = 1, size) => {
     const qty = sanitizeQty(quantity);
     const resolvedVariant = variant || product.variants?.[0] || null;
     const cleanSize = typeof size === 'string' && size ? size : undefined;
     const key = buildKey(product, resolvedVariant, cleanSize);
+    const existing = items.find((item) => item.key === key);
+    const nextQty = existing ? sanitizeQty(existing.quantity + qty) : qty;
+    const nextTotal = cartTotal(items) - (existing ? existing.quantity : 0) + nextQty;
+    if (nextTotal > MAX_CART_QTY) return false;
     setItems((prev) => {
-      const existing = prev.find((item) => item.key === key);
-      if (existing) {
+      const prevExisting = prev.find((item) => item.key === key);
+      if (prevExisting) {
         return prev.map((item) =>
           item.key === key
             ? { ...item, quantity: sanitizeQty(item.quantity + qty) }
@@ -191,6 +199,7 @@ export const CartProvider = ({ children }) => {
         { key, product, variant: resolvedVariant, size: cleanSize, quantity: qty },
       ];
     });
+    return true;
   };
 
   const removeItem = (key) => {
@@ -199,10 +208,18 @@ export const CartProvider = ({ children }) => {
 
   const updateQuantity = (key, quantity) => {
     const qty = Math.floor(Number(quantity));
-    if (!Number.isFinite(qty) || qty <= 0) return removeItem(key);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      removeItem(key);
+      return true;
+    }
+    const item = items.find((it) => it.key === key);
+    if (!item) return false;
+    const nextQty = sanitizeQty(qty);
+    if (cartTotal(items) - item.quantity + nextQty > MAX_CART_QTY) return false;
     setItems((prev) =>
-      prev.map((item) => (item.key === key ? { ...item, quantity: sanitizeQty(qty) } : item))
+      prev.map((it) => (it.key === key ? { ...it, quantity: sanitizeQty(qty) } : it))
     );
+    return true;
   };
 
   const clearCart = () => setItems([]);
@@ -216,9 +233,13 @@ export const CartProvider = ({ children }) => {
       }, 0) * 100
     ) / 100;
 
+  // True for pre-existing carts already over the cap (e.g. stored before the
+  // limit shipped) — UI gates checkout to Contact instead of rewriting data.
+  const limitExceeded = totalItems > MAX_CART_QTY;
+
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, subtotal }}
+      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, subtotal, limitExceeded, maxCartQty: MAX_CART_QTY }}
     >
       {children}
     </CartContext.Provider>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Phone, MapPin, Mail } from 'lucide-react';
 import { apiUrl, CONTACT } from '../config';
 
@@ -35,6 +36,8 @@ const fieldStyle = {
 };
 
 export default function Contact() {
+  const location = useLocation();
+  const bulk = !!(location.state && location.state.bulk);
   const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
@@ -97,6 +100,12 @@ export default function Contact() {
                 Our experts are here to help.
               </p>
             </div>
+
+            {bulk && (
+              <p role="status" className="text-center text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded mx-auto" style={{ padding: '12px 16px', marginBottom: '32px', maxWidth: '560px' }}>
+                Ordering 6 or more items? Send us your requirement below and our seller will get back with a bulk quote.
+              </p>
+            )}
 
             {submitted ? (
               <div role="status" className="text-center py-12 bg-[#f7f2ef]">

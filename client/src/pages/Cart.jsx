@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Minus, Plus, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
@@ -8,6 +8,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config';
 import ProtectedImage from '../components/ui/ProtectedImage';
+import QtyStepper from '../components/cart/QtyStepper';
 
 // Checkout draft (coupon + contact/address/note) survives the login
 // round-trip: guests are sent to /account/login at checkout and return here.
@@ -71,7 +72,7 @@ function StripeCardInner({ email, orderId, onPaid, onError }) {
 }
 
 export default function Cart() {
-  const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart();
+  const { items, removeItem, updateQuantity, subtotal, clearCart, limitExceeded } = useCart();
   const { token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -167,6 +168,20 @@ export default function Cart() {
   const requireLogin = () => {
     if (!token) {
       navigate('/account/login', { state: { from: '/cart' } });
+      return true;
+    }
+    return false;
+  };
+
+  // Whole-cart cap: breaching it (or paying over it) goes to Contact for a
+  // bulk/seller inquiry instead of changing the cart.
+  const goBulk = () => navigate('/pages/contact', { state: { bulk: true } });
+  const commitQty = (item, n) => {
+    if (!updateQuantity(item.key, n)) goBulk();
+  };
+  const requireWithinLimit = () => {
+    if (limitExceeded) {
+      goBulk();
       return true;
     }
     return false;
@@ -434,15 +449,7 @@ export default function Cart() {
                       ${(Number(item.variant?.price ?? item.product.price) || 0).toFixed(2)}
                     </p>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center border border-[#ededed]" style={{ height: '38px', width: '110px' }}>
-                        <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="px-2.5 hover:bg-gray-50 h-full" aria-label="Decrease quantity">
-                          <Minus size={14} />
-                        </button>
-                        <span className="flex-1 text-sm font-medium text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.key, item.quantity + 1)} className="px-2.5 hover:bg-gray-50 h-full" aria-label="Increase quantity">
-                          <Plus size={14} />
-                        </button>
-                      </div>
+                      <QtyStepper value={item.quantity} onCommit={(n) => commitQty(item, n)} />
                       <button onClick={() => removeItem(item.key)} className="text-gray-500 hover:text-[#222] underline" style={{ fontSize: '14px', lineHeight: 1, marginInlineStart: '12px' }}>
                         Remove
                       </button>
@@ -514,6 +521,11 @@ export default function Cart() {
                     </div>
                   </>
                 ) : null}
+                {limitExceeded && (
+                  <p role="status" className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px', marginBottom: '16px' }}>
+                    Your cart has more than 5 items — please contact our seller for bulk orders.
+                  </p>
+                )}
                 <p className="text-xs text-gray-500" style={{ marginBottom: '16px' }}>
                   Tax included. <Link to="/pages/shipping-and-deliveries" className="underline">Shipping</Link> calculated at checkout.
                 </p>
@@ -628,6 +640,7 @@ export default function Cart() {
                         disabled={placing}
                         onClick={async () => {
                           if (requireLogin()) return;
+                          if (requireWithinLimit()) return;
                           const v = validateForm();
                           if (v) return setError(v);
                           setPlacing(true);
@@ -675,6 +688,7 @@ export default function Cart() {
                         forceReRender={[fullName, email, phone, line1, city, country, zip, appliedCode, items]}
                         createOrder={async () => {
                           if (requireLogin()) throw new Error('Please log in to check out');
+                          if (requireWithinLimit()) throw new Error('Cart exceeds the 5-item limit — please contact our seller');
                           const v = validateForm();
                           if (v) {
                             setError(v);
@@ -718,6 +732,7 @@ export default function Cart() {
                       disabled={placing}
                       onClick={async () => {
                         if (requireLogin()) return;
+                        if (requireWithinLimit()) return;
                         const v = validateForm();
                         if (v) return setError(v);
                         setPlacing(true);

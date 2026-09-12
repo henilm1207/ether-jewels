@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { X, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { FREE_SHIPPING_THRESHOLD } from '../../config';
 import ProtectedImage from '../ui/ProtectedImage';
+import QtyStepper from '../cart/QtyStepper';
 
 // Live: 350px drawer, $1000 free-shipping goal, 80px thumbs, 38×110 qty.
 export default function CartDrawer({ isOpen, onClose }) {
-  const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
+  const { items, removeItem, updateQuantity, subtotal, totalItems, limitExceeded } = useCart();
   const navigate = useNavigate();
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -29,6 +30,16 @@ export default function CartDrawer({ isOpen, onClose }) {
   const goCheckout = () => {
     onClose();
     navigate('/cart');
+  };
+
+  // Whole-cart cap: breaching it (or checking out over it) goes to Contact
+  // for a bulk/seller inquiry instead of changing the cart.
+  const goBulk = () => {
+    onClose();
+    navigate('/pages/contact', { state: { bulk: true } });
+  };
+  const commitQty = (item, n) => {
+    if (!updateQuantity(item.key, n)) goBulk();
   };
 
   return (
@@ -129,25 +140,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                     </p>
 
                     <div className="flex items-center">
-                      <div className="flex items-center border border-[#ededed]" style={{ height: '38px', width: '110px' }}>
-                        <button
-                          onClick={() => updateQuantity(item.key, item.quantity - 1)}
-                          className="px-2.5 hover:bg-gray-50 h-full"
-                          aria-label="Decrease quantity"
-                        >
-                          <Minus size={14} />
-                        </button>
-                        <span className="flex-1 text-sm font-medium text-center">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.key, item.quantity + 1)}
-                          className="px-2.5 hover:bg-gray-50 h-full"
-                          aria-label="Increase quantity"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
+                      <QtyStepper value={item.quantity} onCommit={(n) => commitQty(item, n)} />
                       <button
                         onClick={() => removeItem(item.key)}
                         className="text-gray-500 hover:text-[#222] underline"
@@ -211,9 +204,14 @@ export default function CartDrawer({ isOpen, onClose }) {
               <span className="font-medium" style={{ fontSize: '15px', lineHeight: '26px' }}>${subtotal.toFixed(2)} USD</span>
             </div>
             <p className="text-xs text-gray-500" style={{ marginBottom: '12px' }}>Tax included. Shipping calculated at checkout.</p>
+            {limitExceeded && (
+              <p role="status" className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px', marginBottom: '12px' }}>
+                Your cart has more than 5 items — please contact our seller for bulk orders.
+              </p>
+            )}
             <div className="flex" style={{ gap: '8px' }}>
-              <button onClick={goCheckout} className="btn btn--primary flex-1">
-                Check out
+              <button onClick={limitExceeded ? goBulk : goCheckout} className="btn btn--primary flex-1">
+                {limitExceeded ? 'Contact seller' : 'Check out'}
               </button>
             </div>
             <Link

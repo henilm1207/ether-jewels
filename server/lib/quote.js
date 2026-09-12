@@ -94,6 +94,13 @@ async function quoteCart(items, couponCode) {
     });
   }
 
+  // Whole-cart cap (mirrors client MAX_CART_QTY in config.js — keep in sync).
+  // Bulk buyers go through the Contact page instead of online checkout.
+  const MAX_CART_QTY = 5;
+  const totalQty = orderItems.reduce((sum, it) => sum + (Number(it.qty) || 0), 0);
+  if (totalQty > MAX_CART_QTY)
+    throw bad(400, `Cart limit is ${MAX_CART_QTY} items — please contact us for bulk orders`);
+
   let discount = 0;
   let coupon = null;
   if (couponCode != null && String(couponCode).trim() !== '') {

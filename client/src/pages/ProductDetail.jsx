@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { apiUrl } from '../config';
+import { apiUrl, MAX_CART_QTY } from '../config';
 import { metalColor } from '../lib/metals';
 import FavButton from '../components/ui/FavButton';
 import ProtectedImage from '../components/ui/ProtectedImage';
@@ -128,18 +128,24 @@ export default function ProductDetail() {
 
   const oos = currentVariant && currentVariant.inStock === false;
 
+  // Whole-cart cap: a refused add means 6+ total units — bulk inquiry.
+  const goBulk = () => navigate('/pages/contact', { state: { bulk: true } });
+
   const handleAddToCart = () => {
     if (oos) return; // message already shown under the swatches; server rejects too
     const sel = buildSelection();
     if (!sel) return;
-    addItem(product, sel.variant, quantity, sel.size);
+    if (!addItem(product, sel.variant, quantity, sel.size)) goBulk();
   };
 
   const handleBuyNow = () => {
     if (oos) return;
     const sel = buildSelection();
     if (!sel) return;
-    addItem(product, sel.variant, quantity, sel.size);
+    if (!addItem(product, sel.variant, quantity, sel.size)) {
+      goBulk();
+      return;
+    }
     navigate('/cart', { state: { checkout: true } });
   };
 
@@ -388,7 +394,7 @@ export default function ProductDetail() {
                     {quantity}
                   </span>
                   <button
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => setQuantity(Math.min(MAX_CART_QTY, quantity + 1))}
                     className="px-4 hover:bg-gray-50 h-full text-lg"
                     aria-label="Increase quantity"
                   >
