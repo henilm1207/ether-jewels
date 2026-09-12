@@ -63,7 +63,12 @@ router.patch('/:id', authRequired, requireAdmin, async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id))
       return res.status(400).json({ message: 'Invalid coupon id' });
     const patch = {};
-    if (req.body.active !== undefined) patch.active = req.body.active !== false;
+    // The moment the owner touches the switch they own the state: clear the
+    // auto-off marker so a later coupon release can never override them.
+    if (req.body.active !== undefined) {
+      patch.active = req.body.active !== false;
+      patch.autoOff = false;
+    }
     if (req.body.maxUses !== undefined)
       patch.maxUses = req.body.maxUses == null ? null : Math.max(1, parseInt(req.body.maxUses, 10));
     if (req.body.expiresAt !== undefined) patch.expiresAt = req.body.expiresAt || null;

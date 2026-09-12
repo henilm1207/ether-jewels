@@ -26,6 +26,11 @@ const couponSchema = new mongoose.Schema(
     maxUses: { type: Number, default: null, min: 1 },
     usedCount: { type: Number, default: 0, min: 0 },
     active: { type: Boolean, default: true },
+    // True only when the OFF state was set automatically by exhaustion.
+    // Lets releaseCoupon() tell "auto-off" (may reactivate) apart from an
+    // owner/admin manual off (must stay off). Reset whenever the admin
+    // explicitly sets `active` via PATCH.
+    autoOff: { type: Boolean, default: false },
     expiresAt: { type: Date, default: null },
   },
   { timestamps: true }

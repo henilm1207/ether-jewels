@@ -54,7 +54,7 @@ function Segmented({ options, selected, onToggle }) {
               fontWeight: 500,
               background: active ? WINE : 'transparent',
               color: active ? '#fff' : '#222',
-              borderLeft: i === 0 ? 'none' : `1px solid ${WINE}`,
+              borderLeft: i === 0 ? 'none' : active ? '1px solid #fff' : `1px solid ${WINE}`,
               whiteSpace: 'nowrap',
             }}
           >
@@ -69,10 +69,10 @@ function Segmented({ options, selected, onToggle }) {
 function ValueBox({ value, onChange, unit, prefix, ariaLabel, step = 'any', min }) {
   return (
     <label
-      className="flex items-center flex-1 bg-white"
+      className="relative flex items-center flex-1 bg-white"
       style={{ height: '46px', border: '1px solid #d9d9d9', borderRadius: '8px', padding: '0 14px' }}
     >
-      {prefix && <span className="text-[15px] text-gray-500">{prefix}</span>}
+      {prefix && <span aria-hidden="true" className="absolute text-[15px] text-gray-500 pointer-events-none shrink-0" style={{ left: '14px' }}>{prefix}</span>}
       <input
         type="number"
         value={value}
@@ -80,8 +80,8 @@ function ValueBox({ value, onChange, unit, prefix, ariaLabel, step = 'any', min 
         step={step}
         onChange={(e) => onChange(e.target.value)}
         aria-label={ariaLabel}
-        className="flex-1 min-w-0 bg-transparent text-[15px] focus:outline-none"
-        style={{ textAlign: 'right' }}
+        className="price-input flex-1 min-w-0 w-full bg-transparent text-[15px] focus:outline-none"
+        style={{ textAlign: 'right', paddingLeft: prefix ? '20px' : undefined, borderRadius: '6px' }}
       />
       {unit && <span className="text-[15px] text-gray-500" style={{ marginLeft: '6px' }}>{unit}</span>}
     </label>
@@ -165,7 +165,7 @@ export default function Diamond() {
                         color: active ? '#fff' : '#222',
                       }}
                     >
-                      <span className="flex items-center justify-center" style={{ width: '44px', height: '44px', marginBottom: '6px' }}>
+                      <span className="flex items-center justify-center" style={{ width: '44px', height: '44px', marginBottom: '6px', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
                         <img
                           src={shape.image}
                           alt=""

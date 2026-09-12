@@ -146,8 +146,8 @@ function LinkBlock({ title, links }) {
   return (
     <div>
       {/* Desktop — heading is display-only (live: pointer-events:none) */}
-      <div className="hidden lg:block pointer-events-none">
-        <h6 className="mb-4" style={blockTitleStyle}>{title}</h6>
+      <div className="hidden lg:block">
+        <h6 className="mb-4 pointer-events-none" style={blockTitleStyle}>{title}</h6>
         <ul>
               {links.map((link) => (
                 <li key={link.label} style={{ lineHeight: '30px' }}>
@@ -308,8 +308,9 @@ export default function Footer() {
               links={[
                 { label: 'Rings', to: '/collections/rings' },
                 { label: 'EarRings', to: '/collections/earrings' },
-                { label: 'Bracelets', to: '/collections/bracelets-1' },
+                { label: 'Bracelets', to: '/collections/bracelets' },
                 { label: 'Necklaces', to: '/collections/necklaces' },
+                { label: 'Diamonds', to: '/pages/diamond' },
               ]}
             />
           </div>
@@ -319,8 +320,6 @@ export default function Footer() {
             <LinkBlock
               title="Company"
               links={[
-                { label: 'Rings', to: '/collections/rings' },
-                { label: 'Diamonds', to: '/pages/diamond' },
                 { label: 'Contact', to: '/pages/contact' },
                 { label: 'About', to: '/pages/about-us' },
               ]}

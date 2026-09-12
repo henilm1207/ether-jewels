@@ -5,9 +5,9 @@ export const apiUrl = (path) => `${API_BASE}${path.startsWith('/') ? path : `/${
 export const FREE_SHIPPING_THRESHOLD = 1000;
 
 export const CONTACT = {
-  phone: '+971 58 606 2080',
-  phoneHref: 'tel:+971586062080',
+  phone: '+91 9725756046',
+  phoneHref: 'tel:+919725756046',
   email: 'etherstarjewels@gmail.com',
   whatsapp: '+91 9725756046',
-  address: 'Dubai, UAE',
+  address: 'Surat, Gujarat',
 };

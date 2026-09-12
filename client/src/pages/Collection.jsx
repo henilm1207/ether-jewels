@@ -490,14 +490,14 @@ export default function Collection() {
                   onChange={(lo, hi) => setDraft({ ...draft, priceFrom: lo === PRICE_MIN ? '' : String(lo), priceTo: hi === PRICE_MAX ? '' : String(hi) })}
                 />
                 <div className="flex items-center" style={{ gap: '8px', marginTop: '12px' }}>
-                  <label className="flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
-                    <span className="text-[15px] text-gray-500" style={{ paddingLeft: '12px' }}>$</span>
-                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="From" aria-label="Price from" value={draft.priceFrom} onChange={(e) => setDraft({ ...draft, priceFrom: e.target.value })} className="flex-1 min-w-0 bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px' }} />
+                  <label className="relative flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
+                    <span aria-hidden="true" className="absolute text-[15px] text-gray-500 pointer-events-none shrink-0" style={{ left: '12px' }}>$</span>
+                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="From" aria-label="Price from" value={draft.priceFrom} onChange={(e) => setDraft({ ...draft, priceFrom: e.target.value })} className="price-input flex-1 min-w-0 w-full bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px 0 28px' }} />
                   </label>
                   <span className="text-[15px] text-gray-500">to</span>
-                  <label className="flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
-                    <span className="text-[15px] text-gray-500" style={{ paddingLeft: '12px' }}>$</span>
-                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="To" aria-label="Price to" value={draft.priceTo} onChange={(e) => setDraft({ ...draft, priceTo: e.target.value })} className="flex-1 min-w-0 bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px' }} />
+                  <label className="relative flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
+                    <span aria-hidden="true" className="absolute text-[15px] text-gray-500 pointer-events-none shrink-0" style={{ left: '12px' }}>$</span>
+                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="To" aria-label="Price to" value={draft.priceTo} onChange={(e) => setDraft({ ...draft, priceTo: e.target.value })} className="price-input flex-1 min-w-0 w-full bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px 0 28px' }} />
                   </label>
                 </div>
                 <div style={{ height: '16px' }} />

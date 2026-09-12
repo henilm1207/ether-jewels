@@ -315,7 +315,7 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                 {favCount > 0 && (
                   <span
                     className="absolute flex items-center justify-center rounded-full"
-                    style={{ height: '18px', minWidth: '18px', fontSize: '12px', lineHeight: '16px', padding: '0 3px', left: '14px', bottom: '10px', background: '#ecddd4', color: '#222' }}
+                    style={{ height: '18px', minWidth: '18px', fontSize: '12px', lineHeight: '16px', padding: '0 3px', top: '2px', right: '2px', background: '#ecddd4', color: '#222' }}
                   >
                     {favCount}
                   </span>
@@ -326,7 +326,7 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                 {totalItems > 0 && (
                   <span
                     className="absolute flex items-center justify-center rounded-full"
-                    style={{ height: '18px', minWidth: '18px', fontSize: '12px', lineHeight: '16px', padding: '0 3px', left: '14px', bottom: '10px', background: '#ecddd4', color: '#222' }}
+                    style={{ height: '18px', minWidth: '18px', fontSize: '12px', lineHeight: '16px', padding: '0 3px', top: '2px', right: '2px', background: '#ecddd4', color: '#222' }}
                   >
                     {totalItems}
                   </span>

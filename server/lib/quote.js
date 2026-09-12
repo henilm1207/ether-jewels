@@ -123,17 +123,34 @@ async function consumeCoupon(order, coupon, subtotal, shipping) {
     order.pricing.discount = 0;
     order.pricing.total = round2(subtotal + shipping);
   }
+  // Exhausted by this use — auto-switch off (tracked via autoOff so a
+  // later release can tell it apart from an owner/admin manual off).
+  if (updated && updated.maxUses != null && updated.usedCount >= updated.maxUses && updated.active) {
+    await Coupon.updateOne({ _id: coupon._id, active: true }, { $set: { active: false, autoOff: true } });
+  }
   order.couponConsumed = true;
   await order.save();
 }
 
 // Release a consumed coupon (fail/cancel/expiry). Idempotent via the flag.
+// Reactivates ONLY auto-switched-off coupons whose capacity freed up and
+// which are not expired — an owner/admin manual off is never overridden.
 async function releaseCoupon(order) {
   if (!order || !order.couponCode || !order.couponConsumed) return;
-  await Coupon.findOneAndUpdate(
+  const updated = await Coupon.findOneAndUpdate(
     { code: order.couponCode, usedCount: { $gt: 0 } },
-    { $inc: { usedCount: -1 } }
+    { $inc: { usedCount: -1 } },
+    { new: true }
   );
+  if (updated && updated.autoOff && (updated.maxUses == null || updated.usedCount < updated.maxUses)) {
+    const now = new Date();
+    if (!updated.expiresAt || updated.expiresAt > now) {
+      await Coupon.updateOne({ _id: updated._id, autoOff: true }, { $set: { active: true, autoOff: false } });
+    } else {
+      // Expired while off — drop the auto flag so it reads as a plain off.
+      await Coupon.updateOne({ _id: updated._id }, { $set: { autoOff: false } });
+    }
+  }
   order.couponConsumed = false;
   await order.save();
 }

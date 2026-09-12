@@ -62,16 +62,17 @@ export default function GoldComparison() {
               className="absolute inset-0 w-full h-full object-cover"
               draggable={false}
             />
+            {/* Top layer clipped with clip-path so both images share identical
+                layout and stay pixel-registered at any slider position. */}
             <div
-              className="absolute inset-0 overflow-hidden"
-              style={{ width: `${sliderPos}%` }}
+              className="absolute inset-0"
+              style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
             >
               <img
                 src="/images/gold-yellow.jpg"
                 alt="Yellow Gold"
                 loading="lazy"
-                className="absolute inset-0 h-full object-cover"
-                style={{ width: containerRef.current?.offsetWidth || '100vw' }}
+                className="absolute inset-0 w-full h-full object-cover"
                 draggable={false}
               />
             </div>

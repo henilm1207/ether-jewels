@@ -9,6 +9,24 @@ import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config';
 import ProtectedImage from '../components/ui/ProtectedImage';
 
+// Checkout draft (coupon + contact/address/note) survives the login
+// round-trip: guests are sent to /account/login at checkout and return here.
+const DRAFT_KEY = 'ether-cart-draft';
+const readDraft = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+};
+const clearDraft = () => {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // private mode — nothing persisted
+  }
+};
+
 // Stripe card form — rendered inside <Elements> once the PaymentIntent exists.
 function StripeCardInner({ email, orderId, onPaid, onError }) {
   const stripe = useStripe();
@@ -58,20 +76,24 @@ export default function Cart() {
   const navigate = useNavigate();
   const location = useLocation();
   const payRef = useRef(null);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(() => readDraft().note || '');
   const [code, setCode] = useState('');
-  const [appliedCode, setAppliedCode] = useState('');
+  const [appliedCode, setAppliedCode] = useState(() => readDraft().appliedCode || '');
+  // { code, discount } from POST /api/coupons/validate for the current cart.
+  const [couponInfo, setCouponInfo] = useState(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState('');
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(null);
   // Checkout contact/address (server requires these for every order).
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [line1, setLine1] = useState('');
-  const [city, setCity] = useState('');
-  const [country, setCountry] = useState('');
-  const [zip, setZip] = useState('');
+  const [fullName, setFullName] = useState(() => readDraft().fullName || '');
+  const [email, setEmail] = useState(() => readDraft().email || '');
+  const [phone, setPhone] = useState(() => readDraft().phone || '');
+  const [line1, setLine1] = useState(() => readDraft().line1 || '');
+  const [city, setCity] = useState(() => readDraft().city || '');
+  const [country, setCountry] = useState(() => readDraft().country || '');
+  const [zip, setZip] = useState(() => readDraft().zip || '');
   const [method, setMethod] = useState('stripe'); // stripe | paypal
   const [payConfig, setPayConfig] = useState(null); // {stripePublishableKey, paypalClientId, ...}
   const [stripeStep, setStripeStep] = useState(null); // {clientSecret, orderId} after intent
@@ -82,6 +104,11 @@ export default function Cart() {
   );
 
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  // Live preview from the last server validation, clamped to the subtotal
+  // so a stale frame can never show a discount bigger than the cart.
+  const previewDiscount =
+    couponInfo && appliedCode ? Math.min(Number(couponInfo.discount) || 0, Number(subtotal) || 0) : 0;
 
   // Buy It Now lands here with {checkout:true} — bring payment into view.
   useEffect(() => {
@@ -136,9 +163,61 @@ export default function Cart() {
     return '';
   };
 
+  // Guests must log in before any payment starts; Login returns them here.
+  const requireLogin = () => {
+    if (!token) {
+      navigate('/account/login', { state: { from: '/cart' } });
+      return true;
+    }
+    return false;
+  };
+
+  // Server is the source of truth: validate enforces every admin condition
+  // (active, expiry, uses left, min order) and computes the discount.
+  const validateCoupon = async (rawCode, cartSubtotal) => {
+    const trimmed = (rawCode || '').trim().toUpperCase();
+    if (!trimmed) return null;
+    const res = await fetch(apiUrl('/api/coupons/validate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: trimmed, subtotal: cartSubtotal }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Invalid coupon');
+    return data; // { code, discount }
+  };
+
+  const applyCoupon = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const trimmed = code.trim();
+    if (!trimmed || couponBusy) return;
+    setCouponBusy(true);
+    setCouponError('');
+    try {
+      const data = await validateCoupon(trimmed, subtotal);
+      setAppliedCode(data.code);
+      setCouponInfo(data);
+      setCode('');
+    } catch (err) {
+      setCouponError(err.message || 'Invalid coupon');
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCode('');
+    setCouponInfo(null);
+    setCouponError('');
+  };
+
   const onPaid = (order) => {
     setDone(order);
     clearCart();
+    setAppliedCode('');
+    setCouponInfo(null);
+    setCouponError('');
+    clearDraft();
     setStripeStep(null);
     setVToken('');
     setEmailOk(false);
@@ -147,6 +226,9 @@ export default function Cart() {
   };
 
   // ---- Contact verification (OTP): token required before any payment ----
+  // waEnabled null = mode still loading (fail-open to dual); false hides the
+  // WhatsApp row until the WHATSAPP_VERIFY_ENABLED update lands.
+  const [waEnabled, setWaEnabled] = useState(null);
   const [vToken, setVToken] = useState('');
   const [emailOk, setEmailOk] = useState(false);
   const [phoneOk, setPhoneOk] = useState(false);
@@ -228,9 +310,27 @@ export default function Cart() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  // Mint the checkout token once both channels verify.
+  // WhatsApp row applies only when the server has it enabled.
   useEffect(() => {
-    if (!emailOk || !phoneOk || vToken) return;
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/verify/mode'));
+        const data = await res.json().catch(() => ({}));
+        if (live) setWaEnabled(data.whatsapp !== false);
+      } catch {
+        if (live) setWaEnabled(true); // fail-open to today's dual behavior
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  // Mint the checkout token once the required channels verify (email always;
+  // WhatsApp too unless the server disabled it for now).
+  useEffect(() => {
+    if (!emailOk || (waEnabled !== false && !phoneOk) || vToken) return;
     let live = true;
     (async () => {
       try {
@@ -250,9 +350,47 @@ export default function Cart() {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emailOk, phoneOk]);
+  }, [emailOk, phoneOk, waEnabled]);
 
   const verifyHeaders = vToken ? { 'X-Verification-Token': vToken } : {};
+
+  // Persist the checkout draft so the login round-trip keeps it.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ appliedCode, note, fullName, email, phone, line1, city, country, zip })
+      );
+    } catch {
+      // private mode — nothing persisted
+    }
+  }, [appliedCode, note, fullName, email, phone, line1, city, country, zip]);
+
+  // Re-check the code whenever the cart total moves (e.g. item removed
+  // below min order) — the server re-verifies at order time regardless.
+  useEffect(() => {
+    if (!appliedCode) return;
+    let live = true;
+    (async () => {
+      try {
+        const data = await validateCoupon(appliedCode, subtotal);
+        if (live) {
+          setCouponInfo(data);
+          setCouponError('');
+        }
+      } catch (err) {
+        if (live) {
+          setCouponInfo(null);
+          setAppliedCode('');
+          setCouponError(err.message || 'Coupon no longer valid for this cart');
+        }
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal]);
 
   return (
     <section className="py-10 md:py-14">
@@ -334,30 +472,48 @@ export default function Cart() {
                   Add discount code
                 </p>
                 {appliedCode ? (
-                  <p className="text-sm">
-                    Code <span className="font-medium">&ldquo;{appliedCode}&rdquo;</span> applied — discounts calculated at checkout.
-                  </p>
+                  <div>
+                    <p className="text-sm">
+                      Code <span className="font-medium">&ldquo;{appliedCode}&rdquo;</span> applied.
+                      <button onClick={removeCoupon} className="underline ml-2">Remove</button>
+                    </p>
+                    {couponError && <p role="alert" className="text-sm text-red-700" style={{ marginTop: '8px' }}>{couponError}</p>}
+                  </div>
                 ) : (
                   <form
                     className="flex gap-2"
-                    onSubmit={(e) => { e.preventDefault(); if (code.trim()) setAppliedCode(code.trim()); }}
+                    onSubmit={applyCoupon}
                   >
                     <input
                       type="text"
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
                       placeholder="Add discount code"
+                      aria-label="Discount code"
                       className="form-control flex-1"
                     />
-                    <button type="submit" className="btn btn--secondary" style={{ padding: '0 20px' }}>
-                      Apply
+                    <button type="submit" disabled={couponBusy} className="btn btn--secondary disabled:opacity-50" style={{ padding: '0 20px' }}>
+                      {couponBusy ? 'Checking…' : 'Apply'}
                     </button>
                   </form>
                 )}
+                {!appliedCode && couponError && <p role="alert" className="text-sm text-red-700" style={{ marginTop: '8px' }}>{couponError}</p>}
                 <div className="flex items-center justify-between" style={{ marginTop: '24px', marginBottom: '8px' }}>
                   <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>Subtotal:</span>
                   <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>${(Number(subtotal) || 0).toFixed(2)} USD</span>
                 </div>
+                {appliedCode && couponInfo ? (
+                  <>
+                    <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+                      <span className="text-[15px]" style={{ lineHeight: '24px' }}>Discount ({appliedCode}):</span>
+                      <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>−${previewDiscount.toFixed(2)} USD</span>
+                    </div>
+                    <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+                      <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>Total:</span>
+                      <span className="text-[15px] font-medium" style={{ lineHeight: '24px' }}>${Math.max(0, (Number(subtotal) || 0) - previewDiscount).toFixed(2)} USD</span>
+                    </div>
+                  </>
+                ) : null}
                 <p className="text-xs text-gray-500" style={{ marginBottom: '16px' }}>
                   Tax included. <Link to="/pages/shipping-and-deliveries" className="underline">Shipping</Link> calculated at checkout.
                 </p>
@@ -384,15 +540,19 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  {/* 1 — Verify contact: OTP on email + WhatsApp, token unlocks payment */}
+                  {/* 1 — Verify contact: OTP on email (+ WhatsApp while enabled), token unlocks payment */}
                   <div className="border border-[#ededed] bg-[#fafafa] rounded" style={{ padding: '16px', marginBottom: '16px' }}>
                     <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '4px' }}>1 · Verify contact</h3>
                     <p className="text-[13px] text-gray-500" style={{ marginBottom: '12px' }}>
-                      High-value orders need a verified email and phone before payment unlocks.
+                      {waEnabled !== false
+                        ? 'High-value orders need a verified email and phone before payment unlocks.'
+                        : 'High-value orders need a verified email before payment unlocks.'}
                     </p>
                     {vError && <p role="alert" className="text-sm text-red-700" style={{ marginBottom: '12px' }}>{vError}</p>}
                     {vToken ? (
-                      <p role="status" className="text-sm text-green-700 font-medium">✓ Email &amp; phone verified — payment unlocked.</p>
+                      <p role="status" className="text-sm text-green-700 font-medium">
+                        {waEnabled !== false ? '✓ Email & phone verified — payment unlocked.' : '✓ Email verified — payment unlocked.'}
+                      </p>
                     ) : (
                       <div className="grid" style={{ gap: '12px' }}>
                         <div>
@@ -413,6 +573,9 @@ export default function Cart() {
                             </div>
                           )}
                         </div>
+                        {/* TEMP-DISABLED until the WhatsApp update: row renders only
+                            while the server reports whatsapp mode enabled. */}
+                        {waEnabled !== false && (
                         <div>
                           <div className="flex items-center" style={{ gap: '8px' }}>
                             <span className="text-sm font-medium flex-1">WhatsApp {phoneOk && <span className="text-green-700">✓</span>}</span>
@@ -431,6 +594,7 @@ export default function Cart() {
                             </div>
                           )}
                         </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -463,6 +627,7 @@ export default function Cart() {
                       <button
                         disabled={placing}
                         onClick={async () => {
+                          if (requireLogin()) return;
                           const v = validateForm();
                           if (v) return setError(v);
                           setPlacing(true);
@@ -509,6 +674,7 @@ export default function Cart() {
                         style={{ layout: 'vertical', shape: 'rect', label: 'paypal' }}
                         forceReRender={[fullName, email, phone, line1, city, country, zip, appliedCode, items]}
                         createOrder={async () => {
+                          if (requireLogin()) throw new Error('Please log in to check out');
                           const v = validateForm();
                           if (v) {
                             setError(v);
@@ -551,6 +717,7 @@ export default function Cart() {
                     <button
                       disabled={placing}
                       onClick={async () => {
+                        if (requireLogin()) return;
                         const v = validateForm();
                         if (v) return setError(v);
                         setPlacing(true);

@@ -96,11 +96,11 @@ export default function ShopByShape() {
           font-size: 20px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase;
           color: #000; font-family: var(--font-heading); margin: 0 0 30px; text-align: center;
         }
-        .shape-viewport { position: relative; }
+        .shape-viewport { position: relative; padding: 0 56px; }
         .shape-row { overflow-x: auto; }
         .shape-track { display: flex; gap: 60px; width: max-content; margin: 0 auto; padding: 0 10px; }
         .shape-arrow {
-          position: absolute; top: 42px; z-index: 2;
+          position: absolute; top: 20px; z-index: 2;
           width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
           background: #fff; color: #222; border: 1px solid #ededed; border-radius: 50%;
           box-shadow: 0 4px 12px rgba(0,0,0,0.08); cursor: pointer;
@@ -115,13 +115,17 @@ export default function ShopByShape() {
         }
         .shape-item:hover .shape-name { color: #000; }
         @media (max-width: 989px) {
+          .shape-viewport { padding: 0 52px; }
           .shape-track { gap: 40px; }
           .shape-image-wrapper { width: 68px; height: 68px; }
+          .shape-arrow { top: 12px; }
           .shape-title { font-size: 16px; }
           .shape-name { font-size: 12.6px; }
         }
         @media (max-width: 749px) {
+          .shape-viewport { padding: 0 44px; }
           .shape-image-wrapper { width: 59.5px; height: 59.5px; }
+          .shape-arrow { width: 36px; height: 36px; top: 12px; }
           .shape-title { font-size: 14px; }
           .shape-name { font-size: 11.2px; }
         }

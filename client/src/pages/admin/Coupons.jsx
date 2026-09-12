@@ -77,7 +77,7 @@ export default function Coupons() {
             <td style={td}>${c.minOrder || 0}</td>
             <td style={td}>{c.usedCount}{c.maxUses != null ? `/${c.maxUses}` : ''}</td>
             <td style={td}>{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '—'}</td>
-            <td style={td}><Pill value={c.active ? 'approved' : 'cancelled'} map={{ approved: 'on', cancelled: 'off' }} /></td>
+            <td style={td}><Pill value={c.active ? 'approved' : 'cancelled'} map={{ approved: 'on', cancelled: 'off' }} />{!c.active && c.autoOff ? <span className="text-xs text-gray-500"> · auto</span> : null}</td>
             <td style={td}><button onClick={() => toggle(c)} className="underline text-sm">{c.active ? 'Disable' : 'Enable'}</button></td>
           </tr>
         ))}

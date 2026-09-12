@@ -319,6 +319,38 @@ select.form-control {
   color: #ffffff;
 }
 
+/* Product card "Choose options" — Mitva match: white base, #555 wipe on
+   hover (same sliding ::before technique as the reference theme), never
+   a solid black fill. Scoped so other .btn--white usages are untouched. */
+.product-card-choose {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #333333;
+}
+.product-card-choose::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  left: -5px;
+  right: -5px;
+  background: #242020;
+  transform: translateX(-101%);
+  transition: transform 0.3s cubic-bezier(0.75, 0, 0.125, 1);
+}
+.product-card-choose:hover {
+  background: #ffffff;
+  color: #ffffff;
+}
+.product-card-choose:hover::before {
+  transform: translateX(0);
+}
+.product-card-choose__text {
+  position: relative;
+  z-index: 1;
+}
+
 /* ========== SCROLLBAR ========== */
 ::-webkit-scrollbar {
   width: 6px;
@@ -332,6 +364,19 @@ select.form-control {
 ::-webkit-scrollbar-thumb {
   background: #ccc;
   border-radius: 3px;
+}
+
+/* Price filter inputs — pinned $ prefix needs full text width: hide the
+   native number spinners that would otherwise squeeze the value. Scoped
+   to .price-input so admin numeric fields keep their spinners. */
+.price-input::-webkit-outer-spin-button,
+.price-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.price-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Hide scrollbar for shape row */

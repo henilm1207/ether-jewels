@@ -340,7 +340,7 @@ export default function ProductDetail() {
                     <span className="text-gray-600">{selectedSize || 'Select a size'}</span>
                   </p>
                   <div className="flex flex-wrap" style={{ gap: '12px' }} role="group" aria-label="Ring size">
-                    {(product.sizes || []).map((s) => (
+                    {[...(product.sizes || [])].sort((a, b) => parseFloat(a) - parseFloat(b)).map((s) => (
                       <button
                         key={s}
                         type="button"

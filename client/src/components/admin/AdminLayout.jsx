@@ -41,7 +41,7 @@ export default function AdminLayout() {
           ))}
         </nav>
         <div style={{ padding: '20px' }}>
-          <Link to="/" className="block text-xs text-gray-300 underline mb-3">View store</Link>
+          <Link to="/" target="_blank" rel="noreferrer" className="block text-xs text-gray-300 underline mb-3">View store</Link>
           <button
             onClick={() => { logout(); navigate('/account/login'); }}
             className="w-full text-xs uppercase tracking-wider border border-gray-500 py-2 hover:border-white transition-colors"

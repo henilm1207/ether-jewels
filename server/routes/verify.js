@@ -1,7 +1,8 @@
 // Checkout contact verification: 6-digit OTP over email (Resend, free) or
-// WhatsApp (Meta template, pennies). Both channels must verify before any
-// order/payment route accepts the checkout — enforced via a short-lived
-// token bound to the exact email+phone pair.
+// WhatsApp (Meta template, pennies). Email must always verify; WhatsApp is
+// additionally required unless WHATSAPP_VERIFY_ENABLED=false (temporary
+// until the WhatsApp update lands) — enforced via a short-lived token
+// bound to the exact email+phone pair.
 const express = require('express');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -13,6 +14,18 @@ const { sendWhatsAppOtp } = require('../lib/whatsapp');
 const router = express.Router();
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
+
+// TEMP-DISABLED until the WhatsApp update: set WHATSAPP_VERIFY_ENABLED=false
+// to run email-only verification. Default (unset/anything else) keeps the
+// current dual-channel requirement. Restore = flip the env, no code edits.
+// Read lazily (function, not const): this module loads before dotenv.config()
+// runs in server.js, so a module-level read would always see `undefined`.
+const isWhatsAppEnabled = () => process.env.WHATSAPP_VERIFY_ENABLED !== 'false';
+
+// Public: tells the storefront whether the WhatsApp row applies.
+router.get('/mode', (_req, res) => {
+  res.json({ whatsapp: isWhatsAppEnabled() });
+});
 
 const normEmail = (v) => String(v || '').trim().toLowerCase();
 const normPhone = (v) => {
@@ -115,19 +128,28 @@ router.post('/check', async (req, res, next) => {
 });
 
 // POST /api/verify/token — {email, phone} → 60-min checkout token, but ONLY
-// when both contacts verified within the TTL window.
+// when the required contacts verified within the TTL window (email always;
+// WhatsApp too unless WHATSAPP_VERIFY_ENABLED=false). The phone is still
+// bound into the token so the gate below keeps matching the exact pair.
 router.post('/token', async (req, res, next) => {
   try {
     const email = normEmail(req.body && req.body.email);
     const phone = normPhone(req.body && req.body.phone);
     if (!EMAIL_RE.test(email) || !/^[1-9]\d{6,14}$/.test(phone))
       return res.status(400).json({ message: 'Verified email and phone required' });
+    const waOn = isWhatsAppEnabled();
     const [em, ph] = await Promise.all([
       VerifiedContact.findOne({ channel: 'email', value: email }).select('_id'),
-      VerifiedContact.findOne({ channel: 'whatsapp', value: phone }).select('_id'),
+      waOn
+        ? VerifiedContact.findOne({ channel: 'whatsapp', value: phone }).select('_id')
+        : Promise.resolve(true),
     ]);
     if (!em || !ph)
-      return res.status(400).json({ message: 'Verify email and phone with OTP first' });
+      return res.status(400).json({
+        message: waOn
+          ? 'Verify email and phone with OTP first'
+          : 'Verify email with OTP first',
+      });
     const token = jwt.sign({ purpose: 'checkout', email, phone }, process.env.JWT_SECRET, {
       expiresIn: '60m',
     });
