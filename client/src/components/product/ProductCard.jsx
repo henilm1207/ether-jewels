@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProtectedImage from '../ui/ProtectedImage';
+import FavButton from '../ui/FavButton';
 
 export default function ProductCard({ product, priority = false }) {
   const [hovered, setHovered] = useState(false);
@@ -40,6 +41,14 @@ export default function ProductCard({ product, priority = false }) {
         )}
 
         {/* Live: no badges on collection cards */}
+
+        {/* Favorite — top-right, above imagery, never navigates */}
+        <FavButton
+          product={product}
+          size={18}
+          className="absolute z-10 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+          style={{ top: '12px', right: '12px' }}
+        />
 
         {/* Choose Options — live: always visible mobile, 540ms rise on desktop hover */}
         <div

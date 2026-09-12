@@ -102,7 +102,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                     style={{ width: '80px', height: '80px' }}
                   >
                     <ProtectedImage
-                      src={item.product.images?.[0] || '/images/placeholder.webp'}
+                      src={item.variant?.image || item.product.images?.[0] || '/images/placeholder.webp'}
                       alt={item.product.name}
                       watermark
                       className="w-full h-full object-cover"
@@ -122,7 +122,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                       {item.product.name}
                     </Link>
                     {item.variant && (
-                      <p className="text-xs text-gray-500">{item.variant.name}{item.variant.kt ? ` / ${item.variant.kt}` : ''}</p>
+                      <p className="text-xs text-gray-500">{item.variant.name}{item.variant.kt ? ` / ${item.variant.kt}` : ''}{item.size ? ` / Size ${item.size}` : ''}</p>
                     )}
                     <p className="text-[15px] font-medium" style={{ margin: '5px 0' }}>
                       ${(Number(item.variant?.price ?? item.product.price) || 0).toFixed(2)}

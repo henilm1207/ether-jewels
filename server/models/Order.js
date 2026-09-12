@@ -39,13 +39,16 @@ const orderSchema = new mongoose.Schema(
       currency: { type: String, enum: ['USD'], default: 'USD', required: true },
     },
     couponCode: { type: String, default: null },
+    // Shipment tracking — set by admin, visible to the customer on /account.
+    trackingId: { type: String, trim: true, maxlength: 100, default: null },
+    carrier: { type: String, trim: true, maxlength: 100, default: null },
     status: {
       type: String,
       enum: ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'],
       default: 'pending',
     },
     payment: {
-      method: { type: String, enum: ['card', 'cod'], default: 'card' },
+      method: { type: String, enum: ['card', 'cod', 'stripe', 'paypal'], default: 'card' },
       status: {
         type: String,
         enum: ['pending', 'paid', 'failed', 'refunded'],

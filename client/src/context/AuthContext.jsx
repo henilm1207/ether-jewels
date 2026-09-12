@@ -47,6 +47,22 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => saveSession(null, null), [saveSession]);
 
+  // Profile settings — server freezes everything while an order is open.
+  const updateProfile = useCallback(
+    async (payload) => {
+      const res = await fetch(apiUrl('/api/auth/profile'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Update failed');
+      saveSession(token, data);
+      return data;
+    },
+    [token, saveSession]
+  );
+
   // Revalidate persisted session. Transient failures (Atlas blip, API
   // restart, dev reload race) retry with backoff and NEVER wipe the session —
   // only a 401/403 (truly dead token) logs out.
@@ -128,7 +144,7 @@ export const AuthProvider = ({ children }) => {
   );
 
   return (
-    <AuthContext.Provider value={{ token, user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ token, user, loading, login, register, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

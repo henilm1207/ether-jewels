@@ -22,8 +22,12 @@ function publicUser(user) {
     email: user.email,
     phone: user.phone,
     role: user.role,
+    wishlist: Array.isArray(user.wishlist) ? user.wishlist.map(String) : [],
   };
 }
+
+const wishlistIds = (user) =>
+  (Array.isArray(user.wishlist) ? user.wishlist : []).map(String);
 
 router.post('/register', async (req, res, next) => {
   try {
@@ -88,15 +92,119 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-router.get('/me', authRequired, async (req, res, next) => {
-  try {
+router.get('/me', authRequired, async (req, res, next) => {  try {
     const u = req.user;
     if (!u) return sendError(res, 401, 'Invalid or expired token');
     res.json({
       ...publicUser(u),
-      wishlist: Array.isArray(u.wishlist) ? u.wishlist : [],
+      wishlist: wishlistIds(u),
     });
   } catch (e) {
+    next(e);
+  }
+});
+
+// POST /api/auth/wishlist/merge — union guest picks into the account (auth).
+// Body { ids: [productId...] }; capped, validated, existing+active only.
+// NOTE: defined before /wishlist/:productId so "merge" isn't read as an id.
+router.post('/wishlist/merge', authRequired, async (req, res, next) => {
+  try {
+    const raw = Array.isArray((req.body || {}).ids) ? req.body.ids : [];
+    const clean = [...new Set(raw.map(String))].filter(mongoose.isValidObjectId).slice(0, 100);
+    let valid = [];
+    if (clean.length) {
+      const Product = require('../models/Product');
+      const found = await Product.find({ _id: { $in: clean }, status: 'active' }).select('_id');
+      valid = found.map((p) => String(p._id));
+    }
+    const merged = [...new Set([...wishlistIds(req.user), ...valid])];
+    req.user.wishlist = merged;
+    await req.user.save();
+    res.json({ wishlist: merged });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /api/auth/wishlist/:productId — toggle one favorite (auth).
+// Returns the updated wishlist id list.
+router.post('/wishlist/:productId', authRequired, async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    if (!mongoose.isValidObjectId(productId))
+      return sendError(res, 400, 'Invalid product');
+    const Product = require('../models/Product');
+    const product = await Product.findOne({ _id: productId, status: 'active' }).select('_id');
+    if (!product) return sendError(res, 404, 'Product not found');
+    const ids = wishlistIds(req.user);
+    const nextIds = ids.includes(String(productId))
+      ? ids.filter((w) => w !== String(productId))
+      : [...ids, String(productId)];
+    req.user.wishlist = nextIds;
+    await req.user.save();
+    res.json({ wishlist: nextIds });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// PUT /api/auth/profile — update name/email/phone (auth).
+// High-value rule: while ANY order is unreceived (pending/confirmed/making/
+// shipped), the whole profile is frozen — contact details must stay valid
+// for the courier until the parcel is delivered (or the order cancelled).
+router.put('/profile', authRequired, async (req, res, next) => {
+  try {
+    const user = req.user;
+    const firstName = cleanStr(req.body && req.body.firstName, 50);
+    const lastName = cleanStr(req.body && req.body.lastName, 50);
+    const email = normEmail(req.body && req.body.email);
+    const phone = typeof (req.body && req.body.phone) === 'string' ? req.body.phone.trim().slice(0, 30) : '';
+
+    const changes =
+      (firstName && firstName !== user.firstName) ||
+      (lastName && lastName !== user.lastName) ||
+      (email && email !== user.email) ||
+      (phone && phone !== user.phone);
+    if (!changes) return res.json(publicUser(user));
+
+    const Order = require('../models/Order');
+    const open = await Order.findOne({
+      user: user._id,
+      status: { $in: ['pending', 'confirmed', 'making', 'shipped'] },
+    }).select('_id status');
+    if (open) {
+      return sendError(
+        res,
+        400,
+        `Profile locked — order ${String(open._id).slice(-8).toUpperCase()} is ${open.status}. Editing reopens after delivery.`
+      );
+    }
+
+    if (firstName) {
+      if (firstName.length < 2) return sendError(res, 400, 'First name must be 2+ chars');
+      user.firstName = firstName;
+    }
+    if (lastName) {
+      if (lastName.length < 2) return sendError(res, 400, 'Last name must be 2+ chars');
+      user.lastName = lastName;
+    }
+    if (email) {
+      if (!EMAIL_RE.test(email)) return sendError(res, 400, 'Invalid email');
+      const taken = await User.findOne({ email, _id: { $ne: user._id } }).select('_id');
+      if (taken) return sendError(res, 400, 'Email already registered');
+      user.email = email;
+    }
+    if (phone) {
+      if (!PHONE_RE.test(phone)) return sendError(res, 400, 'Invalid mobile number');
+      const taken = await User.findOne({ phone, _id: { $ne: user._id } }).select('_id');
+      if (taken) return sendError(res, 400, 'Mobile number already registered');
+      user.phone = phone;
+    }
+    user.name = `${user.firstName} ${user.lastName}`.slice(0, 100);
+    await user.save();
+    res.json(publicUser(user));
+  } catch (e) {
+    if (e && e.code === 11000) return sendError(res, 400, 'Email or mobile number already registered');
     next(e);
   }
 });

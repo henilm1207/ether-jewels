@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { apiUrl } from '../config';
+import { metalColor } from '../lib/metals';
+import FavButton from '../components/ui/FavButton';
 import ProtectedImage from '../components/ui/ProtectedImage';
 import { useCart } from '../context/CartContext';
 import { Truck, ShieldCheck, Gem } from 'lucide-react';
@@ -20,6 +22,7 @@ function formatPrice(value) {
 
 export default function ProductDetail() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -28,6 +31,8 @@ export default function ProductDetail() {
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [selectedKt, setSelectedKt] = useState('14KT');
   const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedSize, setSelectedSize] = useState(null);
+  const [sizeError, setSizeError] = useState('');
   const [quantity, setQuantity] = useState(1);
   const carouselRef = useRef(null);
 
@@ -35,6 +40,8 @@ export default function ProductDetail() {
     setSelectedVariant(0);
     setSelectedKt('14KT');
     setSelectedImage(0);
+    setSelectedSize(null);
+    setSizeError('');
     setQuantity(1);
     setLoading(true);
     setLoadError('');
@@ -49,7 +56,14 @@ export default function ProductDetail() {
         }
         if (!res.ok) throw new Error('Could not load this product.');
         const data = await res.json();
-        if (live) setProduct(data);
+        if (live) {
+          setProduct(data);
+          setSelectedSize(data.defaultSize || null);
+          // Start the gallery on variant 0's metal photo when assigned.
+          const firstImg = data.variants?.[0]?.image;
+          const k = firstImg ? (data.images || []).indexOf(firstImg) : -1;
+          if (k >= 0) setSelectedImage(k + (data.video ? 1 : 0));
+        }
       } catch (e) {
         if (live) setLoadError(e.message || 'Could not load this product.');
       } finally {
@@ -97,13 +111,32 @@ export default function ProductDetail() {
   const basePrice = Number(currentVariant?.price ?? product.price) || 0;
   const ktDelta = selectedKt === '18KT' ? Number(product.kt18Delta ?? 200) : 0;
   const currentPrice = basePrice + ktDelta;
+  // Ring categories carry sizes[]; the server rejects ring orders without one.
+  const needsSize = (product.sizes || []).length > 0;
+
+  const buildSelection = () => {
+    if (needsSize && !selectedSize) {
+      setSizeError('Please select a ring size.');
+      return null;
+    }
+    setSizeError('');
+    return {
+      variant: currentVariant ? { ...currentVariant, kt: selectedKt, price: currentPrice } : null,
+      size: needsSize ? selectedSize : undefined,
+    };
+  };
 
   const handleAddToCart = () => {
-    addItem(
-      product,
-      currentVariant ? { ...currentVariant, kt: selectedKt, price: currentPrice } : null,
-      quantity
-    );
+    const sel = buildSelection();
+    if (!sel) return;
+    addItem(product, sel.variant, quantity, sel.size);
+  };
+
+  const handleBuyNow = () => {
+    const sel = buildSelection();
+    if (!sel) return;
+    addItem(product, sel.variant, quantity, sel.size);
+    navigate('/cart', { state: { checkout: true } });
   };
 
   // Gallery media: optional admin-side video first, then images (supports N images)
@@ -112,12 +145,27 @@ export default function ProductDetail() {
     ...product.images.map((src) => ({ type: 'image', src })),
   ];
 
+  // Metal → gallery: index in `medias` of a variant's assigned photo, or -1
+  // when unassigned (gallery stays put — pre-change products unaffected).
+  const mediaIndexForVariant = (vi) => {
+    const img = product.variants?.[vi]?.image;
+    if (!img) return -1;
+    const k = product.images.indexOf(img);
+    return k === -1 ? -1 : k + (product.video ? 1 : 0);
+  };
+
   const selectMedia = (i) => {
     setSelectedImage(i);
     const el = carouselRef.current;
     if (el && el.children[i]) {
       el.children[i].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
+  };
+
+  const selectVariant = (i) => {
+    setSelectedVariant(i);
+    const mi = mediaIndexForVariant(i);
+    if (mi >= 0) selectMedia(mi);
   };
 
   const onCarouselScroll = () => {
@@ -199,12 +247,15 @@ export default function ProductDetail() {
 
             {/* Info — live block rhythm 24px (20 mobile) */}
             <div className="pdp-info">
-              <h1
-                className="font-heading"
-                style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', lineHeight: 1.25, marginBottom: '16px' }}
-              >
-                {product.name}
-              </h1>
+              <div className="flex items-start justify-between" style={{ gap: '12px', marginBottom: '16px' }}>
+                <h1
+                  className="font-heading"
+                  style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', lineHeight: 1.25, marginBottom: 0 }}
+                >
+                  {product.name}
+                </h1>
+                <FavButton product={product} size={20} className="flex-shrink-0 shadow-none border border-[#ededed]" />
+              </div>
 
               <p className="font-medium" style={{ fontSize: '15px', lineHeight: 1.5, marginBottom: '8px' }}>
                 {formatPrice(currentPrice)}
@@ -251,10 +302,11 @@ export default function ProductDetail() {
                     {product.variants.map((variant, i) => (
                       <span key={i} className="relative group/swatch">
                         <button
-                          onClick={() => setSelectedVariant(i)}
+                          onClick={() => selectVariant(i)}
                           className="pdp-swatch rounded-full transition-all block"
                           style={{
-                            backgroundColor: variant.color,
+                            // Static map fallback covers pre-change products / custom metals.
+                            backgroundColor: variant.color || metalColor(variant.material || variant.name),
                             outline: selectedVariant === i ? '2px solid #222' : '1px solid #d1d5db',
                             outlineOffset: '2px',
                           }}
@@ -267,6 +319,35 @@ export default function ProductDetail() {
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Ring size — required for ring categories (server rejects without) */}
+              {needsSize && (
+                <div style={{ marginBottom: '24px' }}>
+                  <p className="text-[15px]" style={{ lineHeight: '24px', marginBottom: '12px' }}>
+                    <span className="font-medium">Ring size:</span>{' '}
+                    <span className="text-gray-600">{selectedSize || 'Select a size'}</span>
+                  </p>
+                  <div className="flex flex-wrap" style={{ gap: '12px' }} role="group" aria-label="Ring size">
+                    {(product.sizes || []).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => { setSelectedSize(s); setSizeError(''); }}
+                        aria-pressed={selectedSize === s}
+                        className={`transition-all text-[13px] font-medium ${
+                          selectedSize === s
+                            ? 'bg-[#222] text-white border border-[#222]'
+                            : 'bg-white text-[#222] border hover:border-[#222]'
+                        }`}
+                        style={{ minWidth: '52px', minHeight: '46px', padding: '8px 14px', borderColor: selectedSize === s ? '#222' : '#ededed', letterSpacing: '1px' }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  {sizeError && <p role="alert" className="text-sm text-red-700 mt-2">{sizeError}</p>}
                 </div>
               )}
 
@@ -314,7 +395,7 @@ export default function ProductDetail() {
                 >
                   Add to cart
                 </button>
-                <button className="btn btn--secondary w-full">
+                <button onClick={handleBuyNow} className="btn btn--secondary w-full">
                   Buy it now
                 </button>
               </div>

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X, ChevronRight } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, ChevronRight, Heart } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config';
 import ProtectedImage from '../ui/ProtectedImage';
@@ -24,6 +25,7 @@ const ANNOUNCEMENT_TEXT = import.meta.env.VITE_ANNOUNCEMENT_TEXT || '';
 
 export default function Header({ onCartClick, onMenuClick, onSearchClick, searchOpen }) {
   const { totalItems } = useCart();
+  const { count: favCount } = useWishlist();
   const { user, logout } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef(null);
@@ -275,6 +277,14 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                         Hi, {user.firstName || user.name}
                       </p>
                       <p className="text-xs text-gray-500 truncate" style={{ padding: '0 16px 12px' }}>{user.email}</p>
+                      <Link
+                        to="/account"
+                        onClick={() => setAccountOpen(false)}
+                        className="block w-full text-left text-sm hover:opacity-70"
+                        style={{ padding: '12px 16px', borderTop: '1px solid #ededed' }}
+                      >
+                        Profile &amp; orders
+                      </Link>
                       {user.role === 'admin' && (
                         <Link
                           to="/admin"
@@ -300,6 +310,17 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                   <User size={24} strokeWidth={1.5} className={headerTextColor} />
                 </Link>
               )}
+              <Link to="/account/wishlist" className="hover:opacity-70 transition-opacity relative flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label={`Wishlist${favCount > 0 ? `, ${favCount} items` : ''}`}>
+                <Heart size={24} strokeWidth={1.5} className={headerTextColor} />
+                {favCount > 0 && (
+                  <span
+                    className="absolute flex items-center justify-center rounded-full"
+                    style={{ height: '18px', minWidth: '18px', fontSize: '12px', lineHeight: '16px', padding: '0 3px', left: '14px', bottom: '10px', background: '#ecddd4', color: '#222' }}
+                  >
+                    {favCount}
+                  </span>
+                )}
+              </Link>
               <button onClick={onCartClick} className="hover:opacity-70 transition-opacity relative flex items-center justify-center" style={{ width: '44px', height: '44px' }} aria-label="Cart">
                 <ShoppingBag size={24} strokeWidth={1.5} className={headerTextColor} />
                 {totalItems > 0 && (

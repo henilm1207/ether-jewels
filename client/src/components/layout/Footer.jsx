@@ -319,7 +319,7 @@ export default function Footer() {
             <LinkBlock
               title="Company"
               links={[
-                { label: 'RINGS', to: '/collections/rings' },
+                { label: 'Rings', to: '/collections/rings' },
                 { label: 'Diamonds', to: '/pages/diamond' },
                 { label: 'Contact', to: '/pages/contact' },
                 { label: 'About', to: '/pages/about-us' },

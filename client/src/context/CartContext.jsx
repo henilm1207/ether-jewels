@@ -1,4 +1,6 @@
-import { useState, createContext, useContext, useEffect } from 'react';
+import { useState, createContext, useContext, useEffect, useRef } from 'react';
+import { apiUrl } from '../config';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 const STORAGE_KEY = 'etherstar-cart';
@@ -15,44 +17,150 @@ const sanitizeQty = (q) => {
   return Math.min(99, Math.max(1, n));
 };
 
-const buildKey = (product, variant) =>
-  `${product.slug}|${variant?.name || 'default'}|${variant?.kt || '14KT'}|${variant?.price ?? product.price}`;
+const buildKey = (product, variant, size) =>
+  `${product.slug}|${variant?.name || 'default'}|${variant?.kt || '14KT'}|${variant?.price ?? product.price}|${size || ''}`;
 
-function loadInitial() {
+function sanitizeItem(it) {
+  if (!it || typeof it.key !== 'string' || !it.product || !it.product.slug) return null;
+  return {
+    key: String(it.key),
+    product: it.product,
+    variant: it.variant || null,
+    size: typeof it.size === 'string' && it.size ? it.size : undefined,
+    quantity: sanitizeQty(it.quantity),
+  };
+}
+
+function readStored() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (!Array.isArray(raw)) return [];
-    return raw
-      .filter((it) => it && typeof it.key === 'string' && it.product && it.product.slug)
-      .map((it) => ({
-        key: String(it.key),
-        product: it.product,
-        variant: it.variant || null,
-        quantity: sanitizeQty(it.quantity),
-      }));
+    return raw.map(sanitizeItem).filter(Boolean);
   } catch {
     return [];
   }
 }
 
-export const CartProvider = ({ children }) => {
-  const [items, setItems] = useState(loadInitial);
+function persist(items) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    // QuotaExceeded / private mode — cart stays in memory
+  }
+}
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // QuotaExceeded / private mode — cart stays in memory
+// Server line shape (account cart). Snapshots stay light — checkout
+// re-prices everything, so stored prices can't leak through.
+const toServerLine = (it) => ({
+  key: it.key,
+  product: it.product._id || it.product.id,
+  variant: it.variant
+    ? {
+      name: it.variant.name,
+      material: it.variant.material,
+      kt: it.variant.kt,
+      price: it.variant.price,
+      image: it.variant.image,
     }
-  }, [items]);
+    : undefined,
+  size: it.size,
+  qty: it.quantity,
+});
 
-  // Cross-tab sync
+const fromServerLine = (l) =>
+  sanitizeItem({
+    key: l.key,
+    product: l.product,
+    variant: l.variant || null,
+    size: l.size,
+    quantity: l.qty,
+  });
+
+// Cart follows the account: guests persist in localStorage, members sync to
+// the server. Guest lines merge once at login; logout keeps the last state
+// locally so nothing vanishes.
+export const CartProvider = ({ children }) => {
+  const { token } = useAuth();
+  const [items, setItems] = useState(readStored);
+  const mergedForToken = useRef(null);
+  const syncingRef = useRef(false);
+  const hydratedToken = useRef(null);
+  const lastSyncedJson = useRef('');
+
+  // Login: merge guest lines once, then the server is the source of truth.
+  useEffect(() => {
+    if (!token) {
+      mergedForToken.current = null;
+      hydratedToken.current = null;
+      return;
+    }
+    if (mergedForToken.current === token) return;
+    mergedForToken.current = token;
+    let cancelled = false;
+    syncingRef.current = true;
+    (async () => {
+      try {
+        const guest = readStored()
+          .map(toServerLine)
+          .filter((l) => l.product);
+        const res = await fetch(apiUrl('/api/cart/merge'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ items: guest }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && Array.isArray(data.items)) {
+          const mapped = data.items.map(fromServerLine).filter(Boolean);
+          hydratedToken.current = token;
+          lastSyncedJson.current = JSON.stringify(mapped.map(toServerLine));
+          setItems(mapped);
+          persist(mapped);
+        } else if (!cancelled) {
+          mergedForToken.current = null; // retry next mount
+        }
+      } catch {
+        if (!cancelled) mergedForToken.current = null;
+      } finally {
+        if (!cancelled) syncingRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  // Persist locally always (logout seed + guest mode); push to server when
+  // logged in, debounced, skipping echo of what we just pulled.
+  useEffect(() => {
+    persist(items);
+    if (!token || syncingRef.current || hydratedToken.current !== token) return;
+    const body = JSON.stringify(items.map(toServerLine).filter((l) => l.product));
+    if (body === lastSyncedJson.current) return;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(apiUrl('/api/cart'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body,
+        });
+        if (res.ok) lastSyncedJson.current = body;
+      } catch {
+        // offline — retry on next change; local copy is intact
+      }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [items, token]);
+
+  // Cross-tab sync (guest/local channel)
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key !== STORAGE_KEY) return;
       try {
         const next = JSON.parse(e.newValue);
-        if (Array.isArray(next)) setItems(next);
+        if (Array.isArray(next)) {
+          const clean = next.map(sanitizeItem).filter(Boolean);
+          setItems(clean);
+        }
       } catch {
         // ignore corrupt payloads from other tabs
       }
@@ -61,10 +169,11 @@ export const CartProvider = ({ children }) => {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const addItem = (product, variant, quantity = 1) => {
+  const addItem = (product, variant, quantity = 1, size) => {
     const qty = sanitizeQty(quantity);
     const resolvedVariant = variant || product.variants?.[0] || null;
-    const key = buildKey(product, resolvedVariant);
+    const cleanSize = typeof size === 'string' && size ? size : undefined;
+    const key = buildKey(product, resolvedVariant, cleanSize);
     setItems((prev) => {
       const existing = prev.find((item) => item.key === key);
       if (existing) {
@@ -77,7 +186,7 @@ export const CartProvider = ({ children }) => {
       // Snapshot the product as passed (always fresh from the live PDP)
       return [
         ...prev,
-        { key, product, variant: resolvedVariant, quantity: qty },
+        { key, product, variant: resolvedVariant, size: cleanSize, quantity: qty },
       ];
     });
   };

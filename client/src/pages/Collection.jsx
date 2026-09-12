@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { X, SlidersHorizontal } from 'lucide-react';
 import { apiUrl } from '../config';
+import { METALS } from '../lib/metals';
 import ProductGrid from '../components/product/ProductGrid';
 import RangeSlider from '../components/filters/RangeSlider';
 
@@ -39,11 +40,10 @@ const sortOptions = [
   { value: 'date-desc', label: 'Date, new to old' },
 ];
 
-const metalColors = [
-  { name: 'Rose Gold', swatch: '#E0BFB8' },
-  { name: 'White Gold', swatch: '#E8E8E8' },
-  { name: 'Yellow Gold', swatch: '#FFD700' },
-];
+// Filter swatches read the same static map as the admin form (order kept).
+const metalColors = ['Rose Gold', 'White Gold', 'Yellow Gold'].map(
+  (name) => METALS.find((m) => m.name === name)
+);
 const metalKts = ['14K', '18K'];
 
 const PRICE_MIN = 600;

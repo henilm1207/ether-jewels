@@ -5,6 +5,64 @@ import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
 const STATUSES = ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'];
 const NEXT = { pending: ['confirmed', 'cancelled'], confirmed: ['making', 'cancelled'], making: ['shipped', 'cancelled'], shipped: ['delivered'], delivered: [], cancelled: [] };
 
+// Shipment tracking editor — admin sets the id + carrier; the customer sees
+// it on /account. Locked once delivered/cancelled (server enforces too).
+function TrackingForm({ order, onSaved, onError }) {
+  const [trackingId, setTrackingId] = useState(order.trackingId || '');
+  const [carrier, setCarrier] = useState(order.carrier || '');
+  const [saving, setSaving] = useState(false);
+  const locked = ['delivered', 'cancelled'].includes(order.status);
+  const dirty =
+    (trackingId.trim() || '') !== (order.trackingId || '') ||
+    (carrier.trim() || '') !== (order.carrier || '');
+  return (
+    <div className="mt-4">
+      <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">Tracking (visible to customer)</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input
+          value={trackingId}
+          onChange={(e) => setTrackingId(e.target.value)}
+          placeholder="Tracking ID"
+          disabled={locked || saving}
+          className="bg-white border border-[#d9d9d9] rounded text-sm disabled:opacity-50"
+          style={{ padding: '10px 12px' }}
+          aria-label="Tracking ID"
+        />
+        <input
+          value={carrier}
+          onChange={(e) => setCarrier(e.target.value)}
+          placeholder="Carrier (optional)"
+          disabled={locked || saving}
+          className="bg-white border border-[#d9d9d9] rounded text-sm disabled:opacity-50"
+          style={{ padding: '10px 12px' }}
+          aria-label="Carrier"
+        />
+      </div>
+      <button
+        type="button"
+        disabled={locked || saving || !dirty}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            const updated = await adminFetch(`/api/orders/${order._id}/tracking`, {
+              method: 'PATCH',
+              body: { trackingId: trackingId.trim(), carrier: carrier.trim() },
+            });
+            onSaved(updated);
+          } catch (e) {
+            onError(e.message);
+          } finally {
+            setSaving(false);
+          }
+        }}
+        className="underline text-sm mt-2 disabled:opacity-40"
+      >
+        {saving ? 'Saving…' : 'Save tracking'}
+      </button>
+    </div>
+  );
+}
+
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [status, setStatus] = useState('');
@@ -86,8 +144,22 @@ export default function Orders() {
               <p className="text-gray-600">{sel.shippingAddress?.fullName}, {sel.shippingAddress?.line1}, {sel.shippingAddress?.city} {sel.shippingAddress?.zip}, {sel.shippingAddress?.country} · {sel.shippingAddress?.phone}</p>
               {sel.orderNote && <p className="text-gray-600">Note: {sel.orderNote}</p>}
             </div>
+            <TrackingForm
+              key={sel._id}
+              order={sel}
+              onSaved={(updated) => {
+                setOrders((list) => list.map((x) => (x._id === updated._id ? updated : x)));
+                setOpen(updated);
+              }}
+              onError={setError}
+            />
             <div className="mt-4">
               <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">Move status (now: {sel.status})</p>
+              {sel.status === 'pending' && sel.payment?.status !== 'paid' && (
+                <p role="note" className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '8px 10px', marginBottom: '8px' }}>
+                  Awaiting advance payment — confirmation is blocked until paid. Cancellation stays available.
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
                 {(NEXT[sel.status] || []).map((n) => (
                   <button key={n} onClick={() => move(sel, n)} className="text-sm border border-[#222] rounded px-3 py-1.5 hover:bg-[#222] hover:text-white transition-colors">

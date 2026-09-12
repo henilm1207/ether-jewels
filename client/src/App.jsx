@@ -13,6 +13,8 @@ import Contact from './pages/Contact';
 import About from './pages/About';
 import Search from './pages/Search';
 import Cart from './pages/Cart';
+import Wishlist from './pages/Wishlist';
+import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import TermsOfService from './pages/TermsOfService';
@@ -93,6 +95,8 @@ function App() {
       '/': 'EtherStar Jewels — Lab-Grown Diamond Jewelry',
       '/search': 'Search — EtherStar Jewels',
       '/cart': 'Your Cart — EtherStar Jewels',
+      '/account/wishlist': 'Your Wishlist — EtherStar Jewels',
+      '/account': 'My Account — EtherStar Jewels',
       '/admin': 'Admin — EtherStar Jewels',
     };
     document.title = titles[location.pathname] || 'EtherStar Jewels';
@@ -130,6 +134,8 @@ function App() {
             <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/search" element={<Search />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/account/wishlist" element={<Wishlist />} />
+            <Route path="/account" element={<Profile />} />
             <Route path="/account/login" element={<Login />} />
             <Route path="/account/register" element={<Register />} />
             <Route path="*" element={<NotFound />} />

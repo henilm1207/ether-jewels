@@ -8,6 +8,10 @@ const variantSchema = new mongoose.Schema(
     color: { type: String, default: '' }, // hex swatch e.g. #E0BFB8
     price: { type: Number, required: true, min: 0 }, // 14KT price for this metal
     inStock: { type: Boolean, default: true },
+    // Optional metal-specific photo (URL from the product's images[]).
+    // PDP jumps the gallery to it when the swatch is selected; empty =
+    // fall back to the cover image (pre-change products unaffected).
+    image: { type: String, default: '' },
   },
   { _id: false }
 );

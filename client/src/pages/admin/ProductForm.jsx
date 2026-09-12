@@ -4,6 +4,7 @@ import { adminFetch } from '../../components/admin/api';
 import AiCopyButton from '../../components/admin/AiCopyButton';
 import { clearMenuCache } from '../../lib/categoryTree';
 import { VARIANTS, SUBS, RING_LEAVES } from '../../data/catalog';
+import { METALS, metalColor, DEFAULT_METAL } from '../../lib/metals';
 import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, RING_SIZES, isRingCategory } from '../../components/admin/ui';
 
 const EMPTY = {
@@ -14,7 +15,7 @@ const EMPTY = {
   sideStoneCertified: false, deliveryDays: 30, metalWeightGrams: '', makingCharges: '',
   seoTitle: '', seoDesc: '',
 };
-const EMPTY_VARIANT = { name: '', material: '', color: '#E0BFB8', price: '', inStock: true };
+const EMPTY_VARIANT = { name: '', material: '', color: DEFAULT_METAL.swatch, price: '', inStock: true };
 
 const slugify = (s) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
@@ -278,7 +279,10 @@ export default function ProductForm() {
         variants: variants.map((v) => ({
           name: v.name.trim(),
           material: v.material.trim() || v.name.trim(),
-          color: v.color || '',
+          // Static swatch: always derived from the metal, never hand-picked.
+          color: metalColor(v.material || v.name, v.color || DEFAULT_METAL.swatch),
+          // Metal photo: PDP gallery jumps to it on swatch select; '' = cover.
+          image: (v.image && String(v.image).trim()) || '',
           price: Number(v.price),
           inStock: !!v.inStock,
         })),
@@ -448,11 +452,48 @@ export default function ProductForm() {
             <Card>
               <h2 className="font-medium text-sm mb-3">METAL VARIANTS (min 1) *</h2>
               {variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end border-b border-[#f0f0f0]" style={{ paddingBottom: '10px', marginBottom: '10px' }}>
+                <div key={i} className="grid grid-cols-2 sm:grid-cols-7 gap-2 items-end border-b border-[#f0f0f0]" style={{ paddingBottom: '10px', marginBottom: '10px' }}>
                   <Field label="Name"><input value={v.name} onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, name: e.target.value } : x))} placeholder="Rose Gold" required className={inputCls} style={inputStyle} /></Field>
-                  <Field label="Material"><input value={v.material} onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, material: e.target.value } : x))} placeholder="Rose Gold" className={inputCls} style={inputStyle} /></Field>
-                  <Field label="Swatch"><input type="color" value={v.color || '#E0BFB8'} onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, color: e.target.value } : x))} className="w-full" style={{ height: '42px' }} /></Field>
+                  <Field label="Material">
+                    <select
+                      value={v.material}
+                      onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, material: e.target.value, color: metalColor(e.target.value) } : x))}
+                      required
+                      className={inputCls}
+                      style={inputStyle}
+                    >
+                      <option value="">Select…</option>
+                      {METALS.map((m) => (
+                        <option key={m.name} value={m.name}>{m.name}</option>
+                      ))}
+                      {v.material && !METALS.some((m) => m.name === v.material) && (
+                        <option value={v.material}>{v.material} (custom)</option>
+                      )}
+                    </select>
+                  </Field>
+                  <Field label="Swatch (auto)">
+                    <span
+                      aria-label={`Swatch for ${v.material || v.name || 'metal'}: ${metalColor(v.material || v.name, v.color)}`}
+                      title={metalColor(v.material || v.name, v.color)}
+                      className="block w-full border border-[#d9d9d9] rounded"
+                      style={{ height: '42px', backgroundColor: metalColor(v.material || v.name, v.color) }}
+                    />
+                  </Field>
                   <Field label="Price"><input type="number" min="0" step="0.01" value={v.price} onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, price: e.target.value } : x))} required className={inputCls} style={inputStyle} /></Field>
+                  <Field label="Photo (auto gallery)">
+                    <select
+                      value={v.image && form.images.includes(v.image) ? v.image : ''}
+                      onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, image: e.target.value } : x))}
+                      className={inputCls}
+                      style={inputStyle}
+                      title={v.image || 'Follows the cover image'}
+                    >
+                      <option value="">Auto (cover)</option>
+                      {form.images.map((src, si) => (
+                        <option key={`${src}-${si}`} value={src}>Img {si + 1}{si === 0 ? ' (cover)' : ''}</option>
+                      ))}
+                    </select>
+                  </Field>
                   <Field label="Stock">
                     <label className="flex items-center gap-2 text-sm" style={{ height: '42px' }}>
                       <input type="checkbox" checked={!!v.inStock} onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, inStock: e.target.checked } : x))} /> In stock
@@ -461,7 +502,7 @@ export default function ProductForm() {
                   <button type="button" onClick={() => setVariants(variants.filter((_, xi) => xi !== i))} disabled={variants.length <= 1} className="underline text-sm text-red-700 disabled:opacity-30" style={{ paddingBottom: '22px' }}>Remove</button>
                 </div>
               ))}
-              <button type="button" onClick={() => setVariants([...variants, { name: '', material: '', color: '#E0BFB8', price: '', inStock: true }])} className="underline text-sm">+ Add variant</button>
+              <button type="button" onClick={() => setVariants([...variants, { name: '', material: '', color: DEFAULT_METAL.swatch, price: '', inStock: true }])} className="underline text-sm">+ Add variant</button>
             </Card>
 
             {ring && (

@@ -10,6 +10,9 @@ const newsletterRoutes = require('./routes/newsletter');
 const authRoutes = require('./routes/auth');
 const categoryRoutes = require('./routes/categories');
 const orderRoutes = require('./routes/orders');
+const cartRoutes = require('./routes/cart');
+const paymentRoutes = require('./routes/payments');
+const { webhookHandler } = require('./routes/payments/stripe');
 const couponRoutes = require('./routes/coupons');
 const reviewRoutes = require('./routes/reviews');
 const inquiryRoutes = require('./routes/inquiries');
@@ -45,12 +48,15 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://www.paypalobjects.com'],
       mediaSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
-      scriptSrc: ["'self'"],
+      // Checkout SDKs: Stripe.js + PayPal Buttons (sandbox serves from both hosts).
+      scriptSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-      connectSrc: ["'self'", ...frontendOrigins],
+      connectSrc: ["'self'", 'https://api.stripe.com', ...frontendOrigins],
+      // 3-D Secure + PayPal approval windows render provider iframes.
+      frameSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
       frameAncestors: ["'self'"],
     },
   },
@@ -58,6 +64,9 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 app.use(cors({ origin: frontendOrigins }));
+// Stripe webhooks need the RAW body for signature verification — register
+// before express.json() consumes the stream.
+app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), webhookHandler);
 app.use(express.json({ limit: '50kb' }));
 app.use(mongoSanitize());
 
@@ -68,7 +77,7 @@ const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders:
 // without affecting normal browsing; checkout/auth keep their own limits.
 const catalogLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
-app.use(['/api/auth/login', '/api/auth/register', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/auth/login', '/api/auth/register', '/api/auth/wishlist', '/api/cart', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 app.use(['/api/products', '/api/categories'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
@@ -76,6 +85,8 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/inquiries', inquiryRoutes);
