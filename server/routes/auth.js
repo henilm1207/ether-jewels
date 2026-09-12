@@ -47,10 +47,9 @@ router.post('/register', async (req, res, next) => {
     if (typeof password !== 'string' || password.length < 6 || password.length > 128)
       return sendError(res, 400, 'Password must be 6-128 chars');
 
-    const existingEmail = await User.findOne({ email: cleanEmail });
-    if (existingEmail) return sendError(res, 400, 'Email already registered');
-    const existingPhone = await User.findOne({ phone: cleanPhone });
-    if (existingPhone) return sendError(res, 400, 'Mobile number already registered');
+    const taken = await User.findOne({ $or: [{ email: cleanEmail }, { phone: cleanPhone }] }).select('_id');
+    // Uniform message — never reveal WHICH contact is registered.
+    if (taken) return sendError(res, 400, 'Email or mobile number already registered');
 
     const passwordHash = await User.hashPassword(password);
     const user = await User.create({
@@ -64,13 +63,32 @@ router.post('/register', async (req, res, next) => {
     const token = signToken(user);
     res.status(201).json({ token, user: publicUser(user) });
   } catch (e) {
-    if (e && e.code === 11000) {
-      const field = e.message.includes('phone') ? 'Mobile number' : 'Email';
-      return sendError(res, 400, `${field} already registered`);
-    }
+    if (e && e.code === 11000) return sendError(res, 400, 'Email or mobile number already registered');
     next(e);
   }
 });
+
+const failWindow = new Map(); // email -> { n, until } — per-account throttle (single process)
+const FAIL_MAX = 5;
+const FAIL_LOCK_MS = 15 * 60 * 1000;
+function loginLocked(email) {
+  const rec = failWindow.get(email);
+  if (!rec) return false;
+  // Only an EXPIRED lock clears the record — a counting record (until falsy)
+  // must survive so failures can accumulate to FAIL_MAX.
+  if (rec.until && rec.until > Date.now()) return true;
+  if (rec.until && rec.until <= Date.now()) failWindow.delete(email);
+  return false;
+}
+function recordLoginFail(email) {
+  const rec = failWindow.get(email) || { n: 0, until: 0 };
+  rec.n += 1;
+  if (rec.n >= FAIL_MAX) {
+    rec.until = Date.now() + FAIL_LOCK_MS;
+    rec.n = 0;
+  }
+  failWindow.set(email, rec);
+}
 
 router.post('/login', async (req, res, next) => {
   try {
@@ -79,11 +97,19 @@ router.post('/login', async (req, res, next) => {
     if (!cleanEmail || !password)
       return sendError(res, 400, 'email, password required');
     if (!EMAIL_RE.test(cleanEmail)) return sendError(res, 401, 'Invalid credentials');
+    if (loginLocked(cleanEmail)) return sendError(res, 429, 'Too many attempts — try again later');
 
     const user = await User.findOne({ email: cleanEmail }).select('+passwordHash');
-    if (!user) return sendError(res, 401, 'Invalid credentials');
+    if (!user) {
+      recordLoginFail(cleanEmail);
+      return sendError(res, 401, 'Invalid credentials');
+    }
     const ok = await user.comparePassword(password);
-    if (!ok) return sendError(res, 401, 'Invalid credentials');
+    if (!ok) {
+      recordLoginFail(cleanEmail);
+      return sendError(res, 401, 'Invalid credentials');
+    }
+    failWindow.delete(cleanEmail);
 
     const token = signToken(user);
     res.json({ token, user: publicUser(user) });
@@ -176,7 +202,7 @@ router.put('/profile', authRequired, async (req, res, next) => {
       return sendError(
         res,
         400,
-        `Profile locked — order ${String(open._id).slice(-8).toUpperCase()} is ${open.status}. Editing reopens after delivery.`
+        `Profile locked while an order is ${open.status}. Editing reopens after delivery.`
       );
     }
 
@@ -191,13 +217,13 @@ router.put('/profile', authRequired, async (req, res, next) => {
     if (email) {
       if (!EMAIL_RE.test(email)) return sendError(res, 400, 'Invalid email');
       const taken = await User.findOne({ email, _id: { $ne: user._id } }).select('_id');
-      if (taken) return sendError(res, 400, 'Email already registered');
+      if (taken) return sendError(res, 400, 'Email or mobile number already registered');
       user.email = email;
     }
     if (phone) {
       if (!PHONE_RE.test(phone)) return sendError(res, 400, 'Invalid mobile number');
       const taken = await User.findOne({ phone, _id: { $ne: user._id } }).select('_id');
-      if (taken) return sendError(res, 400, 'Mobile number already registered');
+      if (taken) return sendError(res, 400, 'Email or mobile number already registered');
       user.phone = phone;
     }
     user.name = `${user.firstName} ${user.lastName}`.slice(0, 100);
@@ -205,6 +231,38 @@ router.put('/profile', authRequired, async (req, res, next) => {
     res.json(publicUser(user));
   } catch (e) {
     if (e && e.code === 11000) return sendError(res, 400, 'Email or mobile number already registered');
+    next(e);
+  }
+});
+
+// PUT /api/auth/password — change password (auth). Requires the current
+// password; rotates every session via tokenVersion.
+router.put('/password', authRequired, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (typeof newPassword !== 'string' || newPassword.length < 6 || newPassword.length > 128)
+      return sendError(res, 400, 'Password must be 6-128 chars');
+    const user = await User.findById(req.user._id).select('+passwordHash');
+    if (!user) return sendError(res, 401, 'Invalid or expired token');
+    const ok = await user.comparePassword(String(currentPassword || ''));
+    if (!ok) return sendError(res, 401, 'Current password incorrect');
+    user.passwordHash = await User.hashPassword(newPassword);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+    const fresh = await User.findById(user._id);
+    res.json({ token: signToken(fresh), user: publicUser(fresh) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /api/auth/logout-all — kill every session for this account (auth).
+router.post('/logout-all', authRequired, async (req, res, next) => {
+  try {
+    req.user.tokenVersion = (req.user.tokenVersion || 0) + 1;
+    await req.user.save();
+    res.json({ message: 'All sessions signed out' });
+  } catch (e) {
     next(e);
   }
 });

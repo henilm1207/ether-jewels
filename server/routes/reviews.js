@@ -1,9 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
 const Review = require('../models/Review');
 const { authRequired, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+// Public writes need their own budget — 10/hour/IP stops review flooding
+// without touching the read path browsers hit on every PDP view.
+const reviewWriteLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
 
 // Admin: list all reviews (filter by status)
 router.get('/', authRequired, requireAdmin, async (req, res, next) => {
@@ -29,16 +33,22 @@ router.get('/product/:productId', async (req, res, next) => {  try {
     const { productId } = req.params;
     if (!mongoose.Types.ObjectId.isValid(productId))
       return res.status(400).json({ message: 'Invalid product id' });
-    const reviews = await Review.find({ product: productId, status: 'approved' })
-      .sort({ createdAt: -1 })
-      .limit(50);
-    res.json(reviews);
+    const pg = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const lim = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const [items, total] = await Promise.all([
+      Review.find({ product: productId, status: 'approved' })
+        .sort({ createdAt: -1 })
+        .skip((pg - 1) * lim)
+        .limit(lim),
+      Review.countDocuments({ product: productId, status: 'approved' }),
+    ]);
+    res.json({ items, total, page: pg, pages: Math.ceil(total / lim) });
   } catch (e) {
     next(e);
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', reviewWriteLimiter, async (req, res, next) => {
   try {
     const { product, name, rating, title, text, location } = req.body || {};
     if (!product || !mongoose.Types.ObjectId.isValid(String(product)))
@@ -46,6 +56,10 @@ router.post('/', async (req, res, next) => {
     const r = Number(rating);
     if (!Number.isInteger(r) || r < 1 || r > 5)
       return res.status(400).json({ message: 'Rating must be an integer 1-5' });
+    // Reviews go public after approval — reject contact details up front.
+    const blob = `${name || ''} ${title || ''} ${text || ''} ${location || ''}`;
+    if (/[^\s@]+@[^\s@]+\.[^\s@]+/.test(blob))
+      return res.status(400).json({ message: 'Please remove email addresses from your review' });
     const review = await Review.create({
       product,
       name: typeof name === 'string' ? name.trim().slice(0, 100) : '',

@@ -56,6 +56,9 @@ const userSchema = new mongoose.Schema(
     },
     addresses: { type: [addressSchema], default: [] },
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
+    // Session rotation: bumped on password change / logout-all; every JWT
+    // carries the version it was minted with and older ones stop working.
+    tokenVersion: { type: Number, default: 0 },
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     // Account cart — follows login across devices; guests use localStorage.
     cart: { type: [cartLineSchema], default: [] },

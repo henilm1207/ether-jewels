@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, Settings2 } from 'lucide-react';
+import { Package, Settings2, ShieldCheck } from 'lucide-react';
 import { apiUrl } from '../config';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,7 +23,7 @@ const statusStyle = (s) => {
 // /account — orders with tracking + profile settings. Settings freeze
 // (server-enforced) while any order is unreceived.
 export default function Profile() {
-  const { token, user, loading, updateProfile } = useAuth();
+  const { token, user, loading, updateProfile, logout } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -31,6 +31,10 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+  const [pwMsg, setPwMsg] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
 
   useEffect(() => {
     if (!loading && !token) navigate('/account/login', { replace: true });
@@ -172,6 +176,69 @@ export default function Profile() {
             </button>
           </div>
         </form>
+
+        {/* Security */}
+        <h2 className="font-medium text-sm flex items-center gap-2" style={{ marginBottom: '16px', marginTop: '40px' }}>
+          <ShieldCheck size={16} /> SECURITY
+        </h2>
+        {pwMsg && <p role="status" className="text-sm text-green-700" style={{ marginBottom: '12px' }}>{pwMsg}</p>}
+        {pwError && <p role="alert" className="text-sm text-red-700" style={{ marginBottom: '12px' }}>{pwError}</p>}
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setPwMsg('');
+            setPwError('');
+            if (pw.next.length < 6) return setPwError('New password must be 6+ chars');
+            if (pw.next !== pw.confirm) return setPwError('New passwords do not match');
+            setPwSaving(true);
+            try {
+              const res = await fetch(apiUrl('/api/auth/password'), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ currentPassword: pw.current, newPassword: pw.next }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(data.message || 'Password change failed');
+              // The new token arrives with the response, but the clean flow
+              // is re-login: every session (incl. this one) was rotated.
+              logout();
+              navigate('/account/login', { replace: true });
+            } catch (err) {
+              setPwError(err.message);
+            } finally {
+              setPwSaving(false);
+            }
+          }}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+          style={{ marginBottom: '16px' }}
+        >
+          <input value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} placeholder="Current password" aria-label="Current password" type="password" required className="form-control sm:col-span-2" autoComplete="current-password" />
+          <input value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} placeholder="New password (6+ chars)" aria-label="New password" type="password" required className="form-control" autoComplete="new-password" />
+          <input value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} placeholder="Confirm new password" aria-label="Confirm new password" type="password" required className="form-control" autoComplete="new-password" />
+          <div className="sm:col-span-2">
+            <button type="submit" disabled={pwSaving} className="btn btn--secondary w-full disabled:opacity-50">
+              {pwSaving ? 'Changing…' : 'Change password'}
+            </button>
+          </div>
+        </form>
+        <button
+          onClick={async () => {
+            if (!window.confirm('Sign out every device including this one?')) return;
+            try {
+              await fetch(apiUrl('/api/auth/logout-all'), {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+            } catch {
+              // server unreachable — still drop the local session below
+            }
+            logout();
+            navigate('/account/login', { replace: true });
+          }}
+          className="underline text-sm text-gray-500"
+        >
+          Sign out all devices
+        </button>
       </div>
     </section>
   );

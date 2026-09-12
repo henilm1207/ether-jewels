@@ -70,7 +70,9 @@ router.delete('/', authRequired, requireAdmin, async (req, res, next) => {
     const { publicId } = req.body || {};
     if (!publicId || typeof publicId !== 'string')
       return res.status(400).json({ message: 'publicId required' });
-    if (!publicId.startsWith('ether-jewels/'))
+    // Exact allowlist match — never a prefix check: a crafted id must not
+    // reach the destroy call for an asset outside our folder.
+    if (!/^ether-jewels\/[A-Za-z0-9/_-]+$/.test(publicId))
       return res.status(400).json({ message: 'Unknown image reference' });
     await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
     res.json({ message: 'Deleted' });

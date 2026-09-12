@@ -76,8 +76,12 @@ const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders:
 // (list limit 50 × pages). Tighter per-minute cap slows bulk copying
 // without affecting normal browsing; checkout/auth keep their own limits.
 const catalogLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+// Auth attempts get their own budget so credential-stuffing can't hide in
+// (or starve) the shared pool; per-account lockout lives in routes/auth.js.
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
-app.use(['/api/auth/login', '/api/auth/register', '/api/auth/wishlist', '/api/cart', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
+app.use(['/api/auth/wishlist', '/api/auth/profile', '/api/auth/password', '/api/cart', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 app.use(['/api/products', '/api/categories'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
@@ -134,6 +138,10 @@ async function ensureAdmin() {
     return;
   }
   const User = require('./models/User');
+  // One-shot bootstrap: once ANY admin exists, env creds stop working —
+  // a leaked .env can never mint new superusers.
+  const anyAdmin = await User.findOne({ role: 'admin' }).select('_id');
+  if (anyAdmin) return;
   const existing = await User.findOne({ email });
   if (existing) {
     if (existing.role !== 'admin') {
@@ -168,6 +176,11 @@ async function boot() {
     await ensureAdmin();
   } catch (error) {
     console.error('Admin bootstrap failed:', error.message);
+  }
+  try {
+    require('./lib/expiry').startExpirySweeper();
+  } catch (error) {
+    console.error('Expiry sweeper failed to start:', error.message);
   }
   const PORT = process.env.PORT || 5001;
   const HOST = process.env.HOST || '0.0.0.0';

@@ -55,13 +55,17 @@ async function quoteCart(items, couponCode) {
 
     let variant = null;
     if (it.metalColor != null) {
-      const wanted = String(it.metalColor).trim();
-      variant = product.variants.find((v) => (v.material || v.name) === wanted);
+      // Case-insensitive: admin renames/case edits must not break live carts.
+      const wanted = String(it.metalColor).trim().toLowerCase();
+      variant = product.variants.find((v) => String(v.material || v.name || '').trim().toLowerCase() === wanted);
       if (!variant) throw bad(400, `Invalid metalColor for ${product.name}`);
     } else {
       variant = product.variants[0];
     }
     if (!variant) throw bad(400, `${product.name} has no variants`);
+    // The admin in-stock flag is real: never sell a flagged-out metal.
+    if (variant.inStock === false)
+      throw bad(400, `${product.name} (${variant.material || variant.name || 'this metal'}) is out of stock`);
 
     const base = variant.price;
     const unitPrice = round2(base + (useKarat === '18KT' ? product.kt18Delta || 0 : 0));
@@ -108,6 +112,7 @@ async function quoteCart(items, couponCode) {
 
 // Atomic coupon increment AFTER the order row exists.
 async function consumeCoupon(order, coupon, subtotal, shipping) {
+  if (!coupon || order.couponConsumed) return;
   const updated = await Coupon.findOneAndUpdate(
     { _id: coupon._id, $or: [{ maxUses: null }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] },
     { $inc: { usedCount: 1 } },
@@ -117,8 +122,78 @@ async function consumeCoupon(order, coupon, subtotal, shipping) {
     order.couponCode = null;
     order.pricing.discount = 0;
     order.pricing.total = round2(subtotal + shipping);
+  }
+  order.couponConsumed = true;
+  await order.save();
+}
+
+// Release a consumed coupon (fail/cancel/expiry). Idempotent via the flag.
+async function releaseCoupon(order) {
+  if (!order || !order.couponCode || !order.couponConsumed) return;
+  await Coupon.findOneAndUpdate(
+    { code: order.couponCode, usedCount: { $gt: 0 } },
+    { $inc: { usedCount: -1 } }
+  );
+  order.couponConsumed = false;
+  await order.save();
+}
+
+// Settle an order PAID: consume its coupon (looked up by code, since reuse
+// paths may not hold the doc), clear expiry. Safe to call twice.
+async function onPaymentSuccess(order, txnId) {
+  if (order.status === 'pending') order.status = 'confirmed';
+  order.payment.status = 'paid';
+  if (txnId) order.payment.txnId = txnId;
+  order.expiresAt = null;
+  if (order.couponCode && !order.couponConsumed) {
+    const coupon = await Coupon.findOne({ code: order.couponCode });
+    if (coupon) {
+      await consumeCoupon(order, coupon, order.pricing.subtotal, order.pricing.shipping);
+    } else {
+      order.couponConsumed = true; // code gone — stop retrying
+      await order.save();
+    }
+  } else {
     await order.save();
   }
 }
 
-module.exports = { round2, MAX_ITEMS, validateContactAddress, quoteCart, consumeCoupon };
+// Mark FAILED and release any consumed coupon (no-op unless consumed).
+// A settled (paid) order never moves backwards on late failure events.
+async function onPaymentFailed(order, txnId) {
+  if (order.payment.status === 'paid') return;
+  order.payment.status = 'failed';
+  if (txnId) order.payment.txnId = txnId;
+  await releaseCoupon(order);
+  await order.save();
+}
+
+// Order view gating — payment echo endpoints must not become PII oracles.
+// Owner/admin see everything; anyone else gets a PII-free receipt
+// (enough for the success screen: id, status, total, payment state).
+function publicOrderView(order) {
+  return {
+    _id: order._id,
+    status: order.status,
+    pricing: { total: order.pricing.total, currency: order.pricing.currency },
+    payment: { status: order.payment.status },
+  };
+}
+
+function orderView(order, req) {
+  const ownerId = order.user ? String(order.user) : null;
+  const callerId = req.user ? String(req.user._id) : null;
+  const isAdmin = !!(req.user && req.user.role === 'admin');
+  if (ownerId) {
+    if (ownerId === callerId || isAdmin) return { order };
+    const err = new Error('Not your order');
+    err.status = 403;
+    return { error: err };
+  }
+  if (isAdmin || (callerId && order.contact && req.user && req.user.email === order.contact.email)) {
+    return { order };
+  }
+  return { order: publicOrderView(order) };
+}
+
+module.exports = { round2, MAX_ITEMS, validateContactAddress, quoteCart, consumeCoupon, releaseCoupon, onPaymentSuccess, onPaymentFailed, publicOrderView, orderView };

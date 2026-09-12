@@ -205,7 +205,12 @@ router.post('/', authRequired, requireAdmin, async (req, res, next) => {
     const product = await Product.create(body);
     res.status(201).json(product);
   } catch (e) {
-    e.status = e.status || 400;
+    if (e && e.code === 11000) {
+      e.status = 400;
+      e.message = 'Slug or style code already exists';
+    } else {
+      e.status = e.status || 400;
+    }
     next(e);
   }
 });
@@ -217,14 +222,20 @@ router.put('/:id', authRequired, requireAdmin, async (req, res, next) => {
     delete body.ratingAvg;
     delete body.ratingCount;
     if (body.category !== undefined) await assertLeafCategory(String(body.category));
-    const product = await Product.findByIdAndUpdate(req.params.id, body, {
-      new: true,
-      runValidators: true,
-    });
+    const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
+    // Load-then-save (NOT findByIdAndUpdate): update validators skip the
+    // pre('validate') ring-size guard, which let ring products go sizeless.
+    for (const k of Object.keys(body)) product.set(k, body[k]);
+    await product.save();
     res.json(product);
   } catch (e) {
-    e.status = e.status || 400;
+    if (e && e.code === 11000) {
+      e.status = 400;
+      e.message = 'Slug or style code already exists';
+    } else {
+      e.status = e.status || 400;
+    }
     next(e);
   }
 });
@@ -243,8 +254,8 @@ router.delete('/:id', authRequired, requireAdmin, async (req, res, next) => {
   }
 });
 
-// DELETE /:id/permanent — irreversible: removes the product AND purges its
-// Cloudinary images. Reviews are kept as history (no cascade).
+// DELETE /:id/permanent — irreversible: removes the product, purges its
+// Cloudinary images, and drops its reviews (no orphaned approved content).
 router.delete('/:id/permanent', authRequired, requireAdmin, async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -270,7 +281,9 @@ router.delete('/:id/permanent', authRequired, requireAdmin, async (req, res, nex
     for (const src of product.images || []) {
       const m = String(src || '').match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
       const publicId = m && m[1];
-      if (!publicId || !publicId.startsWith('ether-jewels/')) continue;
+      // Exact allowlist match — a pasted lookalike URL must never delete
+      // an unrelated Cloudinary asset (prefix-only checks allowed that).
+      if (!publicId || !/^ether-jewels\/[A-Za-z0-9/_-]+$/.test(publicId)) continue;
       if (!cloudinary) {
         failed.push(publicId);
         continue;
@@ -284,10 +297,13 @@ router.delete('/:id/permanent', authRequired, requireAdmin, async (req, res, nex
     }
 
     await Product.findByIdAndDelete(req.params.id);
+    const Review = require('../models/Review');
+    const dropped = await Review.deleteMany({ product: product._id });
     res.json({
       message: `Deleted ${product.name}`,
       purged: purged.length,
       failed,
+      reviewsDropped: dropped.deletedCount || 0,
     });
   } catch (e) {
     next(e);

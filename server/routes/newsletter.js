@@ -15,20 +15,21 @@ router.post('/subscribe', async (req, res, next) => {
 
     const existing = await Subscriber.findOne({ email: clean });
     if (existing) {
-      if (existing.active)
-        return res.status(400).json({ message: 'You have already subscribed!' });
-      existing.active = true;
-      existing.unsubscribedAt = null;
-      existing.source = cleanSource;
-      await existing.save();
-      return res.status(200).json({ message: 'Resubscribed successfully!' });
+      // Uniform success — never reveal whether an address was subscribed.
+      if (!existing.active) {
+        existing.active = true;
+        existing.unsubscribedAt = null;
+        existing.source = cleanSource;
+        await existing.save();
+      }
+      return res.status(200).json({ message: 'Subscribed successfully!' });
     }
 
     await Subscriber.create({ email: clean, source: cleanSource });
     res.status(201).json({ message: 'Subscribed successfully!' });
   } catch (error) {
     if (error && error.code === 11000)
-      return res.status(400).json({ message: 'You have already subscribed!' });
+      return res.status(200).json({ message: 'Subscribed successfully!' });
     if (error && error.name === 'ValidationError')
       return res.status(400).json({ message: 'Invalid subscription data' });
     next(error);
@@ -40,10 +41,12 @@ router.post('/unsubscribe', async (req, res, next) => {
     const clean = normEmail(req.body && req.body.email);
     if (!EMAIL_RE.test(clean)) return res.status(400).json({ message: 'Valid email required' });
     const sub = await Subscriber.findOne({ email: clean });
-    if (!sub) return res.status(404).json({ message: 'Not subscribed' });
-    sub.active = false;
-    sub.unsubscribedAt = new Date();
-    await sub.save();
+    // Uniform success — never reveal whether an address was subscribed.
+    if (sub && sub.active) {
+      sub.active = false;
+      sub.unsubscribedAt = new Date();
+      await sub.save();
+    }
     res.json({ message: 'Unsubscribed' });
   } catch (e) {
     next(e);

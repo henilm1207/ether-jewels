@@ -31,7 +31,7 @@ async function cleanLines(raw) {
     const v = (l && l.variant) || {};
     const price = Number(v.price);
     out.push({
-      key: cleanStr(l.key, 200) || `${l.product}|${v.name || 'default'}|${v.kt || '14KT'}|${v.price ?? ''}|${l.size || ''}`,
+      key: cleanStr(l.key, 200) || `${l.product}|${(v.material || v.name || 'default')}|${v.kt || '14KT'}|${l.size || ''}`,
       product: l.product,
       variant: {
         name: cleanStr(v.name, 100),

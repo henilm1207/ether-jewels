@@ -84,10 +84,41 @@ const productSchema = new mongoose.Schema(
 
 // Validate metal color names loosely (allow future Platinum without breaking)
 const { DEFAULT_RING_SIZES } = require('../config/catalog');
+
+// Media URLs must be plain https? links — no javascript:/data: payloads,
+// no tracking-pixel tricks. Admin-pasted URLs render straight into <img>.
+const MEDIA_URL_RE = /^https?:\/\/[^\s"'<>\\^`{|}]+$/i;
+const isMediaUrl = (u) => typeof u === 'string' && u.length <= 1000 && MEDIA_URL_RE.test(u);
 productSchema.pre('validate', function (next) {
   if (this.variants && this.variants.length) {
     for (const v of this.variants) {
       if (!v.material && v.name) v.material = v.name;
+    }
+  }
+
+  // Price invariants — a typo must never create a $1 ring or fake markdown.
+  if (this.compareAtPrice != null && !(this.compareAtPrice > this.price)) {
+    return next(new Error('compareAtPrice must be above price'));
+  }
+  for (const v of this.variants || []) {
+    if (v.price != null && !(v.price > 0 && v.price <= 1000000)) {
+      return next(new Error(`Invalid variant price for '${v.name || v.material || '?'}'`));
+    }
+  }
+
+  // Media trust: every URL must be a plain link, and a variant photo must
+  // be one of the product's own images (no external swaps at checkout).
+  const imgs = Array.isArray(this.images) ? this.images : [];
+  for (const u of imgs) {
+    if (!isMediaUrl(u)) return next(new Error('images[] must be valid http(s) URLs'));
+  }
+  if (this.video != null && this.video !== '' && !isMediaUrl(this.video)) {
+    return next(new Error('video must be a valid http(s) URL'));
+  }
+  for (const v of this.variants || []) {
+    if (v.image != null && v.image !== '') {
+      if (!isMediaUrl(v.image)) return next(new Error(`Invalid variant image for '${v.name || v.material || '?'}'`));
+      if (!imgs.includes(v.image)) return next(new Error(`Variant image must be one of images[] ('${v.name || v.material || '?'}')`));
     }
   }
 

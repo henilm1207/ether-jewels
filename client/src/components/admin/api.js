@@ -33,8 +33,3 @@ export async function adminFetch(path, { method = 'GET', body, form, timeoutMs =
     clearTimeout(timer);
   }
 }
-
-export function useAdminUser() {
-  const { user } = useAuth();
-  return user && user.role === 'admin' ? user : null;
-}

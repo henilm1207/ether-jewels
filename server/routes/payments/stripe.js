@@ -5,10 +5,11 @@
 // the order to paid/confirmed. Never trust client-side totals.
 const express = require('express');
 const Order = require('../../models/Order');
-const { validateContactAddress, quoteCart, consumeCoupon } = require('../../lib/quote');
+const { validateContactAddress, quoteCart, onPaymentSuccess, onPaymentFailed, orderView } = require('../../lib/quote');
 const { authOptional } = require('../../middleware/auth');
 
 const router = express.Router();
+const ORDER_TTL_MS = 24 * 60 * 60 * 1000; // unpaid orders auto-cancel after 24h
 
 function stripeClient() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
@@ -40,24 +41,46 @@ function buildOrderDoc({ userId, orderItems, subtotal, discount, shipping, total
 }
 
 // POST /api/payments/stripe/create-intent — cart + contact → {clientSecret, orderId, total}
+// Idempotent: same idempotencyKey reuses the pending order (never mints
+// duplicates on double-click/replay). Coupon consumed only when PAID.
 router.post('/create-intent', authOptional, async (req, res, next) => {
   try {
     const stripe = stripeClient();
     if (!stripe) return res.status(503).json({ message: 'Card payments not configured yet' });
-    const { items, couponCode, shippingAddress, contact } = req.body || {};
+    const { items, couponCode, shippingAddress, contact, idempotencyKey } = req.body || {};
     const { addr, email } = validateContactAddress(shippingAddress, contact);
-    const { orderItems, subtotal, discount, coupon, shipping, total } = await quoteCart(items, couponCode);
+    const key = typeof idempotencyKey === 'string' ? idempotencyKey.trim().slice(0, 100) : '';
+    const ownerFilter = req.user ? { user: req.user._id } : { user: null, 'contact.email': email };
+    let order = null;
+    if (key) {
+      order = await Order.findOne({ idempotencyKey: key, status: 'pending', 'payment.status': { $ne: 'paid' }, ...ownerFilter });
+    }
+    let coupon = null;
+    let subtotal = 0;
+    let shipping = 0;
+    if (!order) {
+      const q = await quoteCart(items, couponCode);
+      coupon = q.coupon;
+      subtotal = q.subtotal;
+      shipping = q.shipping;
+      order = await Order.create({
+        ...buildOrderDoc({ userId: req.user && req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon, addr, email, body: req.body, method: 'stripe' }),
+        idempotencyKey: key || null,
+        expiresAt: new Date(Date.now() + ORDER_TTL_MS),
+      });
+    }
+    const total = order.pricing.total;
     if (!(total > 0)) return res.status(400).json({ message: 'Order total must be above zero' });
-    const order = await Order.create(
-      buildOrderDoc({ userId: req.user && req.user._id, orderItems, subtotal, discount, shipping, total, coupon, addr, email, body: req.body, method: 'stripe' })
+    const intent = await stripe.paymentIntents.create(
+      {
+        amount: Math.round(total * 100),
+        currency: 'usd',
+        automatic_payment_methods: { enabled: true, allow_redirects: 'always' },
+        receipt_email: email,
+        metadata: { orderId: order._id.toString() },
+      },
+      { idempotencyKey: `ether-${order._id}` }
     );
-    if (coupon) await consumeCoupon(order, coupon, subtotal, shipping);
-    const intent = await stripe.paymentIntents.create({
-      amount: Math.round(total * 100),
-      currency: 'usd',
-      receipt_email: email,
-      metadata: { orderId: order._id.toString() },
-    });
     order.payment.txnId = intent.id;
     await order.save();
     res.status(201).json({ clientSecret: intent.client_secret, orderId: order._id, total });
@@ -83,15 +106,18 @@ router.post('/confirm', authOptional, async (req, res, next) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (intent.status === 'succeeded') {
-      if (order.status === 'pending') order.status = 'confirmed';
-      order.payment.status = 'paid';
-      order.payment.txnId = intent.id;
-      await order.save();
+      // Amount/currency must match OUR total — never confirm the wrong charge.
+      if (intent.amount !== Math.round(Number(order.pricing.total) * 100) || String(intent.currency).toLowerCase() !== 'usd') {
+        await onPaymentFailed(order, intent.id);
+        return res.status(400).json({ message: 'Charged amount mismatch' });
+      }
+      await onPaymentSuccess(order, intent.id);
     } else if (intent.status === 'requires_payment_method' || intent.status === 'canceled') {
-      order.payment.status = 'failed';
-      await order.save();
+      await onPaymentFailed(order, intent.id);
     }
-    res.json({ order, paymentStatus: intent.status });
+    const view = orderView(order, req);
+    if (view.error) return res.status(view.error.status || 403).json({ message: view.error.message });
+    res.json({ order: view.order, paymentStatus: intent.status });
   } catch (e) {
     if (e && e.status) return res.status(e.status).json({ message: e.message });
     next(e);
@@ -115,18 +141,17 @@ async function webhookHandler(req, res, next) {
       const intent = event.data.object;
       const orderId = intent && intent.metadata && intent.metadata.orderId;
       if (orderId) {
-        const order = await Order.findById(orderId);
-        if (order) {
-          if (type === 'payment_intent.succeeded') {
-            if (order.status === 'pending') order.status = 'confirmed';
-            order.payment.status = 'paid';
-            order.payment.txnId = intent.id;
-          } else {
-            order.payment.status = 'failed';
-            order.payment.txnId = intent.id;
-          }
-          await order.save();
+      const order = await Order.findById(orderId);
+      if (order) {
+        if (type === 'payment_intent.succeeded') {
+          const amtOk = intent.amount === Math.round(Number(order.pricing.total) * 100);
+          const curOk = String(intent.currency || '').toLowerCase() === 'usd';
+          if (amtOk && curOk) await onPaymentSuccess(order, intent.id);
+          else await onPaymentFailed(order, intent.id);
+        } else {
+          await onPaymentFailed(order, intent.id);
         }
+      }
       }
     }
     res.json({ received: true });

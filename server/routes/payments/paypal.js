@@ -4,11 +4,12 @@
 // COMPLETED + exact amount match before marking paid/confirmed.
 const express = require('express');
 const Order = require('../../models/Order');
-const { validateContactAddress, quoteCart, consumeCoupon } = require('../../lib/quote');
+const { validateContactAddress, quoteCart, onPaymentSuccess, onPaymentFailed, orderView } = require('../../lib/quote');
 const { authOptional } = require('../../middleware/auth');
 const { buildOrderDoc } = require('./stripe');
 
 const router = express.Router();
+const ORDER_TTL_MS = 24 * 60 * 60 * 1000; // unpaid orders auto-cancel after 24h
 
 const paypalBase = () =>
   (process.env.PAYPAL_MODE || 'sandbox') === 'live'
@@ -57,17 +58,29 @@ async function paypalFetch(path, { method = 'GET', body, token, requestId } = {}
 }
 
 // POST /api/payments/paypal/create-order — cart + contact → {paypalOrderId, orderId, total}
+// Idempotent: same idempotencyKey reuses the pending order. Coupon consumed
+// only when the capture succeeds.
 router.post('/create-order', authOptional, async (req, res, next) => {
   try {
     if (!configured()) return res.status(503).json({ message: 'PayPal not configured yet' });
-    const { items, couponCode, shippingAddress, contact } = req.body || {};
+    const { items, couponCode, shippingAddress, contact, idempotencyKey } = req.body || {};
     const { addr, email } = validateContactAddress(shippingAddress, contact);
-    const { orderItems, subtotal, discount, coupon, shipping, total } = await quoteCart(items, couponCode);
+    const key = typeof idempotencyKey === 'string' ? idempotencyKey.trim().slice(0, 100) : '';
+    const ownerFilter = req.user ? { user: req.user._id } : { user: null, 'contact.email': email };
+    let order = null;
+    if (key) {
+      order = await Order.findOne({ idempotencyKey: key, status: 'pending', 'payment.status': { $ne: 'paid' }, ...ownerFilter });
+    }
+    if (!order) {
+      const q = await quoteCart(items, couponCode);
+      order = await Order.create({
+        ...buildOrderDoc({ userId: req.user && req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon: q.coupon, addr, email, body: req.body, method: 'paypal' }),
+        idempotencyKey: key || null,
+        expiresAt: new Date(Date.now() + ORDER_TTL_MS),
+      });
+    }
+    const total = order.pricing.total;
     if (!(total > 0)) return res.status(400).json({ message: 'Order total must be above zero' });
-    const order = await Order.create(
-      buildOrderDoc({ userId: req.user && req.user._id, orderItems, subtotal, discount, shipping, total, coupon, addr, email, body: req.body, method: 'paypal' })
-    );
-    if (coupon) await consumeCoupon(order, coupon, subtotal, shipping);
     const token = await paypalToken();
     const pp = await paypalFetch('/v2/checkout/orders', {
       method: 'POST',
@@ -102,7 +115,11 @@ router.post('/capture', authOptional, async (req, res, next) => {
     if (!paypalOrderId) return res.status(400).json({ message: 'paypalOrderId required' });
     const order = await Order.findOne({ 'payment.txnId': paypalOrderId, 'payment.method': 'paypal' });
     if (!order) return res.status(404).json({ message: 'Order not found for this payment' });
-    if (order.payment.status === 'paid') return res.json({ order });
+    if (order.payment.status === 'paid') {
+      const view = orderView(order, req);
+      if (view.error) return res.status(view.error.status || 403).json({ message: view.error.message });
+      return res.json({ order: view.order });
+    }
     const token = await paypalToken();
     const cap = await paypalFetch(`/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`, {
       method: 'POST',
@@ -111,24 +128,21 @@ router.post('/capture', authOptional, async (req, res, next) => {
       body: {},
     });
     if (cap.status !== 'COMPLETED') {
-      order.payment.status = 'failed';
-      await order.save();
+      await onPaymentFailed(order, paypalOrderId);
       return res.status(400).json({ message: 'PayPal payment not completed' });
     }
     // Anti-tamper: captured amount must equal our order total exactly.
     const captures = ((cap.purchase_units || [])[0] && (cap.purchase_units[0].payments || {}).captures) || [];
     const paidValue = captures.reduce((s, c) => s + Number((c.amount || {}).value || 0), 0);
     if (Math.abs(paidValue - Number(order.pricing.total)) > 0.005) {
-      order.payment.status = 'failed';
-      await order.save();
+      await onPaymentFailed(order, paypalOrderId);
       return res.status(400).json({ message: 'Captured amount mismatch' });
     }
     const captureId = (captures[0] && captures[0].id) || paypalOrderId;
-    order.payment.status = 'paid';
-    order.payment.txnId = captureId;
-    if (order.status === 'pending') order.status = 'confirmed';
-    await order.save();
-    res.json({ order });
+    await onPaymentSuccess(order, captureId);
+    const view = orderView(order, req);
+    if (view.error) return res.status(view.error.status || 403).json({ message: view.error.message });
+    res.json({ order: view.order });
   } catch (e) {
     if (e && e.status) return res.status(e.status).json({ message: e.message });
     next(e);

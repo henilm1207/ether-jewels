@@ -17,8 +17,10 @@ const sanitizeQty = (q) => {
   return Math.min(99, Math.max(1, n));
 };
 
+// Key identifies the buyable configuration (metal + karat + size) — never the
+// price, so a price edit can't fork duplicate lines for the same choice.
 const buildKey = (product, variant, size) =>
-  `${product.slug}|${variant?.name || 'default'}|${variant?.kt || '14KT'}|${variant?.price ?? product.price}|${size || ''}`;
+  `${product.slug}|${variant?.material || variant?.name || 'default'}|${variant?.kt || '14KT'}|${size || ''}`;
 
 function sanitizeItem(it) {
   if (!it || typeof it.key !== 'string' || !it.product || !it.product.slug) return null;

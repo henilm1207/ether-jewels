@@ -126,13 +126,17 @@ export default function ProductDetail() {
     };
   };
 
+  const oos = currentVariant && currentVariant.inStock === false;
+
   const handleAddToCart = () => {
+    if (oos) return; // message already shown under the swatches; server rejects too
     const sel = buildSelection();
     if (!sel) return;
     addItem(product, sel.variant, quantity, sel.size);
   };
 
   const handleBuyNow = () => {
+    if (oos) return;
     const sel = buildSelection();
     if (!sel) return;
     addItem(product, sel.variant, quantity, sel.size);
@@ -303,22 +307,28 @@ export default function ProductDetail() {
                       <span key={i} className="relative group/swatch">
                         <button
                           onClick={() => selectVariant(i)}
-                          className="pdp-swatch rounded-full transition-all block"
+                          disabled={variant.inStock === false}
+                          className="pdp-swatch rounded-full transition-all block disabled:cursor-not-allowed"
                           style={{
                             // Static map fallback covers pre-change products / custom metals.
                             backgroundColor: variant.color || metalColor(variant.material || variant.name),
                             outline: selectedVariant === i ? '2px solid #222' : '1px solid #d1d5db',
                             outlineOffset: '2px',
+                            opacity: variant.inStock === false ? 0.3 : 1,
                           }}
-                          title={variant.material || variant.name}
-                          aria-label={variant.material || variant.name}
+                          title={`${variant.material || variant.name}${variant.inStock === false ? ' (out of stock)' : ''}`}
+                          aria-label={`${variant.material || variant.name}${variant.inStock === false ? ', out of stock' : ''}`}
+                          aria-disabled={variant.inStock === false}
                         />
                         <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#222] text-white text-[11px] px-2 py-1 opacity-0 group-hover/swatch:opacity-100 transition-opacity">
-                          {variant.material || variant.name}
+                          {variant.material || variant.name}{variant.inStock === false ? ' — out of stock' : ''}
                         </span>
                       </span>
                     ))}
                   </div>
+                  {currentVariant && currentVariant.inStock === false && (
+                    <p role="alert" className="text-sm text-red-700 mt-2">This metal is currently out of stock — please pick another.</p>
+                  )}
                 </div>
               )}
 
@@ -391,11 +401,12 @@ export default function ProductDetail() {
               <div className="grid" style={{ gap: '12px', marginTop: '40px', marginBottom: '24px' }}>
                 <button
                   onClick={handleAddToCart}
-                  className="btn btn--primary w-full"
+                  disabled={oos}
+                  className="btn btn--primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add to cart
                 </button>
-                <button onClick={handleBuyNow} className="btn btn--secondary w-full">
+                <button onClick={handleBuyNow} disabled={oos} className="btn btn--secondary w-full disabled:opacity-50 disabled:cursor-not-allowed">
                   Buy it now
                 </button>
               </div>
@@ -434,19 +445,23 @@ export default function ProductDetail() {
                 </p>
                 <table className="w-full text-[15px]">
                   <tbody>
-                    {product.style && (
+                    {product.styleCode && (
                       <tr className="border-b border-[#ededed]">
                         <td className="py-3 pr-4 text-gray-500 w-1/2">Style</td>
-                        <td className="py-3 font-medium">{product.style}</td>
+                        <td className="py-3 font-medium">{product.styleCode}</td>
                       </tr>
                     )}
                     <tr className="border-b border-[#ededed]">
                       <td className="py-3 pr-4 text-gray-500">Certified Side Stone</td>
-                      <td className="py-3 font-medium">No</td>
+                      <td className="py-3 font-medium">{product.details?.sideStoneCertified ? 'Yes' : 'No'}</td>
                     </tr>
                     <tr>
                       <td className="py-3 pr-4 text-gray-500">Delivery Period</td>
-                      <td className="py-3 font-medium">Within 30 Days</td>
+                      <td className="py-3 font-medium">
+                        {product.details?.deliveryDays != null && product.details.deliveryDays > 0
+                          ? `Within ${product.details.deliveryDays} Days`
+                          : 'Within 30 Days'}
+                      </td>
                     </tr>
                   </tbody>
                 </table>

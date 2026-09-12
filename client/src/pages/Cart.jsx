@@ -75,6 +75,11 @@ export default function Cart() {
   const [method, setMethod] = useState('stripe'); // stripe | paypal
   const [payConfig, setPayConfig] = useState(null); // {stripePublishableKey, paypalClientId, ...}
   const [stripeStep, setStripeStep] = useState(null); // {clientSecret, orderId} after intent
+  // One key per checkout attempt: double-clicks/replays reuse the pending
+  // order server-side instead of minting duplicates. Rotated after each pay.
+  const [checkoutKey, setCheckoutKey] = useState(() =>
+    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
+  );
 
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -118,6 +123,7 @@ export default function Cart() {
   const checkoutBody = () => ({
     items: cartItems(),
     couponCode: appliedCode || undefined,
+    idempotencyKey: checkoutKey,
     shippingAddress: { fullName: fullName.trim(), line1: line1.trim(), city: city.trim(), country: country.trim(), zip: zip.trim(), phone: phone.trim() || undefined },
     contact: { name: fullName.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined },
     orderNote: note.slice(0, 1000),
@@ -133,6 +139,8 @@ export default function Cart() {
   const onPaid = (order) => {
     setDone(order);
     clearCart();
+    setStripeStep(null);
+    setCheckoutKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   };
 
   return (
@@ -311,7 +319,7 @@ export default function Cart() {
                         }}
                         className="btn btn--primary w-full disabled:opacity-50"
                       >
-                        {placing ? 'Preparing…' : `Continue to card payment — $${(Number(subtotal) || 0).toFixed(2)} USD`}
+                        {placing ? 'Preparing…' : 'Continue to card payment'}
                       </button>
                     ) : (
                       <>

@@ -60,11 +60,15 @@ router.get('/admin/all', authRequired, requireAdmin, async (_req, res, next) => 
   }
 });
 
+const IMAGE_URL_RE = /^https?:\/\/[^\s"'<>\\^`{|}]+$/i;
+
 router.post('/', authRequired, requireAdmin, async (req, res, next) => {
   try {
     const body = pick(req.body, CATEGORY_FIELDS);
     if (!body.key || !body.name)
       return res.status(400).json({ message: 'key and name required' });
+    if (body.image != null && body.image !== '' && !IMAGE_URL_RE.test(String(body.image)))
+      return res.status(400).json({ message: 'image must be a valid http(s) URL' });
     const cat = await Category.create(body);
     res.status(201).json(cat);
   } catch (e) {
@@ -77,6 +81,8 @@ router.post('/', authRequired, requireAdmin, async (req, res, next) => {
 router.put('/:key', authRequired, requireAdmin, async (req, res, next) => {
   try {
     const body = pick(req.body, CATEGORY_FIELDS.filter((k) => k !== 'key'));
+    if (body.image != null && body.image !== '' && !IMAGE_URL_RE.test(String(body.image)))
+      return res.status(400).json({ message: 'image must be a valid http(s) URL' });
     const cat = await Category.findOneAndUpdate({ key: req.params.key }, body, {
       new: true,
       runValidators: true,

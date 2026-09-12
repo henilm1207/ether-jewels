@@ -53,13 +53,14 @@ function ImageManager({ images, setImages, setError }) {
   };
 
   // Removing from the form also frees the file in Cloudinary (if ours).
-  // Best-effort: the image is dropped from the product regardless.
+  // Best-effort: the image is dropped from the product regardless. The id
+  // must match our folder exactly — lookalike pasted URLs never trigger it.
   const removeAt = async (i) => {
     const src = images[i];
     setImages(images.filter((_, x) => x !== i));
     const m = String(src || '').match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
     const publicId = m && m[1];
-    if (publicId && publicId.startsWith('ether-jewels/')) {
+    if (publicId && /^ether-jewels\/[A-Za-z0-9/_-]+$/.test(publicId)) {
       try {
         await adminFetch('/api/uploads', { method: 'DELETE', body: { publicId } });
       } catch {
@@ -95,8 +96,8 @@ function ImageManager({ images, setImages, setError }) {
         </p>
       )}
       <div className="flex gap-2 mt-2">
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste image URL…" className={inputCls} style={inputStyle} aria-label="Image URL" />
-        <button type="button" onClick={() => { if (url.trim()) { setImages([...images, url.trim()]); setUrl(''); } }} className="flex-shrink-0 underline text-sm">Add URL</button>
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste image URL (https://…)…" className={inputCls} style={inputStyle} aria-label="Image URL" />
+        <button type="button" onClick={() => { const u = url.trim(); if (!u) return; if (!/^https?:\/\//i.test(u)) { setError('Image URL must start with http(s)://'); return; } setImages([...images, u]); setUrl(''); }} className="flex-shrink-0 underline text-sm">Add URL</button>
       </div>
     </div>
   );

@@ -39,9 +39,16 @@ const orderSchema = new mongoose.Schema(
       currency: { type: String, enum: ['USD'], default: 'USD', required: true },
     },
     couponCode: { type: String, default: null },
+    // Coupon lifecycle: consumed only when the order is PAID, released on
+    // fail/cancel/expiry. Guards double-consume across webhook+confirm.
+    couponConsumed: { type: Boolean, default: false },
     // Shipment tracking — set by admin, visible to the customer on /account.
     trackingId: { type: String, trim: true, maxlength: 100, default: null },
     carrier: { type: String, trim: true, maxlength: 100, default: null },
+    // Unpaid auto-expiry (set at creation while payment pending; cleared on pay).
+    expiresAt: { type: Date, default: null },
+    // Client checkout-attempt key: replays reuse the pending order, never mint.
+    idempotencyKey: { type: String, trim: true, maxlength: 100, default: null },
     status: {
       type: String,
       enum: ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'],

@@ -1,9 +1,14 @@
 const express = require('express');
 const Order = require('../models/Order');
-const { validateContactAddress, quoteCart, consumeCoupon } = require('../lib/quote');
+const { validateContactAddress, quoteCart, consumeCoupon, releaseCoupon } = require('../lib/quote');
 const { authOptional, authRequired, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+const ORDER_TTL_MS = 24 * 60 * 60 * 1000; // unpaid orders auto-cancel after 24h
+
+// True once any online gateway is keyed — manual pending orders then stop
+// (staff phone orders go through the admin account instead).
+const gatewaysLive = () => !!(process.env.STRIPE_SECRET_KEY || process.env.PAYPAL_CLIENT_ID);
 const ALLOWED_TRANSITIONS = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['making', 'cancelled'],
@@ -12,7 +17,6 @@ const ALLOWED_TRANSITIONS = {
   delivered: [],
   cancelled: [],
 };
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Create order — guest or logged-in. Validates ring sizes + USD-only.
 router.post('/', authOptional, async (req, res, next) => {
@@ -21,8 +25,12 @@ router.post('/', authOptional, async (req, res, next) => {
     const { addr, email } = validateContactAddress(shippingAddress, contact);
 
     const method = payment && payment.method ? String(payment.method) : 'card';
-    if (!['card', 'cod'].includes(method))
-      return res.status(400).json({ message: 'Invalid payment method' });
+    // High-value: no cash-on-delivery for new orders (history rows keep it).
+    if (method !== 'card')
+      return res.status(400).json({ message: 'Online payment required' });
+    // Once a gateway is live, manual pending orders stop — staff use admin.
+    if (gatewaysLive() && (!req.user || req.user.role !== 'admin'))
+      return res.status(403).json({ message: 'Online payment required' });
 
     const { orderItems, subtotal, discount, coupon, shipping, total } = await quoteCart(items, couponCode);
 
@@ -46,6 +54,7 @@ router.post('/', authOptional, async (req, res, next) => {
         phone: contact && contact.phone ? String(contact.phone).slice(0, 30) : undefined,
       },
       payment: { method, status: 'pending' },
+      expiresAt: new Date(Date.now() + ORDER_TTL_MS),
     });
 
     // Atomic coupon increment AFTER order succeeds — prevents burn + overshoot
@@ -86,7 +95,8 @@ router.get('/', authRequired, requireAdmin, async (req, res, next) => {
   }
 });
 
-router.patch('/:id/status', authRequired, requireAdmin, async (req, res, next) => {  try {
+router.patch('/:id/status', authRequired, requireAdmin, async (req, res, next) => {
+  try {
     const nextStatus = req.body && req.body.status;
     if (!ALLOWED_TRANSITIONS[nextStatus] && !Object.keys(ALLOWED_TRANSITIONS).includes(nextStatus))
       return res.status(400).json({ message: 'Invalid status' });
@@ -100,6 +110,8 @@ router.patch('/:id/status', authRequired, requireAdmin, async (req, res, next) =
     if (order.status === 'pending' && nextStatus === 'confirmed' && order.payment.status !== 'paid')
       return res.status(400).json({ message: 'Advance payment required before confirmation' });
     order.status = nextStatus;
+    // Cancelling frees any consumed coupon back to the pool.
+    if (nextStatus === 'cancelled') await releaseCoupon(order);
     await order.save();
     res.json(order);
   } catch (e) {
