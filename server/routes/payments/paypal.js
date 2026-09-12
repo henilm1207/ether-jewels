@@ -65,6 +65,10 @@ router.post('/create-order', authOptional, async (req, res, next) => {
     if (!configured()) return res.status(503).json({ message: 'PayPal not configured yet' });
     const { items, couponCode, shippingAddress, contact, idempotencyKey } = req.body || {};
     const { addr, email } = validateContactAddress(shippingAddress, contact);
+    const { requireVerifiedCheckout } = require('../verify');
+    const orderPhone = (addr.phone && String(addr.phone)) || (contact && contact.phone) || '';
+    if (!String(orderPhone).trim()) return res.status(400).json({ message: 'Contact phone required' });
+    requireVerifiedCheckout(req, email, orderPhone);
     const key = typeof idempotencyKey === 'string' ? idempotencyKey.trim().slice(0, 100) : '';
     const ownerFilter = req.user ? { user: req.user._id } : { user: null, 'contact.email': email };
     let order = null;

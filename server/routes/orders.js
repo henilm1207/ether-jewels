@@ -23,6 +23,11 @@ router.post('/', authOptional, async (req, res, next) => {
   try {
     const { items, couponCode, shippingAddress, orderNote, contact, payment } = req.body;
     const { addr, email } = validateContactAddress(shippingAddress, contact);
+    // High-value: every order needs a freshly OTP-verified email+phone pair.
+    const { requireVerifiedCheckout } = require('./verify');
+    const orderPhone = (addr.phone && String(addr.phone)) || (contact && contact.phone) || '';
+    if (!String(orderPhone).trim()) return res.status(400).json({ message: 'Contact phone required' });
+    requireVerifiedCheckout(req, email, orderPhone);
 
     const method = payment && payment.method ? String(payment.method) : 'card';
     // High-value: no cash-on-delivery for new orders (history rows keep it).

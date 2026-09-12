@@ -156,6 +156,14 @@ async function onPaymentSuccess(order, txnId) {
   } else {
     await order.save();
   }
+  // Order confirmation mail — fire-and-forget: a mail hiccup must never
+  // fail or delay a paid order (failures log with the order id for retry).
+  try {
+    const { sendOrderConfirmation } = require('./mail');
+    sendOrderConfirmation(order);
+  } catch (e) {
+    console.error(`order mail hook failed for ${order._id}:`, e.message);
+  }
 }
 
 // Mark FAILED and release any consumed coupon (no-op unless consumed).

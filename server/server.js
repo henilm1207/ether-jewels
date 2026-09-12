@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const categoryRoutes = require('./routes/categories');
 const orderRoutes = require('./routes/orders');
 const cartRoutes = require('./routes/cart');
+const verifyRoutes = require('./routes/verify');
 const paymentRoutes = require('./routes/payments');
 const { webhookHandler } = require('./routes/payments/stripe');
 const couponRoutes = require('./routes/coupons');
@@ -81,7 +82,7 @@ const catalogLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
-app.use(['/api/auth/wishlist', '/api/auth/profile', '/api/auth/password', '/api/cart', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/auth/wishlist', '/api/auth/profile', '/api/auth/password', '/api/cart', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 app.use(['/api/products', '/api/categories'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
@@ -90,6 +91,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/verify', verifyRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);

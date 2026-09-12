@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { X, SlidersHorizontal } from 'lucide-react';
 import { apiUrl } from '../config';
 import { METALS } from '../lib/metals';
+import { SUBS } from '../data/catalog';
 import ProductGrid from '../components/product/ProductGrid';
 import RangeSlider from '../components/filters/RangeSlider';
 
@@ -50,7 +51,14 @@ const PRICE_MIN = 600;
 const PRICE_MAX = 3000;
 const PAGE_SIZE = 12;
 
-const emptyFilters = { availability: [], priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [] };
+const emptyFilters = { availability: [], priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [], categories: [] };
+
+// Leaf category key → display name (static SUBS covers every shelf;
+// unknown keys fall back to a prettified key).
+const SUB_NAME_BY_KEY = {};
+Object.values(SUBS).forEach((arr) => arr.forEach((s) => { SUB_NAME_BY_KEY[s.key] = s.name; }));
+const catName = (key) =>
+  SUB_NAME_BY_KEY[key] || String(key || '').split('-').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
 
 function ChevronNext() {
   return (
@@ -133,6 +141,16 @@ export default function Collection() {
     return counts;
   }, [baseProducts]);
 
+  // Category counts from the loaded products (leaf keys, e.g. solitaire-rings).
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    baseProducts.forEach((p) => {
+      if (p.category) counts[p.category] = (counts[p.category] || 0) + 1;
+    });
+    return counts;
+  }, [baseProducts]);
+  const categoryKeys = useMemo(() => Object.keys(categoryCounts).sort((a, b) => catName(a).localeCompare(catName(b))), [categoryCounts]);
+
   const filteredProducts = useMemo(() => {
     let list = [...baseProducts];
     // Availability: empty = all; "out" alone yields none (everything is in stock).
@@ -143,6 +161,8 @@ export default function Collection() {
     if (!Number.isNaN(to)) list = list.filter((p) => p.price <= to);
     if (applied.shapes.length > 0)
       list = list.filter((p) => applied.shapes.some((s) => productShapes(p).includes(s)));
+    if (applied.categories.length > 0)
+      list = list.filter((p) => applied.categories.includes(p.category));
     if (applied.colors.length > 0) {
       list = list.filter((p) =>
         (p.variants || []).some((v) =>
@@ -194,6 +214,9 @@ export default function Collection() {
   }
   applied.shapes.forEach((s) => {
     chips.push({ key: `shape-${s}`, label: s, clear: () => syncClear({ shapes: applied.shapes.filter((x) => x !== s) }) });
+  });
+  applied.categories.forEach((c) => {
+    chips.push({ key: `cat-${c}`, label: catName(c), clear: () => syncClear({ categories: applied.categories.filter((x) => x !== c) }) });
   });
   applied.kts.forEach((k) => {
     chips.push({ key: `kt-${k}`, label: `${k} (all settings offered in 14K & 18K)`, clear: () => syncClear({ kts: applied.kts.filter((x) => x !== k) }) });
@@ -414,6 +437,27 @@ export default function Collection() {
                 <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Sort by</h3>
                 {sortSelect('sort-mobile', true)}
               </div>
+
+              {/* Category — jewellery type facet; hidden when the page holds one */}
+              {categoryKeys.length > 1 && (
+                <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Category</h3>
+                  {categoryKeys.map((c) => (
+                    <label key={c} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
+                      <input
+                        type="checkbox"
+                        checked={draft.categories.includes(c)}
+                        onChange={() => setDraft({ ...draft, categories: toggleList(draft.categories, c) })}
+                        className="accent-black"
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      {catName(c)}
+                      <span style={{ color: 'rgba(34,34,34,.75)', fontSize: '13px' }}>({categoryCounts[c]})</span>
+                    </label>
+                  ))}
+                  <div style={{ height: '16px' }} />
+                </div>
+              )}
 
               <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Availability</h3>

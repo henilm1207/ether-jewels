@@ -140,8 +140,119 @@ export default function Cart() {
     setDone(order);
     clearCart();
     setStripeStep(null);
+    setVToken('');
+    setEmailOk(false);
+    setPhoneOk(false);
     setCheckoutKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   };
+
+  // ---- Contact verification (OTP): token required before any payment ----
+  const [vToken, setVToken] = useState('');
+  const [emailOk, setEmailOk] = useState(false);
+  const [phoneOk, setPhoneOk] = useState(false);
+  const [emailCode, setEmailCode] = useState('');
+  const [phoneCode, setPhoneCode] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  const [phoneSent, setPhoneSent] = useState(false);
+  const [vBusy, setVBusy] = useState('');
+  const [vError, setVError] = useState('');
+  const [cooldown, setCooldown] = useState({ email: 0, whatsapp: 0 });
+
+  const touchContact = (which, value) => {
+    // Editing a contact resets its verification and the checkout token.
+    if (which === 'email') {
+      setEmail(value);
+      setEmailOk(false);
+      setEmailCode('');
+    } else {
+      setPhone(value);
+      setPhoneOk(false);
+      setPhoneCode('');
+    }
+    setVToken('');
+  };
+
+  const sendCode = async (channel) => {
+    const value = channel === 'email' ? email.trim() : phone.trim();
+    if (!value) return setVError(channel === 'email' ? 'Enter your email first' : 'Enter your phone with country code first');
+    setVBusy(channel);
+    setVError('');
+    try {
+      const res = await fetch(apiUrl('/api/verify/request'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Could not send code');
+      if (channel === 'email') setEmailSent(true);
+      else setPhoneSent(true);
+      setCooldown((c) => ({ ...c, [channel]: 30 }));
+    } catch (e) {
+      setVError(e.message);
+    } finally {
+      setVBusy('');
+    }
+  };
+
+  const checkCode = async (channel) => {
+    const value = channel === 'email' ? email.trim() : phone.trim();
+    const code = channel === 'email' ? emailCode.trim() : phoneCode.trim();
+    if (code.length < 4) return setVError('Enter the 6-digit code');
+    setVBusy(`${channel}-check`);
+    setVError('');
+    try {
+      const res = await fetch(apiUrl('/api/verify/check'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, value, code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Verification failed');
+      if (channel === 'email') setEmailOk(true);
+      else setPhoneOk(true);
+    } catch (e) {
+      setVError(e.message);
+    } finally {
+      setVBusy('');
+    }
+  };
+
+  // Resend cooldown ticker.
+  useEffect(() => {
+    if (cooldown.email <= 0 && cooldown.whatsapp <= 0) return;
+    const t = setTimeout(
+      () => setCooldown((c) => ({ email: Math.max(0, c.email - 1), whatsapp: Math.max(0, c.whatsapp - 1) })),
+      1000
+    );
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  // Mint the checkout token once both channels verify.
+  useEffect(() => {
+    if (!emailOk || !phoneOk || vToken) return;
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/verify/token'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), phone: phone.trim() }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (live && res.ok && data.verificationToken) setVToken(data.verificationToken);
+        else if (live) setVError(data.message || 'Could not issue checkout token');
+      } catch {
+        if (live) setVError('Could not issue checkout token');
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailOk, phoneOk]);
+
+  const verifyHeaders = vToken ? { 'X-Verification-Token': vToken } : {};
 
   return (
     <section className="py-10 md:py-14">
@@ -263,8 +374,8 @@ export default function Cart() {
                   {/* Contact + address — required for every order, guest checkout OK */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: '16px' }}>
                     <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name *" aria-label="Full name" className="form-control" autoComplete="name" />
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email *" aria-label="Email" type="email" className="form-control" autoComplete="email" />
-                    <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" aria-label="Phone" type="tel" className="form-control" autoComplete="tel" />
+                    <input value={email} onChange={(e) => touchContact('email', e.target.value)} placeholder="Email *" aria-label="Email" type="email" className="form-control" autoComplete="email" />
+                    <input value={phone} onChange={(e) => touchContact('phone', e.target.value)} placeholder="Phone * (with country code)" aria-label="Phone" type="tel" className="form-control" autoComplete="tel" />
                     <input value={line1} onChange={(e) => setLine1(e.target.value)} placeholder="Street address *" aria-label="Street address" className="form-control sm:col-span-2" autoComplete="street-address" />
                     <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City *" aria-label="City" className="form-control" autoComplete="address-level2" />
                     <div className="grid grid-cols-2 gap-3">
@@ -273,6 +384,60 @@ export default function Cart() {
                     </div>
                   </div>
 
+                  {/* 1 — Verify contact: OTP on email + WhatsApp, token unlocks payment */}
+                  <div className="border border-[#ededed] bg-[#fafafa] rounded" style={{ padding: '16px', marginBottom: '16px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '4px' }}>1 · Verify contact</h3>
+                    <p className="text-[13px] text-gray-500" style={{ marginBottom: '12px' }}>
+                      High-value orders need a verified email and phone before payment unlocks.
+                    </p>
+                    {vError && <p role="alert" className="text-sm text-red-700" style={{ marginBottom: '12px' }}>{vError}</p>}
+                    {vToken ? (
+                      <p role="status" className="text-sm text-green-700 font-medium">✓ Email &amp; phone verified — payment unlocked.</p>
+                    ) : (
+                      <div className="grid" style={{ gap: '12px' }}>
+                        <div>
+                          <div className="flex items-center" style={{ gap: '8px' }}>
+                            <span className="text-sm font-medium flex-1">Email {emailOk && <span className="text-green-700">✓</span>}</span>
+                            {!emailOk && (
+                              <button type="button" disabled={vBusy === 'email' || cooldown.email > 0} onClick={() => sendCode('email')} className="underline text-sm disabled:opacity-50">
+                                {vBusy === 'email' ? 'Sending…' : emailSent ? (cooldown.email > 0 ? `Resend (${cooldown.email}s)` : 'Resend code') : 'Send code'}
+                              </button>
+                            )}
+                          </div>
+                          {!emailOk && emailSent && (
+                            <div className="flex items-center" style={{ gap: '8px', marginTop: '8px' }}>
+                              <input value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit code" aria-label="Email code" inputMode="numeric" className="form-control flex-1" style={{ letterSpacing: '4px' }} />
+                              <button type="button" disabled={vBusy === 'email-check'} onClick={() => checkCode('email')} className="btn btn--secondary" style={{ padding: '0 20px' }}>
+                                {vBusy === 'email-check' ? '…' : 'Verify'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center" style={{ gap: '8px' }}>
+                            <span className="text-sm font-medium flex-1">WhatsApp {phoneOk && <span className="text-green-700">✓</span>}</span>
+                            {!phoneOk && (
+                              <button type="button" disabled={vBusy === 'whatsapp' || cooldown.whatsapp > 0} onClick={() => sendCode('whatsapp')} className="underline text-sm disabled:opacity-50">
+                                {vBusy === 'whatsapp' ? 'Sending…' : phoneSent ? (cooldown.whatsapp > 0 ? `Resend (${cooldown.whatsapp}s)` : 'Resend code') : 'Send code'}
+                              </button>
+                            )}
+                          </div>
+                          {!phoneOk && phoneSent && (
+                            <div className="flex items-center" style={{ gap: '8px', marginTop: '8px' }}>
+                              <input value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit code" aria-label="WhatsApp code" inputMode="numeric" className="form-control flex-1" style={{ letterSpacing: '4px' }} />
+                              <button type="button" disabled={vBusy === 'whatsapp-check'} onClick={() => checkCode('whatsapp')} className="btn btn--secondary" style={{ padding: '0 20px' }}>
+                                {vBusy === 'whatsapp-check' ? '…' : 'Verify'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2 — Pay (locked until verified) */}
+                  <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>2 · Pay</h3>
+                  <div style={!vToken ? { opacity: 0.45, pointerEvents: 'none' } : undefined} aria-disabled={!vToken}>
                   {/* Method tabs */}
                   <div className="flex" style={{ gap: '12px', marginBottom: '16px' }} role="group" aria-label="Payment method">
                     {['stripe', 'paypal'].map((m) => (
@@ -305,7 +470,7 @@ export default function Cart() {
                           try {
                             const res = await fetch(apiUrl('/api/payments/stripe/create-intent'), {
                               method: 'POST',
-                              headers: { 'Content-Type': 'application/json', ...authHeaders },
+                              headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
                               body: JSON.stringify(checkoutBody()),
                             });
                             const data = await res.json().catch(() => ({}));
@@ -352,7 +517,7 @@ export default function Cart() {
                           setError('');
                           const res = await fetch(apiUrl('/api/payments/paypal/create-order'), {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', ...authHeaders },
+                            headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
                             body: JSON.stringify(checkoutBody()),
                           });
                           const data = await res.json().catch(() => ({}));
@@ -393,7 +558,7 @@ export default function Cart() {
                         try {
                           const res = await fetch(apiUrl('/api/orders'), {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', ...authHeaders },
+                            headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
                             body: JSON.stringify({ ...checkoutBody(), payment: { method: 'card' } }),
                           });
                           const data = await res.json().catch(() => ({}));
@@ -411,6 +576,7 @@ export default function Cart() {
                     </button>
                   </div>
                   )}
+                  </div>{/* /pay gate — methods + manual all need the OTP token */}
                 </div>
                 )}
               </div>
