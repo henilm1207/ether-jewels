@@ -16,20 +16,24 @@ function stripeClient() {
   return require('stripe')(process.env.STRIPE_SECRET_KEY);
 }
 
-function buildOrderDoc({ userId, orderItems, subtotal, discount, shipping, total, coupon, addr, email, body, method }) {
+function buildOrderDoc({ userId, orderItems, subtotal, discount, shipping, total, coupon, addr, email, billing, body, method }) {
+  const ship = {
+    fullName: String(addr.fullName).trim(),
+    line1: String(addr.line1).trim(),
+    city: String(addr.city).trim(),
+    country: String(addr.country).trim(),
+    zip: String(addr.zip).trim(),
+    phone: addr.phone ? String(addr.phone).slice(0, 30) : undefined,
+  };
+  if (addr.line2) ship.line2 = addr.line2;
+  if (addr.state) ship.state = addr.state;
   return {
     user: userId || null,
     items: orderItems,
     pricing: { subtotal, discount, shipping, tax: 0, total, currency: 'USD' },
     couponCode: coupon ? coupon.code : null,
-    shippingAddress: {
-      fullName: String(addr.fullName).trim(),
-      line1: String(addr.line1).trim(),
-      city: String(addr.city).trim(),
-      country: String(addr.country).trim(),
-      zip: String(addr.zip).trim(),
-      phone: addr.phone ? String(addr.phone).slice(0, 30) : undefined,
-    },
+    shippingAddress: ship,
+    billingAddress: billing && billing.sameAsShipping === false ? billing : { sameAsShipping: true },
     orderNote: typeof body.orderNote === 'string' ? body.orderNote.slice(0, 1000) : '',
     contact: {
       name: body.contact && body.contact.name ? String(body.contact.name).slice(0, 100) : undefined,
@@ -47,8 +51,8 @@ router.post('/create-intent', authOptional, async (req, res, next) => {
   try {
     const stripe = stripeClient();
     if (!stripe) return res.status(503).json({ message: 'Card payments not configured yet' });
-    const { items, couponCode, shippingAddress, contact, idempotencyKey } = req.body || {};
-    const { addr, email } = validateContactAddress(shippingAddress, contact);
+    const { items, couponCode, shippingAddress, billingAddress, contact, idempotencyKey } = req.body || {};
+    const { addr, email, billing } = validateContactAddress(shippingAddress, contact, billingAddress);
     const { requireVerifiedCheckout } = require('../verify');
     const orderPhone = (addr.phone && String(addr.phone)) || (contact && contact.phone) || '';
     if (!String(orderPhone).trim()) return res.status(400).json({ message: 'Contact phone required' });
@@ -68,7 +72,7 @@ router.post('/create-intent', authOptional, async (req, res, next) => {
       subtotal = q.subtotal;
       shipping = q.shipping;
       order = await Order.create({
-        ...buildOrderDoc({ userId: req.user && req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon, addr, email, body: req.body, method: 'stripe' }),
+        ...buildOrderDoc({ userId: req.user && req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon, addr, email, billing, body: req.body, method: 'stripe' }),
         idempotencyKey: key || null,
         expiresAt: new Date(Date.now() + ORDER_TTL_MS),
       });
