@@ -187,9 +187,9 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                         ) : menuGroups.length === 0 ? (
                           <span className="block text-[#222]" style={{ padding: '8px 0', lineHeight: '24px', fontSize: '15px', opacity: 0.6 }}>New collections coming soon</span>
                         ) : (
-                          <div className="mega-menu-columns" style={{ display: 'flex', gap: '36px', overflowX: 'auto' }}>
+                          <div className="mega-menu-columns" style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
                             {menuGroups.map((g) => (
-                              <div key={g.label} style={{ flex: '1 0 150px', minWidth: '150px' }}>
+                              <div key={g.label} style={{ flex: '1 1 140px', minWidth: '140px' }}>
                                 <Link
                                   to={g.to}
                                   className="block uppercase hover:opacity-70 transition-opacity"
