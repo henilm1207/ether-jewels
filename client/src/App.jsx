@@ -51,6 +51,7 @@ function StorefrontLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === '/';
+  const hideFooter = location.pathname === '/account/login' || location.pathname === '/account/register';
 
   useEffect(() => {
     if (cartOpen || mobileNavOpen || searchOpen) {
@@ -76,7 +77,7 @@ function StorefrontLayout() {
         <Outlet />
       </main>
 
-      <Footer />
+      {!hideFooter && <Footer />}
 
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
       <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
