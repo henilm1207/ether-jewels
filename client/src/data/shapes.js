@@ -10,4 +10,5 @@ export const shapes = [
   { name: 'Marquise', image: '/images/shape-marquise.webp', slug: 'marquise' },
   { name: 'Asscher', image: '/images/shape-asscher.webp', slug: 'asscher' },
   { name: 'Heart', image: '/images/shape-heart.png', slug: 'heart' },
+  { name: 'Radiant', image: '/images/shape-radient.jpeg', slug: 'radiant' },
 ];

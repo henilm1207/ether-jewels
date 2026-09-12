@@ -26,6 +26,7 @@ const DIAMOND_SHAPES = [
   'Marquise',
   'Asscher',
   'Heart',
+  'Radiant',
 ];
 
 const DEFAULT_RING_SIZES = [

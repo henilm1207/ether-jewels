@@ -120,10 +120,15 @@ export default function Collection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
+  // A product's shapes = legacy primary + multi list, deduped.
+  const productShapes = (p) => [...new Set([p.shape, ...(p.shapes || [])].filter(Boolean))];
+
   const shapeCounts = useMemo(() => {
     const counts = {};
     baseProducts.forEach((p) => {
-      if (p.shape) counts[p.shape] = (counts[p.shape] || 0) + 1;
+      productShapes(p).forEach((s) => {
+        counts[s] = (counts[s] || 0) + 1;
+      });
     });
     return counts;
   }, [baseProducts]);
@@ -136,7 +141,8 @@ export default function Collection() {
     const to = parseFloat(applied.priceTo);
     if (!Number.isNaN(from)) list = list.filter((p) => p.price >= from);
     if (!Number.isNaN(to)) list = list.filter((p) => p.price <= to);
-    if (applied.shapes.length > 0) list = list.filter((p) => applied.shapes.includes(p.shape));
+    if (applied.shapes.length > 0)
+      list = list.filter((p) => applied.shapes.some((s) => productShapes(p).includes(s)));
     if (applied.colors.length > 0) {
       list = list.filter((p) =>
         (p.variants || []).some((v) =>

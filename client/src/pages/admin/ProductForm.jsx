@@ -7,7 +7,7 @@ import { VARIANTS, SUBS, RING_LEAVES } from '../../data/catalog';
 import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, RING_SIZES, isRingCategory } from '../../components/admin/ui';
 
 const EMPTY = {
-  name: '', slug: '', styleCode: '', shape: '', price: '', kt18Delta: 200,
+  name: '', slug: '', styleCode: '', shape: '', shapes: [], price: '', kt18Delta: 200,
   compareAtPrice: '', description: '', shortDescription: '', category: '',
   images: [], video: '', tags: '', badge: '', status: 'draft',
   inStock: true, stockQty: 10, featured: false, sizes: [], defaultSize: '',
@@ -125,6 +125,9 @@ export default function ProductForm() {
   // Variant (Category) options: STATIC list first (always complete), DB extras
   // (quick-added customs) merged in marked with •. Same for sub-categories.
   // Static and DB share the key scheme, so both UIs always agree.
+  // A leaf is a real shelf: no alias, no shape mapping, no aggregateKeys.
+  const isLeaf = (c) =>
+    !!c && !c.aliasOf && !c.shape && !(c.aggregateKeys && c.aggregateKeys.length);
   const dbByKey = {};
   categories.forEach((c) => { dbByKey[c.key] = c; });
   const variantOptions = [
@@ -228,6 +231,7 @@ export default function ProductForm() {
           tags: (p.tags || []).join(', '),
           badge: p.badge || '',
           shape: p.shape || '',
+          shapes: Array.isArray(p.shapes) && p.shapes.length ? p.shapes : (p.shape ? [p.shape] : []),
           defaultSize: p.defaultSize || '',
           video: p.video || '',
           styleCode: p.styleCode || '',
@@ -261,7 +265,8 @@ export default function ProductForm() {
         name: form.name.trim(),
         slug: form.slug.trim(),
         styleCode: form.styleCode.trim() || undefined,
-        shape: form.shape || null,
+        shape: (form.shapes || [])[0] || null, // primary = first picked (legacy compat)
+        shapes: (form.shapes || []).slice(0, 5),
         price: Number(form.price),
         kt18Delta: Number(form.kt18Delta) || 0,
         compareAtPrice: num(form.compareAtPrice),
@@ -388,11 +393,30 @@ export default function ProductForm() {
                     <button type="button" onClick={() => setQa(null)} className="underline text-sm">Cancel</button>
                   </form>
                 )}
-                <Field label="Diamond shape">
-                  <select value={form.shape} onChange={(e) => set('shape', e.target.value)} className={inputCls} style={inputStyle}>
-                    <option value="">None (band)</option>
-                    {SHAPE_NAMES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                <Field label="Diamond shapes (max 5, first = primary)">
+                  <div className="grid grid-cols-2 gap-1" role="group" aria-label="Diamond shapes">
+                    {SHAPE_NAMES.map((s) => {
+                      const on = (form.shapes || []).includes(s);
+                      const full = !on && (form.shapes || []).length >= 5;
+                      return (
+                        <label key={s} className={`flex items-center gap-2 text-sm ${full ? 'opacity-40' : 'cursor-pointer'}`} style={{ padding: '6px 0' }}>
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={full}
+                            onChange={() => {
+                              const cur = form.shapes || [];
+                              set('shapes', on ? cur.filter((x) => x !== s) : [...cur, s]);
+                            }}
+                            className="accent-black"
+                            style={{ width: '16px', height: '16px' }}
+                          />
+                          {s}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <span className="block text-xs text-gray-400 mt-1">Empty = no shape (bands). Order kept as picked.</span>
                 </Field>
                 <Field label="SKU / Style code">
                   <input value={form.styleCode} onChange={(e) => set('styleCode', e.target.value)} placeholder="MJ72R" className={inputCls} style={inputStyle} />
@@ -473,7 +497,7 @@ export default function ProductForm() {
               <AiCopyButton
                 images={form.images}
                 category={form.category}
-                shape={form.shape}
+                shape={(form.shapes || [])[0] || ''}
                 variants={variants}
                 current={form}
                 onFill={(key, value) => {

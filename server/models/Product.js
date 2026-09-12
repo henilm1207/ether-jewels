@@ -19,7 +19,20 @@ const productSchema = new mongoose.Schema(
     legacySlugs: { type: [String], default: [] },
     // Frontend `style: 'MJ72R'` -> stored as styleCode (SKU)
     styleCode: { type: String, unique: true, sparse: true, trim: true },
-    shape: { type: String, enum: [...DIAMOND_SHAPES, null], default: null },
+    shape: { type: String, enum: [...DIAMOND_SHAPES, null], default: null }, // primary (first of shapes)
+    // All applicable shapes, max 5. First entry should equal `shape`.
+    // Empty allowed (e.g. plain bands). Filters match ANY entry (OR).
+    shapes: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) =>
+          Array.isArray(v) &&
+          v.length <= 5 &&
+          v.every((s) => DIAMOND_SHAPES.includes(s)),
+        message: 'shapes must list at most 5 valid diamond shapes',
+      },
+    },
     // 14KT base price. 18KT = base + kt18Delta (see PDP logic).
     price: { type: Number, required: true, min: 0 },
     kt18Delta: { type: Number, default: 200, min: 0 },
@@ -102,6 +115,7 @@ productSchema.pre('validate', function (next) {
 
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ shape: 1, status: 1 });
+productSchema.index({ shapes: 1, status: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ featured: 1 });
 productSchema.index({ legacySlugs: 1 });

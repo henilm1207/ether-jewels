@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, ChevronRight } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config';
@@ -70,6 +70,7 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
 
   const handleMouseEnter = (label) => {
     clearTimeout(timeoutRef.current);
+    if (label === 'Jewellery') setActiveGroup(0);
     setDropdownOpen(label);
   };
 
@@ -79,6 +80,7 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
 
   const [suggestions, setSuggestions] = useState([]);
   const [menuGroups, setMenuGroups] = useState(null); // null = loading, [] = empty DB
+  const [activeGroup, setActiveGroup] = useState(0); // flyout: which variant's subs show
 
   useEffect(() => {
     let live = true;
@@ -187,30 +189,45 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                         ) : menuGroups.length === 0 ? (
                           <span className="block text-[#222]" style={{ padding: '8px 0', lineHeight: '24px', fontSize: '15px', opacity: 0.6 }}>New collections coming soon</span>
                         ) : (
-                          <div className="mega-menu-columns" style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-                            {menuGroups.map((g) => (
-                              <div key={g.label} style={{ flex: '1 1 140px', minWidth: '140px' }}>
+                          <div style={{ display: 'flex', gap: '40px' }}>
+                            <div style={{ minWidth: '170px' }}>
+                              {menuGroups.map((g, i) => (
+                                <button
+                                  key={g.label}
+                                  type="button"
+                                  onMouseEnter={() => setActiveGroup(i)}
+                                  onFocus={() => setActiveGroup(i)}
+                                  onClick={() => { setDropdownOpen(null); navigate(g.to); }}
+                                  className="flex items-center hover:opacity-70 transition-opacity"
+                                  style={{ padding: '8px 0', lineHeight: '24px', fontSize: '15px', opacity: i === activeGroup ? 1 : 0.55, fontWeight: i === activeGroup ? 500 : 400, background: 'none', border: 'none', cursor: 'pointer', color: '#222', textAlign: 'left', width: '100%' }}
+                                  aria-label={g.label}
+                                >
+                                  <ChevronRight size={14} style={{ marginInlineEnd: '8px', flexShrink: 0, visibility: i === activeGroup ? 'visible' : 'hidden' }} aria-hidden="true" />
+                                  {g.label}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ minWidth: '190px', borderInlineStart: '1px solid #ededed', paddingInlineStart: '28px' }}>
+                              <Link
+                                to={menuGroups[Math.min(activeGroup, menuGroups.length - 1)].to}
+                                className="block uppercase hover:opacity-70 transition-opacity"
+                                style={{ padding: '8px 0 4px', lineHeight: '24px', fontSize: '13px', fontWeight: 500, letterSpacing: '1px' }}
+                                onClick={() => setDropdownOpen(null)}
+                              >
+                                Shop all {menuGroups[Math.min(activeGroup, menuGroups.length - 1)].label}
+                              </Link>
+                              {(menuGroups[Math.min(activeGroup, menuGroups.length - 1)].children || []).map((child) => (
                                 <Link
-                                  to={g.to}
-                                  className="block uppercase hover:opacity-70 transition-opacity"
-                                  style={{ padding: '8px 0 4px', lineHeight: '24px', fontSize: '13px', fontWeight: 500, letterSpacing: '1px', whiteSpace: 'nowrap' }}
+                                  key={child.label}
+                                  to={child.to}
+                                  className="block text-[#222] hover:opacity-70 transition-opacity"
+                                  style={{ padding: '6px 0', lineHeight: '24px', fontSize: '15px' }}
                                   onClick={() => setDropdownOpen(null)}
                                 >
-                                  {g.label}
+                                  {child.label}
                                 </Link>
-                                {(g.children || []).map((child) => (
-                                  <Link
-                                    key={child.label}
-                                    to={child.to}
-                                    className="block text-[#222] hover:opacity-70 transition-opacity"
-                                    style={{ padding: '6px 0', lineHeight: '24px', fontSize: '15px', whiteSpace: 'nowrap' }}
-                                    onClick={() => setDropdownOpen(null)}
-                                  >
-                                    {child.label}
-                                  </Link>
-                                ))}
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )
                       ) : (

@@ -11,7 +11,7 @@ import RangeSlider from '../components/filters/RangeSlider';
 const WINE = '#37181d';
 
 const BAR_SHAPES = ['Round', 'Princess', 'Cushion', 'Oval', 'Pear', 'Emerald'];
-const MORE_SHAPES = ['Marquise', 'Heart'];
+const MORE_SHAPES = ['Marquise', 'Asscher', 'Heart', 'Radiant'];
 const COLORS = ['K', 'J', 'I', 'H', 'G', 'F', 'E', 'D'];
 const CLARITY = ['VS2', 'VS1', 'VVS2', 'VVS1', 'IF', 'FL'];
 const CUTS = ['Very Good', 'Excellent', 'Ideal'];
@@ -89,7 +89,7 @@ function ValueBox({ value, onChange, unit, prefix, ariaLabel, step = 'any', min 
 }
 
 export default function Diamond() {
-  const [advOpen, setAdvOpen] = useState(true);
+  const [advOpen, setAdvOpen] = useState(false);
   const [moreShapes, setMoreShapes] = useState(false);
   const [whiteFancy, setWhiteFancy] = useState('WHITE');
   const [selectedShapes, setSelectedShapes] = useState([]);
@@ -171,7 +171,6 @@ export default function Diamond() {
                           alt=""
                           loading="lazy"
                           className="w-full h-full object-contain"
-                          style={active ? { filter: 'brightness(0) invert(1)' } : undefined}
                         />
                       </span>
                       <span style={{ fontSize: '12px', fontWeight: active ? 700 : 500 }}>{shape.name}</span>

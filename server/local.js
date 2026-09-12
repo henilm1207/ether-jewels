@@ -18,8 +18,9 @@ async function main() {
   process.env.MONGO_URI = uri;
   console.log(`Local MongoDB running at ${uri}`);
 
-  // Now boot the real API server (it connects via process.env.MONGO_URI)
-  require('./server');
+  // Now boot the real API server (it connects via process.env.MONGO_URI).
+  // NOTE: server.js only auto-boots when run directly, so boot explicitly.
+  require('./server').boot();
 
   const stop = async () => {
     try {

@@ -6,7 +6,7 @@ const { authRequired, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 const ALLOWED_STATUSES = ['active', 'draft', 'archived'];
 const PRODUCT_FIELDS = [
-  'name', 'slug', 'legacySlugs', 'styleCode', 'shape', 'price', 'kt18Delta',
+  'name', 'slug', 'legacySlugs', 'styleCode', 'shape', 'shapes', 'price', 'kt18Delta',
   'compareAtPrice', 'description', 'shortDescription', 'category', 'images',
   'video', 'variants', 'tags', 'badge', 'status', 'inStock', 'stockQty',
   'featured', 'sizes', 'defaultSize', 'details', 'seoTitle', 'seoDesc',
@@ -88,19 +88,22 @@ router.get('/', async (req, res, next) => {
       return res.status(403).json({ message: 'Use admin product list for non-active status' });
     }
 
+    // Shape matches ANY listed shape (multi-shape products) or the legacy primary.
+    const shapeOr = (value) => ({ $or: [{ shapes: value }, { shape: value }] });
     if (category) {
       const cat = await resolveCategory(category);
       if (cat?.aggregateKeys?.length) {
         filter.category = { $in: cat.aggregateKeys };
       } else if (cat?.shape) {
-        filter.shape = cat.shape;
+        Object.assign(filter, shapeOr(cat.shape));
       } else if (cat) {
         filter.category = cat.key;
       } else {
         filter.category = String(category);
       }
     }
-    if (shape) filter.shape = String(shape);
+    const andClauses = [];
+    if (shape) andClauses.push(shapeOr(String(shape)));
     if (featured === 'true') filter.featured = true;
     else if (featured === 'false') filter.featured = false;
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -116,11 +119,14 @@ router.get('/', async (req, res, next) => {
     }
     if (metal) {
       const safe = escapeRegExp(String(metal).split(' ')[0]);
-      filter.$or = [
-        { 'variants.material': new RegExp(safe, 'i') },
-        { 'variants.name': new RegExp(safe, 'i') },
-      ];
+      andClauses.push({
+        $or: [
+          { 'variants.material': new RegExp(safe, 'i') },
+          { 'variants.name': new RegExp(safe, 'i') },
+        ],
+      });
     }
+    if (andClauses.length) filter.$and = andClauses;
     if (search) filter.$text = { $search: String(search).slice(0, 100) };
 
     const pgRaw = parseInt(page, 10);

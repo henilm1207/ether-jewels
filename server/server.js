@@ -143,3 +143,4 @@ if (require.main === module) boot();
 
 module.exports = app;
 module.exports.ensureAdmin = ensureAdmin;
+module.exports.boot = boot;
