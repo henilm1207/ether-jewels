@@ -18,6 +18,14 @@ const pick = (obj, keys) => {
 };
 const escapeRegExp = (s) => String(s).slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Anti-copy: public list returns card-only fields. Cost/internal fields
+// (styleCode/SKU, kt18Delta, stockQty, metalWeightGrams/makingCharges,
+// legacySlugs, seoDesc, description, video) stay on the slug detail route
+// (needed for PDP) or admin routes — bulk list scraping yields no SKU,
+// cost breakdown, or SEO copy.
+const PUBLIC_LIST_SELECT =
+  'name slug price compareAtPrice category shape shapes images variants featured badge inStock sizes defaultSize';
+
 // Products must live in a real (leaf) category — aggregates (e.g. `rings`)
 // and aliases match no collection expansion, so such products would be
 // purchasable by direct link yet invisible in every collection page.
@@ -132,13 +140,16 @@ router.get('/', async (req, res, next) => {
     const pgRaw = parseInt(page, 10);
     const limRaw = parseInt(limit, 10);
     const pg = Number.isFinite(pgRaw) ? Math.max(1, pgRaw) : 1;
-    const lim = Number.isFinite(limRaw) ? Math.min(100, Math.max(1, limRaw)) : 50;
+    // Public cap 50/page (admin keeps 100) — slows full-catalog dumps.
+    const lim = Number.isFinite(limRaw) ? Math.min(50, Math.max(1, limRaw)) : 50;
 
     const [items, total] = await Promise.all([
       Product.find(filter)
+        .select(PUBLIC_LIST_SELECT)
         .sort(buildSort(sort))
         .skip((pg - 1) * lim)
-        .limit(lim),
+        .limit(lim)
+        .lean(),
       Product.countDocuments(filter),
     ]);
     res.json({ items, total, page: pg, pages: Math.ceil(total / lim) });

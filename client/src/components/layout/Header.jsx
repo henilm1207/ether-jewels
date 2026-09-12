@@ -4,6 +4,7 @@ import { Search, User, ShoppingBag, Menu, X, ChevronRight } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config';
+import ProtectedImage from '../ui/ProtectedImage';
 
 import { getMenuTree } from '../../lib/categoryTree';
 
@@ -365,7 +366,7 @@ export default function Header({ onCartClick, onMenuClick, onSearchClick, search
                         className="flex items-center gap-3 px-3 py-2.5 hover:bg-[#f7f2ef] transition-colors"
                       >
                         <span className="w-10 h-10 bg-[#f7f2ef] overflow-hidden flex-shrink-0">
-                          <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                          <ProtectedImage src={p.images[0]} alt="" watermark className="w-full h-full object-cover" />
                         </span>
                         <span className="flex-1 min-w-0">
                           <span className="block text-[15px] font-medium truncate">{p.name}</span>

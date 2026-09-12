@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import ProtectedImage from '../ui/ProtectedImage';
 
 export default function ProductCard({ product, priority = false }) {
   const [hovered, setHovered] = useState(false);
@@ -17,18 +18,20 @@ export default function ProductCard({ product, priority = false }) {
     >
       {/* Image — live: transparent bg, square, 1.2s crossfade, 2nd img desktop-only */}
       <div className="relative aspect-square bg-transparent overflow-hidden">
-        <img
+        <ProtectedImage
           src={product.images[0]}
           alt={product.name}
+          watermark
           loading={priority ? 'eager' : 'lazy'}
           fetchPriority={priority ? 'high' : undefined}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-[1200ms] ease-out"
           style={{ opacity: hovered && product.images[1] ? 0 : 1 }}
         />
         {product.images[1] && (
-          <img
+          <ProtectedImage
             src={product.images[1]}
             alt=""
+            watermark
             loading="lazy"
             aria-hidden="true"
             className="absolute inset-0 w-full h-full object-cover transition-opacity duration-[1200ms] ease-out hidden md:block"

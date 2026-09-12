@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /account/
+
+# Keep product/lifestyle imagery out of image-search bulk reuse while
+# leaving page indexing intact (balanced mode).
+User-agent: Googlebot-Image
+Disallow: /images/
+
+Sitemap: /sitemap.xml

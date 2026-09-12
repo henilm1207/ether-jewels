@@ -60,7 +60,7 @@ function StorefrontLayout() {
   }, [cartOpen, mobileNavOpen, searchOpen]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col no-copy">
       <Header
         onCartClick={() => setCartOpen(true)}
         onMenuClick={() => setMobileNavOpen(true)}

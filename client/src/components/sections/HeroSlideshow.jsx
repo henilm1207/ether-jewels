@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
+import ProtectedImage from '../ui/ProtectedImage';
 
 export default function HeroSlideshow() {
   return (
     <section className="relative w-full overflow-hidden hero-slideshow-height" style={{ height: '420px' }}>
       {/* Background Image - full width, no container */}
       <div className="absolute inset-0">
-        <img
+        <ProtectedImage
           src="/images/hero-banner.png"
           alt="EtherStar Jewels - Engagement Rings"
           className="w-full h-full object-cover"

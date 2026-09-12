@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { shapes } from '../../data/shapes';
+import ProtectedImage from '../ui/ProtectedImage';
 
 function Arrow({ dir, onClick, visible, label }) {
   if (!visible) return null;
@@ -71,7 +72,7 @@ export default function ShopByShape() {
               className="shape-item group"
             >
               <div className="shape-image-wrapper">
-                <img
+                <ProtectedImage
                   src={shape.image}
                   alt={shape.name}
                   loading="lazy"

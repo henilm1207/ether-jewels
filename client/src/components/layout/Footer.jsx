@@ -335,6 +335,7 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-5" style={{ marginTop: '20px', marginBottom: '20px' }}>
             <p className="text-sm order-2 md:order-1" style={{ color: '#222' }}>
               © 2026, <Link to="/" className="underline underline-offset-2 hover:opacity-70">EtherStar Jewels</Link>.
+              All images &amp; designs protected — unauthorized copying or reproduction prohibited.
             </p>
             <div className="order-1 md:order-2 flex md:justify-end items-center">
               <span className="sr-only">Payment methods</span>

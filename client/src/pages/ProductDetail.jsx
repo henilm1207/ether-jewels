@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiUrl } from '../config';
+import ProtectedImage from '../components/ui/ProtectedImage';
 import { useCart } from '../context/CartContext';
 import { Truck, ShieldCheck, Gem } from 'lucide-react';
 
@@ -150,9 +151,10 @@ export default function ProductDetail() {
                 {medias[selectedImage]?.type === 'video' ? (
                   <video src={medias[selectedImage].src} controls className="w-full h-full object-cover" />
                 ) : (
-                  <img
+                  <ProtectedImage
                     src={medias[selectedImage]?.src}
                     alt={product.name}
+                    watermark
                     className="w-full h-full object-cover"
                   />
                 )}
@@ -169,7 +171,7 @@ export default function ProductDetail() {
                       {m.type === 'video' ? (
                         <video src={m.src} controls playsInline className="w-full h-full object-cover" />
                       ) : (
-                        <img src={m.src} alt={i === 0 ? product.name : ''} className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+                        <ProtectedImage src={m.src} alt={i === 0 ? product.name : ''} watermark className="w-full h-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
                       )}
                     </div>
                   </div>
@@ -188,7 +190,7 @@ export default function ProductDetail() {
                     {m.type === 'video' ? (
                       <video src={m.src} muted playsInline preload="metadata" className="w-full h-full object-cover" />
                     ) : (
-                      <img src={m.src} alt="" loading="lazy" className="w-full h-full object-cover" />
+                      <ProtectedImage src={m.src} alt="" watermark loading="lazy" className="w-full h-full object-cover" />
                     )}
                   </button>
                 ))}

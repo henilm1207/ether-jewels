@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { apiUrl } from '../config';
+import ProtectedImage from '../components/ui/ProtectedImage';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart();
@@ -45,7 +46,7 @@ export default function Cart() {
                     className="flex-shrink-0 bg-[#f7f2ef] overflow-hidden"
                     style={{ width: '80px', height: '80px' }}
                   >
-                    <img src={item.product.images?.[0] || '/images/placeholder.webp'} alt={item.product.name} loading="lazy" width={80} height={80} className="w-full h-full object-cover" />
+                    <ProtectedImage src={item.product.images?.[0] || '/images/placeholder.webp'} alt={item.product.name} watermark loading="lazy" width={80} height={80} className="w-full h-full object-cover" />
                   </Link>
                   <div className="flex-1 min-w-0">
                     <Link to={`/products/${item.product.slug}`} className="text-[15px] font-medium hover:opacity-70 block truncate">

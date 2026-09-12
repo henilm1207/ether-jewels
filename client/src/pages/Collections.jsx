@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiUrl } from '../config';
+import ProtectedImage from '../components/ui/ProtectedImage';
 
 // /collections — every collection in one place (Jewellery top link lands here).
 export default function Collections() {
@@ -72,7 +73,7 @@ export default function Collections() {
                 className="group block bg-[#f7f2ef] hover:opacity-90 transition-opacity"
               >
                 {c.image ? (
-                  <img src={c.image} alt={c.name} loading="lazy" className="w-full aspect-[4/3] object-cover" />
+                  <ProtectedImage src={c.image} alt={c.name} watermark loading="lazy" className="w-full aspect-[4/3] object-cover" />
                 ) : (
                   <div className="w-full aspect-[4/3] flex items-center justify-center bg-[#f7f2ef]">
                     <span className="font-heading" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)' }}>{c.name}</span>

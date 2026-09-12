@@ -3,6 +3,7 @@ import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { FREE_SHIPPING_THRESHOLD } from '../../config';
+import ProtectedImage from '../ui/ProtectedImage';
 
 // Live: 350px drawer, $1000 free-shipping goal, 80px thumbs, 38×110 qty.
 export default function CartDrawer({ isOpen, onClose }) {
@@ -100,9 +101,10 @@ export default function CartDrawer({ isOpen, onClose }) {
                     className="flex-shrink-0 bg-[#f7f2ef] overflow-hidden"
                     style={{ width: '80px', height: '80px' }}
                   >
-                    <img
+                    <ProtectedImage
                       src={item.product.images?.[0] || '/images/placeholder.webp'}
                       alt={item.product.name}
+                      watermark
                       className="w-full h-full object-cover"
                       loading="lazy"
                       width={80}

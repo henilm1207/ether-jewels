@@ -30,20 +30,46 @@ function validateEnv() {
 
 const app = express();
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
-app.use(helmet());
 const frontendOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
+
+// Anti-copy headers: CSP allows self + Cloudinary imagery only, tight
+// referrer policy so image URLs leak less context off-site. Helmet hides
+// X-Powered-By (also disabled above) and sets frame/type protections that
+// make naive iframe-cloning harder.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+      mediaSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      connectSrc: ["'self'", ...frontendOrigins],
+      frameAncestors: ["'self'"],
+    },
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors({ origin: frontendOrigins }));
 app.use(express.json({ limit: '50kb' }));
 app.use(mongoSanitize());
 
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+// Anti-scrape: public catalog is the easiest full-dump target
+// (list limit 50 × pages). Tighter per-minute cap slows bulk copying
+// without affecting normal browsing; checkout/auth keep their own limits.
+const catalogLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/products', '/api/categories'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
 app.use('/api/newsletter', newsletterRoutes);
