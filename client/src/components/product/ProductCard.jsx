@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProtectedImage from '../ui/ProtectedImage';
 import FavButton from '../ui/FavButton';
+import ProductQuickView from './QuickView';
 
 export default function ProductCard({ product, priority = false }) {
   const [hovered, setHovered] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
 
   // Live: "From $1,500.00 USD" — always From + thousands separator + 2 decimals + USD
   const fmt = (v) =>
@@ -21,6 +23,7 @@ export default function ProductCard({ product, priority = false }) {
     .join(' · ');
 
   return (
+    <>
     <Link
       to={`/products/${product.slug}`}
       className="group block text-left"
@@ -52,7 +55,7 @@ export default function ProductCard({ product, priority = false }) {
 
         {/* Live: no badges on collection cards */}
 
-        {/* Choose Options — live: always visible mobile, 540ms rise on desktop hover */}
+        {/* Choose Options — opens the quick-view popup (never navigates) */}
         <div
           className="absolute transition-all duration-[540ms] ease-[cubic-bezier(.4,0,.2,1)] opacity-100 translate-y-0 md:opacity-0 md:translate-y-[15px] md:group-hover:opacity-100 md:group-hover:translate-y-0"
           style={{
@@ -62,9 +65,18 @@ export default function ProductCard({ product, priority = false }) {
             width: 'calc(100% - 30px)',
           }}
         >
-          <div className="btn btn--white product-card-choose w-full text-center" style={{ padding: '0 15px', height: '46px' }}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setQuickOpen(true);
+            }}
+            className="btn btn--white product-card-choose w-full text-center cursor-pointer"
+            style={{ padding: '0 15px', height: '46px' }}
+          >
             <span className="product-card-choose__text">Choose options</span>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -99,5 +111,9 @@ export default function ProductCard({ product, priority = false }) {
         />
       </div>
     </Link>
+    {quickOpen && (
+      <ProductQuickView slug={product.slug} onClose={() => setQuickOpen(false)} />
+    )}
+    </>
   );
 }
