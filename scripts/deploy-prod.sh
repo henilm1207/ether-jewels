@@ -98,11 +98,26 @@ log "Verifying PM2 state"
 pm2 show "$PM2_APP" | grep -qi 'status.*online'
 
 log "Verifying API locally"
-sleep 5
-curl -fsS "http://localhost:${PORT}/api/health"
+# Cold boots can take a while (Atlas TLS connect, sweeper warm-up), so poll
+# with backoff instead of a single check after a fixed sleep.
+wait_for_url() {
+  local url="$1"
+  local tries="${2:-24}"
+  local i
+  for ((i = 1; i <= tries; i++)); do
+    if curl -fsS "$url" >/dev/null; then
+      log "OK (attempt $i/$tries): $url"
+      return 0
+    fi
+    sleep 5
+  done
+  log "ERROR: still unreachable after $((tries * 5))s: $url"
+  return 1
+}
+wait_for_url "http://localhost:${PORT}/api/health" 24
 
 log "Verifying public site"
-curl -fsS "https://$DOMAIN/api/health"
+wait_for_url "https://$DOMAIN/api/health" 24
 curl -fsS "https://$DOMAIN/" | grep -qi '<!doctype html'
 
 trap - ERR
