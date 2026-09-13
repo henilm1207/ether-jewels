@@ -4,17 +4,9 @@ import { apiUrl, MAX_CART_QTY } from '../config';
 import { metalColor } from '../lib/metals';
 import FavButton from '../components/ui/FavButton';
 import ProtectedImage from '../components/ui/ProtectedImage';
+import ProductReviews from '../components/product/ProductReviews';
 import { useCart } from '../context/CartContext';
 import { Truck, ShieldCheck, Gem } from 'lucide-react';
-
-const testimonials = [
-  { name: 'Rakesh Mehta', location: 'India', text: 'Absolutely stunning craftsmanship. The diamond sparkles beyond expectation and the setting is flawless.' },
-  { name: 'John Miller', location: 'UK', text: 'From selection to delivery, everything was seamless. Certified, beautiful, and exactly as pictured.' },
-  { name: 'Jason', location: 'New York', text: 'She said yes! The ring is perfect — brilliant, elegant, and clearly made with care.' },
-  { name: 'Leo Adams', location: 'California', text: 'Transparent pricing and a certified diamond. I compared everywhere — Etherstar was the best value.' },
-  { name: 'N. Harris', location: 'Texas', text: 'The hidden halo catches light from every angle. Customer service helped me pick the perfect size.' },
-  { name: 'M. Reed', location: 'Seattle', text: 'Insured shipping arrived quickly and safely. The ring looks even better in person.' },
-];
 
 function formatPrice(value) {
   return `$${value.toFixed(2)} USD`;
@@ -536,34 +528,8 @@ export default function ProductDetail() {
         </div>
       </section>
 
-      {/* Reviews (reference PDP) */}
-      <section className="bg-white border-t border-[#ededed] section-padding-lg" style={{ paddingTop: '60px' }}>
-        <div className="container">
-          <div className="section-header">
-            <p className="section__subheading">Reviews</p>
-            <h2 className="font-heading" style={{ fontSize: 'clamp(1.4rem, 3vw, 1.75rem)', letterSpacing: '1px' }}>
-              What Our Clients Say
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {testimonials.map((t) => (
-              <div key={t.name} className="border border-[#ededed] p-6 bg-white">
-                <div className="flex gap-1 mb-3" role="img" aria-label="Rated 5 out of 5 stars">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="#222" aria-hidden="true">
-                      <path d="M12 2l2.94 6.36 6.96.82-5.16 4.73 1.4 6.89L12 17.27 5.86 20.8l1.4-6.89L2.1 9.18l6.96-.82L12 2z" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="text-[14px] text-gray-600 leading-relaxed mb-4">&ldquo;{t.text}&rdquo;</p>
-                <p className="text-[13px] font-medium">
-                  {t.name} <span className="text-gray-400 font-normal">— {t.location}</span>
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Live customer reviews (approved only) + login-gated review form */}
+      <ProductReviews product={product} />
 
       {/* Etherstar Standard closing banner */}
       <section className="bg-[#1A1A1A] text-white" style={{ paddingTop: '96px', paddingBottom: '96px', marginBottom: '80px' }}>
