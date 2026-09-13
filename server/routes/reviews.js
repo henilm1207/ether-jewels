@@ -48,7 +48,7 @@ router.get('/product/:productId', async (req, res, next) => {  try {
   }
 });
 
-router.post('/', reviewWriteLimiter, async (req, res, next) => {
+router.post('/', authRequired, reviewWriteLimiter, async (req, res, next) => {
   try {
     const { product, name, rating, title, text, location } = req.body || {};
     if (!product || !mongoose.Types.ObjectId.isValid(String(product)))
@@ -60,19 +60,28 @@ router.post('/', reviewWriteLimiter, async (req, res, next) => {
     const blob = `${name || ''} ${title || ''} ${text || ''} ${location || ''}`;
     if (/[^\s@]+@[^\s@]+\.[^\s@]+/.test(blob))
       return res.status(400).json({ message: 'Please remove email addresses from your review' });
+    // Login-required: the review belongs to the account, one per product.
+    const displayName =
+      typeof name === 'string' && name.trim()
+        ? name.trim().slice(0, 100)
+        : (req.user.name || `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Customer').slice(0, 100);
     const review = await Review.create({
       product,
-      name: typeof name === 'string' ? name.trim().slice(0, 100) : '',
+      name: displayName,
       rating: r,
       title: typeof title === 'string' ? title.trim().slice(0, 200) : undefined,
       text: typeof text === 'string' ? text.slice(0, 5000) : '',
       location: typeof location === 'string' ? location.trim().slice(0, 100) : undefined,
       status: 'pending',
       verifiedPurchase: false,
-      user: null,
+      user: req.user._id,
     });
     res.status(201).json(review);
   } catch (e) {
+    // One review per account per product (unique product+user index).
+    if (e && e.code === 11000) {
+      return res.status(400).json({ message: 'You have already reviewed this product' });
+    }
     e.status = 400;
     next(e);
   }
