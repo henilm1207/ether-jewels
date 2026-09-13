@@ -5,8 +5,9 @@ import { metalColor } from '../lib/metals';
 import FavButton from '../components/ui/FavButton';
 import ProtectedImage from '../components/ui/ProtectedImage';
 import ProductReviews from '../components/product/ProductReviews';
+import ProductAccordions from '../components/product/ProductAccordions';
 import { useCart } from '../context/CartContext';
-import { Truck, ShieldCheck, Gem } from 'lucide-react';
+import { Truck, ShieldCheck } from 'lucide-react';
 
 function formatPrice(value) {
   return `$${value.toFixed(2)} USD`;
@@ -263,8 +264,8 @@ export default function ProductDetail() {
                 {formatPrice(currentPrice)}
               </p>
 
-              <p className="text-[13px] text-gray-500 uppercase" style={{ letterSpacing: '1px', marginBottom: '24px' }}>
-                Setting Only — Center Diamond Not Included
+              <p className="text-[13px] text-gray-500" style={{ marginBottom: '24px' }}>
+                Tax included.
               </p>
 
               {/* KT Selector — live option buttons 46px, 12px gaps */}
@@ -359,16 +360,6 @@ export default function ProductDetail() {
                 </div>
               )}
 
-              {/* Choose your diamond */}
-              <Link
-                to="/pages/diamond"
-                className="btn btn--secondary w-full"
-                style={{ marginBottom: '24px' }}
-              >
-                <Gem size={15} strokeWidth={1.5} className="mr-2" />
-                Choose your diamond
-              </Link>
-
               {/* Quantity */}
               <div style={{ marginBottom: '24px' }}>
                 <p className="text-[15px]" style={{ lineHeight: '24px', marginBottom: '12px' }}>
@@ -429,102 +420,10 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* Description */}
-              {product.description && (
-                <p className="text-gray-600 leading-relaxed text-[15px]" style={{ marginBottom: '24px' }}>
-                  {product.description}
-                </p>
-              )}
-
-              {/* Price Note + Details table */}
-              <div className="border-t border-[#ededed]" style={{ paddingTop: '24px' }}>
-                <p className="text-[13px] text-gray-500 leading-relaxed" style={{ marginBottom: '16px' }}>
-                  Price Note: Setting price shown. Final price depends on your selected diamond, KT and color.
-                </p>
-                <table className="w-full text-[15px]">
-                  <tbody>
-                    {product.styleCode && (
-                      <tr className="border-b border-[#ededed]">
-                        <td className="py-3 pr-4 text-gray-500 w-1/2">Style</td>
-                        <td className="py-3 font-medium">{product.styleCode}</td>
-                      </tr>
-                    )}
-                    {(product.diamondColors || []).length > 0 && (
-                      <tr className="border-b border-[#ededed]">
-                        <td className="py-3 pr-4 text-gray-500">Diamond Color</td>
-                        <td className="py-3 font-medium">{product.diamondColors.join(', ')}</td>
-                      </tr>
-                    )}
-                    {(product.clarity || []).length > 0 && (
-                      <tr className="border-b border-[#ededed]">
-                        <td className="py-3 pr-4 text-gray-500">Clarity</td>
-                        <td className="py-3 font-medium">{product.clarity.join(', ')}</td>
-                      </tr>
-                    )}
-                    <tr className="border-b border-[#ededed]">
-                      <td className="py-3 pr-4 text-gray-500">Certified Side Stone</td>
-                      <td className="py-3 font-medium">{product.details?.sideStoneCertified ? 'Yes' : 'No'}</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 pr-4 text-gray-500">Delivery Period</td>
-                      <td className="py-3 font-medium">
-                        {product.details?.deliveryDays != null && product.details.deliveryDays > 0
-                          ? `Within ${product.details.deliveryDays} Days`
-                          : 'Within 30 Days'}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              {/* Info accordions: description + spec table, bespoke, experts */}
+              <ProductAccordions product={product} />
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Customize CTA (reference PDP) */}
-      <section className="bg-[#f7f2ef]" style={{ marginTop: '48px', paddingTop: '56px', paddingBottom: '56px' }}>
-        <div className="container text-center max-w-2xl mx-auto">
-          <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '1px', lineHeight: 1.3 }}>
-            Design your dream ring, your way
-          </h2>
-          <p className="text-gray-600 mb-6 leading-relaxed text-[15px]">
-            Choose the shape, diamond, and metal — we&apos;ll handcraft and ship it certified, anywhere in the world.
-          </p>
-          <Link to="/pages/diamond" className="btn btn--primary">
-            Customize now
-          </Link>
-        </div>
-      </section>
-
-      {/* Diamond expert advisor (reference PDP) */}
-      <section className="bg-white section-padding-lg mt-8">
-        <div className="container max-w-3xl mx-auto text-center">
-          <p className="section__subheading">Need Help?</p>
-          <h2 className="font-heading mb-4" style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', letterSpacing: '1px' }}>
-            Talk to a Diamond Expert
-          </h2>
-          <p className="text-gray-600 mb-4 leading-relaxed text-[15px]">
-            Buying an engagement ring is a big decision. Our diamond experts are here to help. Get free 1-on-1 advice on:
-          </p>
-          <ul className="text-gray-600 text-[15px] mb-6 space-y-1.5">
-            <li>Choosing the perfect diamond</li>
-            <li>Selecting your setting and metal</li>
-            <li>Custom design ideas</li>
-          </ul>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-[14px]">
-            <a
-              href="https://wa.me/919725756046"
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn--primary"
-            >
-              WhatsApp: +91 9725756046
-            </a>
-            <a href="mailto:etherstarjewels@gmail.com" className="btn btn--secondary">
-              Email: etherstarjewels@gmail.com
-            </a>
-          </div>
-          <p className="text-[13px] text-gray-500 mt-4">We reply within 24 hours. WhatsApp is fastest.</p>
         </div>
       </section>
 

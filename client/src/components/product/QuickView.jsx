@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiUrl } from '../../config';
@@ -10,6 +11,10 @@ import ProtectedImage from '../ui/ProtectedImage';
 // variant photos and grades are complete — the list payload stays lean.
 // CTAs both continue into the funnel on the full details page;
 // ring sizes stay on PDP/cart (server requires them only at checkout).
+//
+// Rendered via portal to document.body: card/grid ancestors use transforms
+// (hover rise, fade-up), which would trap a fixed overlay to the products
+// area — the portal keeps the dim full-viewport (header to footer).
 export default function ProductQuickView({ slug, onClose }) {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +87,7 @@ export default function ProductQuickView({ slug, onClose }) {
     .filter(Boolean)
     .join(' · ');
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -91,8 +96,8 @@ export default function ProductQuickView({ slug, onClose }) {
       style={{ paddingTop: '40px' }}
     >
       <div
-        className="absolute inset-0"
-        style={{ background: 'rgba(68,68,68,0.64)' }}
+        className="fixed inset-0"
+        style={{ background: 'rgba(0,0,0,0.65)' }}
         onClick={onClose}
       />
       <div
@@ -192,8 +197,8 @@ export default function ProductQuickView({ slug, onClose }) {
                 )}
                 {fmt(price)}
               </p>
-              <p className="text-[13px] text-gray-500 uppercase" style={{ letterSpacing: '1px', marginBottom: '8px' }}>
-                Setting Only — Center Diamond Not Included
+              <p className="text-[13px] text-gray-500" style={{ marginBottom: '8px' }}>
+                Tax included.
               </p>
               {specTxt && (
                 <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>{specTxt}</p>
@@ -258,14 +263,6 @@ export default function ProductQuickView({ slug, onClose }) {
               <Link
                 to={`/products/${product.slug}`}
                 onClick={onClose}
-                className="btn btn--primary w-full text-center"
-                style={{ marginBottom: '16px' }}
-              >
-                Select Your Diamond
-              </Link>
-              <Link
-                to={`/products/${product.slug}`}
-                onClick={onClose}
                 className="inline-block text-[13px] font-medium uppercase underline underline-offset-4"
                 style={{ letterSpacing: '1px' }}
               >
@@ -275,6 +272,7 @@ export default function ProductQuickView({ slug, onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
