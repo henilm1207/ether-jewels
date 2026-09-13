@@ -1,5 +1,4 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const User = require('../models/User');
 const { signToken, authRequired } = require('../middleware/auth');
 
@@ -22,12 +21,8 @@ function publicUser(user) {
     email: user.email,
     phone: user.phone,
     role: user.role,
-    wishlist: Array.isArray(user.wishlist) ? user.wishlist.map(String) : [],
   };
 }
-
-const wishlistIds = (user) =>
-  (Array.isArray(user.wishlist) ? user.wishlist : []).map(String);
 
 router.post('/register', async (req, res, next) => {
   try {
@@ -121,58 +116,13 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', authRequired, async (req, res, next) => {  try {
     const u = req.user;
     if (!u) return sendError(res, 401, 'Invalid or expired token');
-    res.json({
-      ...publicUser(u),
-      wishlist: wishlistIds(u),
-    });
+    res.json(publicUser(u));
   } catch (e) {
     next(e);
   }
 });
 
-// POST /api/auth/wishlist/merge — union guest picks into the account (auth).
-// Body { ids: [productId...] }; capped, validated, existing+active only.
-// NOTE: defined before /wishlist/:productId so "merge" isn't read as an id.
-router.post('/wishlist/merge', authRequired, async (req, res, next) => {
-  try {
-    const raw = Array.isArray((req.body || {}).ids) ? req.body.ids : [];
-    const clean = [...new Set(raw.map(String))].filter(mongoose.isValidObjectId).slice(0, 100);
-    let valid = [];
-    if (clean.length) {
-      const Product = require('../models/Product');
-      const found = await Product.find({ _id: { $in: clean }, status: 'active' }).select('_id');
-      valid = found.map((p) => String(p._id));
-    }
-    const merged = [...new Set([...wishlistIds(req.user), ...valid])];
-    req.user.wishlist = merged;
-    await req.user.save();
-    res.json({ wishlist: merged });
-  } catch (e) {
-    next(e);
-  }
-});
-
-// POST /api/auth/wishlist/:productId — toggle one favorite (auth).
-// Returns the updated wishlist id list.
-router.post('/wishlist/:productId', authRequired, async (req, res, next) => {
-  try {
-    const { productId } = req.params;
-    if (!mongoose.isValidObjectId(productId))
-      return sendError(res, 400, 'Invalid product');
-    const Product = require('../models/Product');
-    const product = await Product.findOne({ _id: productId, status: 'active' }).select('_id');
-    if (!product) return sendError(res, 404, 'Product not found');
-    const ids = wishlistIds(req.user);
-    const nextIds = ids.includes(String(productId))
-      ? ids.filter((w) => w !== String(productId))
-      : [...ids, String(productId)];
-    req.user.wishlist = nextIds;
-    await req.user.save();
-    res.json({ wishlist: nextIds });
-  } catch (e) {
-    next(e);
-  }
-});
+// (Wishlist lives in routes/wishlist.js backed by the Wishlist collection.)
 
 // PUT /api/auth/profile — update name/email/phone (auth).
 // High-value rule: while ANY order is unreceived (pending/confirmed/making/

@@ -12,7 +12,8 @@ const newsletterRoutes = require('./routes/newsletter');
 const authRoutes = require('./routes/auth');
 const categoryRoutes = require('./routes/categories');
 const orderRoutes = require('./routes/orders');
-const cartRoutes = require('./routes/cart');
+const bagRoutes = require('./routes/bag');
+const wishlistRoutes = require('./routes/wishlist');
 const verifyRoutes = require('./routes/verify');
 const paymentRoutes = require('./routes/payments');
 const { webhookHandler } = require('./routes/payments/stripe');
@@ -75,6 +76,11 @@ app.use(mongoSanitize());
 
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+// Bag + wishlist write-heavy pair: the storefront's debounced dual sync
+// (leading + trailing PUTs, moves, hydration) legitimately bursts here, so
+// these get their own bucket instead of sharing the strict one below —
+// otherwise failure retries starve legitimate sync traffic into 429s.
+const bagWishlistLimiter = rateLimit({ windowMs: 60 * 1000, max: 40, standardHeaders: true, legacyHeaders: false });
 // Anti-scrape: public catalog is the easiest full-dump target
 // (list limit 50 × pages). Tighter per-minute cap slows bulk copying
 // without affecting normal browsing; checkout/auth keep their own limits.
@@ -84,7 +90,8 @@ const catalogLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
-app.use(['/api/auth/wishlist', '/api/auth/profile', '/api/auth/password', '/api/cart', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/bag', '/api/wishlist'], bagWishlistLimiter);
+app.use(['/api/auth/profile', '/api/auth/password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 app.use(['/api/products', '/api/categories'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
@@ -92,7 +99,8 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/cart', cartRoutes);
+app.use('/api/bag', bagRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/coupons', couponRoutes);
@@ -134,6 +142,14 @@ app.use((err, _req, res, _next) => {
   }
   if (err && (err.name === 'CastError' || err.name === 'ValidationError')) {
     return res.status(400).json({ message: 'Invalid request data' });
+  }
+  // Write collisions from overlapping requests (concurrent fetch-modify-save
+  // on one Bag/Wishlist doc, or a first-touch upsert race). The storefront
+  // serializes its writes and backs off on 409, so these self-heal instead
+  // of cascading into retry storms.
+  if (err && (err.name === 'VersionError' || err.code === 11000)) {
+    res.set('Retry-After', '1');
+    return res.status(409).json({ message: 'Write conflict — please retry', code: 'WRITE_CONFLICT' });
   }
   if (err && Number.isInteger(err.status) && err.status >= 400 && err.status < 600) {
     const msg = err.status < 500 || process.env.NODE_ENV !== 'production' ? err.message : 'Server error';

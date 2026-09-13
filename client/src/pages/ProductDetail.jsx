@@ -6,7 +6,7 @@ import FavButton from '../components/ui/FavButton';
 import ProtectedImage from '../components/ui/ProtectedImage';
 import ProductReviews from '../components/product/ProductReviews';
 import ProductAccordions from '../components/product/ProductAccordions';
-import { useCart } from '../context/CartContext';
+import { useBag } from '../context/BagContext';
 import { Truck, ShieldCheck } from 'lucide-react';
 
 function formatPrice(value) {
@@ -19,7 +19,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const { addItem } = useCart();
+  const { addItem } = useBag();
 
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [selectedKt, setSelectedKt] = useState('14KT');
