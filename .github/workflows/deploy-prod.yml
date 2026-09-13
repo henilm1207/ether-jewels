@@ -22,6 +22,10 @@ jobs:
           host: ${{ secrets.VPS_SSH_HOST }}
           username: ${{ secrets.VPS_SSH_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          # Generous dial timeout: GitHub runner -> VPS handshake can stall
+          # (one transient i/o timeout seen); the deploy itself is guarded by
+          # the job timeout plus the script's own health-check polling.
+          timeout: 90s
           script: |
             set -e
             cd "${{ secrets.VPS_APP_DIR }}"
