@@ -2,6 +2,10 @@
 export const SHAPE_NAMES = ['Round', 'Princess', 'Cushion', 'Oval', 'Pear', 'Emerald', 'Marquise', 'Asscher', 'Heart', 'Radiant'];
 export const RING_SIZES = ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9'];
 export const RING_CATEGORIES = ['rings', 'solitaire-rings', 'halo-rings', 'engagement-rings', 'three-stone-rings', 'bands'];
+// Diamond color grades D (colorless) to N — mirrors server/config/catalog.js DIAMOND_COLORS.
+export const DIAMOND_COLORS = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
+// Diamond clarity grades IF (best) to I3 — mirrors server/config/catalog.js DIAMOND_CLARITY.
+export const DIAMOND_CLARITY = ['IF', 'VVS1', 'VVS2', 'VS1', 'VS2', 'SI1', 'SI2', 'I1', 'I2', 'I3'];
 export const isRingCategory = (c) => RING_CATEGORIES.includes(c);
 
 export function PageHead({ title, sub, action }) {

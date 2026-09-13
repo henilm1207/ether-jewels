@@ -6,7 +6,7 @@ const { authRequired, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 const ALLOWED_STATUSES = ['active', 'draft', 'archived'];
 const PRODUCT_FIELDS = [
-  'name', 'slug', 'legacySlugs', 'styleCode', 'shape', 'shapes', 'price', 'kt18Delta',
+  'name', 'slug', 'legacySlugs', 'styleCode', 'shape', 'shapes', 'diamondColors', 'clarity', 'price', 'kt18Delta',
   'compareAtPrice', 'description', 'shortDescription', 'category', 'images',
   'video', 'variants', 'tags', 'badge', 'status', 'inStock', 'stockQty',
   'featured', 'sizes', 'defaultSize', 'details', 'seoTitle', 'seoDesc',
@@ -24,7 +24,7 @@ const escapeRegExp = (s) => String(s).slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g
 // (needed for PDP) or admin routes — bulk list scraping yields no SKU,
 // cost breakdown, or SEO copy.
 const PUBLIC_LIST_SELECT =
-  'name slug price compareAtPrice category shape shapes images variants featured badge inStock sizes defaultSize';
+  'name slug price compareAtPrice category shape shapes diamondColors clarity images variants featured badge inStock sizes defaultSize';
 
 // Products must live in a real (leaf) category — aggregates (e.g. `rings`)
 // and aliases match no collection expansion, so such products would be
@@ -73,13 +73,15 @@ async function resolveCategory(key) {
   return null;
 }
 
-// GET /api/products?category=&shape=&metal=&minPrice=&maxPrice=&search=&featured=&sort=&page=&limit=
+// GET /api/products?category=&shape=&metal=&color=&clarity=&minPrice=&maxPrice=&search=&featured=&sort=&page=&limit=
 router.get('/', async (req, res, next) => {
   try {
     const {
       category,
       shape,
       metal,
+      color,
+      clarity,
       minPrice,
       maxPrice,
       search,
@@ -112,6 +114,9 @@ router.get('/', async (req, res, next) => {
     }
     const andClauses = [];
     if (shape) andClauses.push(shapeOr(String(shape)));
+    // Diamond color / clarity match ANY listed grade (multi-grade products).
+    if (color) andClauses.push({ diamondColors: String(color).toUpperCase() });
+    if (clarity) andClauses.push({ clarity: String(clarity).toUpperCase() });
     if (featured === 'true') filter.featured = true;
     else if (featured === 'false') filter.featured = false;
     if (minPrice !== undefined || maxPrice !== undefined) {

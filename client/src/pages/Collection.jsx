@@ -47,11 +47,16 @@ const metalColors = ['Rose Gold', 'White Gold', 'Yellow Gold'].map(
 );
 const metalKts = ['14K', '18K'];
 
+// Diamond grade scales — source of truth is server/config/catalog.js
+// (DIAMOND_COLORS / DIAMOND_CLARITY); admin ui.jsx mirrors them.
+const DIAMOND_COLORS = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
+const DIAMOND_CLARITY = ['IF', 'VVS1', 'VVS2', 'VS1', 'VS2', 'SI1', 'SI2', 'I1', 'I2', 'I3'];
+
 const PRICE_MIN = 600;
 const PRICE_MAX = 3000;
 const PAGE_SIZE = 12;
 
-const emptyFilters = { availability: [], priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [], categories: [] };
+const emptyFilters = { availability: [], priceFrom: '', priceTo: '', shapes: [], kts: [], colors: [], categories: [], diamondColors: [], clarities: [] };
 
 // Leaf category key → display name (static SUBS covers every shelf;
 // unknown keys fall back to a prettified key).
@@ -149,6 +154,26 @@ export default function Collection() {
     });
     return counts;
   }, [baseProducts]);
+
+  // Diamond grade counts (only grades present on loaded products).
+  const diamondColorCounts = useMemo(() => {
+    const counts = {};
+    baseProducts.forEach((p) => {
+      (p.diamondColors || []).forEach((c) => {
+        counts[c] = (counts[c] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [baseProducts]);
+  const clarityCounts = useMemo(() => {
+    const counts = {};
+    baseProducts.forEach((p) => {
+      (p.clarity || []).forEach((c) => {
+        counts[c] = (counts[c] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [baseProducts]);
   const categoryKeys = useMemo(() => Object.keys(categoryCounts).sort((a, b) => catName(a).localeCompare(catName(b))), [categoryCounts]);
 
   const filteredProducts = useMemo(() => {
@@ -161,6 +186,10 @@ export default function Collection() {
     if (!Number.isNaN(to)) list = list.filter((p) => p.price <= to);
     if (applied.shapes.length > 0)
       list = list.filter((p) => applied.shapes.some((s) => productShapes(p).includes(s)));
+    if (applied.diamondColors.length > 0)
+      list = list.filter((p) => applied.diamondColors.some((c) => (p.diamondColors || []).includes(c)));
+    if (applied.clarities.length > 0)
+      list = list.filter((p) => applied.clarities.some((c) => (p.clarity || []).includes(c)));
     if (applied.categories.length > 0)
       list = list.filter((p) => applied.categories.includes(p.category));
     if (applied.colors.length > 0) {
@@ -223,6 +252,12 @@ export default function Collection() {
   });
   applied.colors.forEach((c) => {
     chips.push({ key: `color-${c}`, label: c, clear: () => syncClear({ colors: applied.colors.filter((x) => x !== c) }) });
+  });
+  applied.diamondColors.forEach((c) => {
+    chips.push({ key: `dcolor-${c}`, label: `Color ${c}`, clear: () => syncClear({ diamondColors: applied.diamondColors.filter((x) => x !== c) }) });
+  });
+  applied.clarities.forEach((c) => {
+    chips.push({ key: `clarity-${c}`, label: c, clear: () => syncClear({ clarities: applied.clarities.filter((x) => x !== c) }) });
   });
   const hasActiveFilters = chips.length > 0;
 
@@ -504,8 +539,7 @@ export default function Collection() {
               </div>
 
               <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Diamond Shape</h3>
-                {Object.keys(shapeCounts).sort().map((s) => (
+                <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Diamond Shape</h3>                {Object.keys(shapeCounts).sort().map((s) => (
                   <label key={s} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
                     <input
                       type="checkbox"
@@ -520,6 +554,47 @@ export default function Collection() {
                 ))}
                 <div style={{ height: '16px' }} />
               </div>
+
+              {/* Diamond Color + Clarity — only grades present on loaded products */}
+              {DIAMOND_COLORS.some((c) => diamondColorCounts[c]) && (
+                <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Diamond Color</h3>
+                  {DIAMOND_COLORS.filter((c) => diamondColorCounts[c]).map((c) => (
+                    <label key={c} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
+                      <input
+                        type="checkbox"
+                        checked={draft.diamondColors.includes(c)}
+                        onChange={() => setDraft({ ...draft, diamondColors: toggleList(draft.diamondColors, c) })}
+                        className="accent-black"
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      {c}
+                      <span style={{ color: 'rgba(34,34,34,.75)', fontSize: '13px' }}>({diamondColorCounts[c]})</span>
+                    </label>
+                  ))}
+                  <div style={{ height: '16px' }} />
+                </div>
+              )}
+
+              {DIAMOND_CLARITY.some((c) => clarityCounts[c]) && (
+                <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Clarity</h3>
+                  {DIAMOND_CLARITY.filter((c) => clarityCounts[c]).map((c) => (
+                    <label key={c} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
+                      <input
+                        type="checkbox"
+                        checked={draft.clarities.includes(c)}
+                        onChange={() => setDraft({ ...draft, clarities: toggleList(draft.clarities, c) })}
+                        className="accent-black"
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      {c}
+                      <span style={{ color: 'rgba(34,34,34,.75)', fontSize: '13px' }}>({clarityCounts[c]})</span>
+                    </label>
+                  ))}
+                  <div style={{ height: '16px' }} />
+                </div>
+              )}
 
               <div style={{ marginTop: '16px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Metal</h3>

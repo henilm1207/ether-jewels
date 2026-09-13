@@ -29,6 +29,37 @@ const DIAMOND_SHAPES = [
   'Radiant',
 ];
 
+// Diamond color grades, best (D, colorless) to N (lightly tinted).
+// Stored per product as diamondColors[] (multi-select, like shapes[]).
+const DIAMOND_COLORS = [
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+  'K',
+  'L',
+  'M',
+  'N',
+];
+
+// Diamond clarity grades, best (IF) to worst (I3).
+// Stored per product as clarity[] (multi-select, like shapes[]).
+const DIAMOND_CLARITY = [
+  'IF',
+  'VVS1',
+  'VVS2',
+  'VS1',
+  'VS2',
+  'SI1',
+  'SI2',
+  'I1',
+  'I2',
+  'I3',
+];
+
 const DEFAULT_RING_SIZES = [
   '4',
   '4.5',
@@ -51,6 +82,8 @@ function isRingCategory(category) {
 module.exports = {
   RING_CATEGORIES,
   DIAMOND_SHAPES,
+  DIAMOND_COLORS,
+  DIAMOND_CLARITY,
   DEFAULT_RING_SIZES,
   isRingCategory,
 };
