@@ -84,7 +84,9 @@ router.put('/', authRequired, async (req, res, next) => {
   }
 });
 
-// POST /api/cart/merge — union guest lines in (qty sums, capped). Once per login.
+// POST /api/cart/merge — union guest lines in (guest qty wins per key, new
+// keys added). Idempotent: resending already-synced lines leaves qty unchanged
+// (1 stays 1 across logout/login), so logout -> login never doubles.
 router.post('/merge', authRequired, async (req, res, next) => {
   try {
     const incoming = await cleanLines((req.body || {}).items);
@@ -92,7 +94,9 @@ router.post('/merge', authRequired, async (req, res, next) => {
     for (const l of incoming) {
       const cur = byKey.get(l.key);
       if (cur) {
-        cur.qty = cleanQty(cur.qty + l.qty);
+        // Guest wins: same key replaces qty (idempotent). Logout -> add 2 as
+        // guest -> login stays 2 instead of summing to 4.
+        cur.qty = cleanQty(l.qty);
       } else if (byKey.size < MAX_LINES) {
         byKey.set(l.key, l);
       }
