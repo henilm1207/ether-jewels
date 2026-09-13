@@ -1,0 +1,6 @@
+# Keep deploy script + workflows LF-only so bash/YAML work on the Linux VPS
+# even when contributors commit from Windows (core.autocrlf=true).
+.gitattributes text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

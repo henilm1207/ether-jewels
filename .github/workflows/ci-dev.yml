@@ -1,0 +1,37 @@
+name: CI dev
+
+# Guardrail: runs on dev pushes and PRs to main/dev. Lint + build only,
+# never deploys. Keep this green before merging dev -> main.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --no-audit --no-fund --prefix server
+          npm ci --no-audit --no-fund --prefix client
+
+      - name: Lint client
+        run: npm run lint --prefix client
+
+      - name: Build client
+        run: npm run build --prefix client
