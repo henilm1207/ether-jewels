@@ -32,7 +32,9 @@ ether-jewels/
 │       │                      #   NewArrivals, GoldComparison, …)
 │       │   ├── filters/       # RangeSlider
 │       │   └── ui/            # NewsletterPopup, CookieConsent
-│       ├── context/CartContext.jsx   # Cart state (localStorage persisted)
+│       ├── context/BagContext.jsx     # Bag state (localStorage + /api/bag sync,
+│       │                                #   guest merge sums, save-for-later)
+│       ├── context/WishlistContext.jsx  # Favourites (localStorage + /api/wishlist)
 │       ├── data/products.js         # Static catalog fallback: products,
 │       │                            #   shapes, categories + helpers
 │       │                            #   (resolveCategory, findProduct, productsForCategory)
@@ -48,9 +50,12 @@ ether-jewels/
 │   │   └── catalog.js         # Shared rules: RING_CATEGORIES, shapes,
 │   │                          #   DEFAULT_RING_SIZES, isRingCategory()
 │   ├── models/                # User, Product, Category, Order, Coupon,
-│   │                          #   Review, Inquiry, Subscriber
+│   │                          #   Review, Inquiry, Subscriber, Bag, Wishlist
 │   ├── routes/                # auth, products, categories, orders, coupons,
-│   │                          #   reviews, inquiries, newsletter, dbViewer
+│   │                          #   reviews, inquiries, newsletter, dbViewer,
+│   │                          #   bag, wishlist
+│   ├── scripts/               # ensure-catalog, migrate-bag-wishlist
+│   │                          #   (embedded User.cart/wishlist -> collections)
 │   └── middleware/auth.js     # signToken, authOptional/Required, requireAdmin
 ├── .env / .env.example        # Root sample env (see server/.env for real values)
 └── package.json               # Root scripts (concurrently runs both apps)
@@ -113,7 +118,15 @@ Base `http://localhost:5001`. Auth: `Authorization: Bearer <JWT>` (register/logi
 | ------------- | ---- | ---- |
 | `GET /api/health` | – | `{"status":"ok"}` |
 | `POST /api/auth/register`, `POST /api/auth/login` | – | Create session → `{token, user}` |
-| `GET /api/auth/me` | user | Own profile + wishlist |
+| `GET /api/auth/me` | user | Own profile |
+| `GET /api/bag` | user | Bag + saved-for-later (populated; pruned counts reported) |
+| `PUT /api/bag` | user | Replace bag `{items}` → `{items, saved, dropped, droppedAll}` |
+| `PATCH /api/bag/lines` | user | Set one line qty `{key, qty}` (≤0 removes) |
+| `POST /api/bag/save-for-later`, `POST /api/bag/move-to-bag` | user | Shelf moves by `{key}` |
+| `DELETE /api/bag/saved` | user | Remove one shelf line `{key}` |
+| `GET /api/wishlist`, `POST /api/wishlist`, `DELETE /api/wishlist/:productId` | user | Favourites (populated) |
+| `POST /api/wishlist/merge` | user | Union guest fav ids |
+| `POST /api/wishlist/move-to-bag` | user | Favourite → bag line |
 | `GET /api/products?category=&shape=&metal=&minPrice=&maxPrice=&search=&featured=&sort=&page=&limit=` | – | Filtered list `{items,total,page,pages}` |
 | `GET /api/products/:slug` | – | One product (also matches `legacySlugs`) |
 | `POST/PUT /api/products`, `DELETE /api/products/:id` (→ archive) | admin | Catalog CRUD (forces `USD`) |
@@ -134,7 +147,7 @@ Routes (`App.jsx`): `/` Home · `/collections/:category` · `/products/:slug` ·
 `/pages/contact|about-us|faqs|return-policy|shipping-and-deliveries` ·
 `/policies/terms-of-service|privacy-policy`.
 
-Flow: Home sections → Collection (filters, sort, 2-col mobile / 3-col desktop grid, 50/page `?page=` pagination) → Product card (`From $1,500.00 USD`, hover 2nd image desktop, Choose options overlay, no badges) → PDP (KT 14/18 selector, metal swatches, ring size, qty → cart) → Cart (localStorage via `CartContext`, survives reload) → checkout creates `POST /api/orders` (guest or logged-in) → reviews/contact/newsletter feed their collections.
+Flow: Home sections → Collection (filters, sort, 2-col mobile / 3-col desktop grid, 50/page `?page=` pagination) → Product card (`From $1,500.00 USD`, hover 2nd image desktop, Choose options overlay, no badges) → PDP (KT 14/18 selector, metal swatches, ring size, qty → bag) → Bag (`BagContext`: localStorage guest bag + `/api/bag` account sync, login merge sums quantities, save-for-later shelf, moves to/from wishlist) → checkout creates `POST /api/orders` (guest or logged-in) → reviews/contact/newsletter feed their collections.
 
 Conventions: section air lives in container `pt-/pb-` pairs (mobile + `lg:`) with a `live:` comment recording reference values; footer bg `#ece7e3`; headings New York serif, links 15px `#222`.
 

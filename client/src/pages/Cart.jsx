@@ -4,7 +4,7 @@ import { ShoppingBag } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-import { useCart } from '../context/CartContext';
+import { useBag } from '../context/BagContext';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config';
 import ProtectedImage from '../components/ui/ProtectedImage';
@@ -72,7 +72,7 @@ function StripeCardInner({ email, orderId, onPaid, onError }) {
 }
 
 export default function Cart() {
-  const { items, removeItem, updateQuantity, subtotal, clearCart, limitExceeded } = useCart();
+  const { items, hydrating, removeItem, updateQuantity, subtotal, clearBag, limitExceeded } = useBag();
   const { token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -228,7 +228,7 @@ export default function Cart() {
 
   const onPaid = (order) => {
     setDone(order);
-    clearCart();
+    clearBag();
     setAppliedCode('');
     setCouponInfo(null);
     setCouponError('');
@@ -419,10 +419,16 @@ export default function Cart() {
         {items.length === 0 ? (
           <div className="text-center">
             <ShoppingBag size={48} className="text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-[15px]" style={{ marginBottom: '24px' }}>Your cart is empty</p>
-            <Link to="/collections/rings" className="btn btn--primary">
-              Continue Shopping
-            </Link>
+            {hydrating ? (
+              <p className="text-gray-500 text-[15px]" style={{ marginBottom: '24px' }} role="status">Loading your cart…</p>
+            ) : (
+              <>
+                <p className="text-gray-500 text-[15px]" style={{ marginBottom: '24px' }}>Your cart is empty</p>
+                <Link to="/collections/rings" className="btn btn--primary">
+                  Continue Shopping
+                </Link>
+              </>
+            )}
           </div>
         ) : (
           <>

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { X, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCart } from '../../context/CartContext';
+import { useBag } from '../../context/BagContext';
 import { FREE_SHIPPING_THRESHOLD } from '../../config';
 import ProtectedImage from '../ui/ProtectedImage';
 import QtyStepper from '../cart/QtyStepper';
 
 // Live: 350px drawer, $1000 free-shipping goal, 80px thumbs, 38×110 qty.
 export default function CartDrawer({ isOpen, onClose }) {
-  const { items, removeItem, updateQuantity, subtotal, totalItems, limitExceeded } = useCart();
+  const { items, hydrating, removeItem, updateQuantity, subtotal, totalItems, limitExceeded } = useBag();
   const navigate = useNavigate();
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -92,15 +92,21 @@ export default function CartDrawer({ isOpen, onClose }) {
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center" style={{ maxWidth: '300px', margin: '0 auto' }}>
               <ShoppingBag size={48} className="text-gray-300" style={{ marginBottom: '12px' }} />
-              <p className="text-[15px] text-gray-500" style={{ marginTop: '30px', marginBottom: '20px' }}>Your cart is empty</p>
-              <Link
-                to="/collections/rings"
-                onClick={onClose}
-                className="btn btn--primary w-full"
-                style={{ marginBottom: '12px' }}
-              >
-                Continue Shopping
-              </Link>
+              {hydrating ? (
+                <p className="text-[15px] text-gray-500" role="status" style={{ marginTop: '30px', marginBottom: '20px' }}>Loading your cart…</p>
+              ) : (
+                <>
+                  <p className="text-[15px] text-gray-500" style={{ marginTop: '30px', marginBottom: '20px' }}>Your cart is empty</p>
+                  <Link
+                    to="/collections/rings"
+                    onClick={onClose}
+                    className="btn btn--primary w-full"
+                    style={{ marginBottom: '12px' }}
+                  >
+                    Continue Shopping
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             <div>
@@ -139,7 +145,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                       ${(Number(item.variant?.price ?? item.product.price) || 0).toFixed(2)}
                     </p>
 
-                    <div className="flex items-center">
+                    <div className="flex items-center flex-wrap">
                       <QtyStepper value={item.quantity} onCommit={(n) => commitQty(item, n)} />
                       <button
                         onClick={() => removeItem(item.key)}
@@ -214,14 +220,6 @@ export default function CartDrawer({ isOpen, onClose }) {
                 {limitExceeded ? 'Contact seller' : 'Check out'}
               </button>
             </div>
-            <Link
-              to="/cart"
-              onClick={onClose}
-              className="block w-full text-center text-[13px] font-medium uppercase tracking-wider hover:opacity-70"
-              style={{ marginTop: '12px', padding: '0 29px', lineHeight: '30px' }}
-            >
-              View cart
-            </Link>
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@
     "local": "node local.js",
     "seed": "node seed.js",
     "ensure-catalog": "node scripts/ensure-catalog.js",
+    "migrate-bag-wishlist": "node scripts/migrate-bag-wishlist.js",
     "start": "node server.js"
   },
   "dependencies": {

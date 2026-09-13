@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, User, ShoppingBag, Menu, X, ChevronRight, Heart } from 'lucide-react';
-import { useCart } from '../../context/CartContext';
+import { useBag } from '../../context/BagContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config';
@@ -24,7 +24,7 @@ const navItems = [
 const ANNOUNCEMENT_TEXT = import.meta.env.VITE_ANNOUNCEMENT_TEXT || '';
 
 export default function Header({ onCartClick, onMenuClick, onSearchClick, searchOpen }) {
-  const { totalItems } = useCart();
+  const { totalItems } = useBag();
   const { count: favCount } = useWishlist();
   const { user, logout } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
