@@ -16,6 +16,8 @@ async function sendMail({ to, subject, html }) {
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
+    // Logged server-side only (pm2 logs) — the public error stays generic.
+    console.error(`resend send failed (${res.status}): ${txt.slice(0, 300)}`);
     throw Object.assign(new Error(`Email send failed (${res.status})`), { status: 502, detail: txt.slice(0, 200) });
   }
   return res.json();
