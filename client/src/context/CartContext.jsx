@@ -4,6 +4,8 @@ import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 const STORAGE_KEY = 'etherstar-cart';
+const GUEST_KEY = 'etherstar-cart-guest';
+const syncedKeyFor = (userId) => `etherstar-cart-synced-${userId || 'anon'}`;
 
 export const useCart = () => {
   const ctx = useContext(CartContext);
@@ -51,6 +53,49 @@ function persist(items) {
   }
 }
 
+function readGuest() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(GUEST_KEY));
+    if (!Array.isArray(raw)) return [];
+    return raw.map(sanitizeItem).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function persistGuest(items) {
+  try {
+    localStorage.setItem(GUEST_KEY, JSON.stringify(items));
+  } catch {
+    // private mode — guest cart stays in memory
+  }
+}
+
+function clearGuest() {
+  try {
+    localStorage.removeItem(GUEST_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function readSynced(userId) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(syncedKeyFor(userId)));
+    return Array.isArray(raw) ? raw.map(sanitizeItem).filter(Boolean) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistSynced(userId, items) {
+  try {
+    localStorage.setItem(syncedKeyFor(userId), JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
+
 // Server line shape (account cart). Snapshots stay light — checkout
 // re-prices everything, so stored prices can't leak through.
 const toServerLine = (it) => ({
@@ -78,50 +123,93 @@ const fromServerLine = (l) =>
     quantity: l.qty,
   });
 
-// Cart follows the account: guests persist in localStorage, members sync to
-// the server. Guest lines merge once at login; logout keeps the last state
-// locally so nothing vanishes.
+// Cart follows the account: logout clears display to 0, guests persist in
+// localStorage (survives reload), members sync to the server. Login restores
+// server truth; guest lines win per key (1 stays 1, never doubles).
 export const CartProvider = ({ children }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const userId = user?._id || user?.id || null;
   const [items, setItems] = useState(readStored);
-  const mergedForToken = useRef(null);
+  const mergedForUser = useRef(null);
   const syncingRef = useRef(false);
   const hydratedToken = useRef(null);
   const lastSyncedJson = useRef('');
+  const prevTokenRef = useRef(token);
 
-  // Login: merge guest lines once, then the server is the source of truth.
+  // Logout: clear display to 0. Server cart untouched, synced snapshot kept
+  // for next login. Guest buffer left alone (empty after logged-in use).
+  // Guarded by prev-token transition so reload-as-guest never wipes guest 2.
   useEffect(() => {
-    if (!token) {
-      mergedForToken.current = null;
+    const prev = prevTokenRef.current;
+    prevTokenRef.current = token;
+    if (!token && prev) {
+      mergedForUser.current = null;
       hydratedToken.current = null;
-      return;
+      lastSyncedJson.current = '';
+      setItems([]);
+      persist([]);
+    } else if (!token) {
+      mergedForUser.current = null;
+      hydratedToken.current = null;
     }
-    if (mergedForToken.current === token) return;
-    mergedForToken.current = token;
+  }, [token]);
+
+  // Login: server is truth. Guest buffer (logged-out adds only) wins per key,
+  // new SKUs union. Empty guest -> GET only, so 1 stays 1 across relogin.
+  useEffect(() => {
+    if (!token) return;
+    if (!userId) return; // wait for /me so merge is keyed by stable user id
+    if (mergedForUser.current === userId && hydratedToken.current === token) return;
+    mergedForUser.current = userId;
     let cancelled = false;
     syncingRef.current = true;
     (async () => {
       try {
-        const guest = readStored()
-          .map(toServerLine)
-          .filter((l) => l.product);
-        const res = await fetch(apiUrl('/api/cart/merge'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ items: guest }),
+        if (!lastSyncedJson.current) {
+          const persisted = readSynced(userId);
+          if (persisted) lastSyncedJson.current = JSON.stringify(persisted.map(toServerLine));
+        }
+        const getRes = await fetch(apiUrl('/api/cart'), {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json().catch(() => ({}));
-        if (!cancelled && res.ok && Array.isArray(data.items)) {
-          const mapped = data.items.map(fromServerLine).filter(Boolean);
+        const getData = await getRes.json().catch(() => ({}));
+        if (!getRes.ok || !Array.isArray(getData.items)) throw new Error('cart fetch failed');
+        const serverItems = getData.items.map(fromServerLine).filter(Boolean);
+        const guestItems = readGuest();
+
+        let finalItems = serverItems;
+        if (guestItems.length > 0) {
+          const byKey = new Map(serverItems.map((it) => [it.key, it]));
+          for (const g of guestItems) {
+            if (byKey.has(g.key)) {
+              // Guest wins same key: qty 2 stays 2 (never sums to 4).
+              byKey.set(g.key, { ...byKey.get(g.key), quantity: sanitizeQty(g.quantity) });
+            } else if (byKey.size < 20) {
+              byKey.set(g.key, g);
+            }
+          }
+          finalItems = [...byKey.values()];
+          const putBody = JSON.stringify(finalItems.map(toServerLine).filter((l) => l.product));
+          const putRes = await fetch(apiUrl('/api/cart'), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: putBody,
+          });
+          const putData = await putRes.json().catch(() => ({}));
+          if (!putRes.ok || !Array.isArray(putData.items)) throw new Error('cart sync failed');
+          finalItems = putData.items.map(fromServerLine).filter(Boolean);
+          clearGuest();
+        }
+
+        if (!cancelled) {
           hydratedToken.current = token;
-          lastSyncedJson.current = JSON.stringify(mapped.map(toServerLine));
-          setItems(mapped);
-          persist(mapped);
-        } else if (!cancelled) {
-          mergedForToken.current = null; // retry next mount
+          lastSyncedJson.current = JSON.stringify(finalItems.map(toServerLine));
+          persistSynced(userId, finalItems);
+          setItems(finalItems);
+          persist(finalItems);
         }
       } catch {
-        if (!cancelled) mergedForToken.current = null;
+        if (!cancelled) mergedForUser.current = null; // retry on next mount/token change
       } finally {
         if (!cancelled) syncingRef.current = false;
       }
@@ -129,13 +217,18 @@ export const CartProvider = ({ children }) => {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, userId]);
 
-  // Persist locally always (logout seed + guest mode); push to server when
-  // logged in, debounced, skipping echo of what we just pulled.
+  // Persist display always (guest survives reload via mirrored guest buffer
+  // while logged out); push to server when logged in, debounced, skipping
+  // echo of what we just pulled.
   useEffect(() => {
     persist(items);
-    if (!token || syncingRef.current || hydratedToken.current !== token) return;
+    if (!token) {
+      persistGuest(items);
+      return;
+    }
+    if (!userId || syncingRef.current || hydratedToken.current !== token) return;
     const body = JSON.stringify(items.map(toServerLine).filter((l) => l.product));
     if (body === lastSyncedJson.current) return;
     const t = setTimeout(async () => {
@@ -145,18 +238,23 @@ export const CartProvider = ({ children }) => {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body,
         });
-        if (res.ok) lastSyncedJson.current = body;
+        if (res.ok) {
+          lastSyncedJson.current = body;
+          persistSynced(userId, items);
+        }
       } catch {
         // offline — retry on next change; local copy is intact
       }
     }, 800);
     return () => clearTimeout(t);
-  }, [items, token]);
+  }, [items, token, userId]);
 
-  // Cross-tab sync (guest/local channel)
+  // Cross-tab sync: server is truth when logged in (ignore local echo to
+  // avoid stale PUT clobber); guests converge via storage while logged out.
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key !== STORAGE_KEY) return;
+      if (token) return;
       try {
         const next = JSON.parse(e.newValue);
         if (Array.isArray(next)) {
@@ -169,7 +267,7 @@ export const CartProvider = ({ children }) => {
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [token]);
 
   const cartTotal = (list) => list.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
 
@@ -222,7 +320,10 @@ export const CartProvider = ({ children }) => {
     return true;
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    clearGuest();
+    setItems([]);
+  };
 
   const totalItems = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   const subtotal =
