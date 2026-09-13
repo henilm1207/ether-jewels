@@ -5,10 +5,10 @@ import AiCopyButton from '../../components/admin/AiCopyButton';
 import { clearMenuCache } from '../../lib/categoryTree';
 import { VARIANTS, SUBS, RING_LEAVES } from '../../data/catalog';
 import { METALS, metalColor, DEFAULT_METAL } from '../../lib/metals';
-import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, RING_SIZES, isRingCategory } from '../../components/admin/ui';
+import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, DIAMOND_COLORS, DIAMOND_CLARITY, RING_SIZES, isRingCategory } from '../../components/admin/ui';
 
 const EMPTY = {
-  name: '', slug: '', styleCode: '', shape: '', shapes: [], price: '', kt18Delta: 200,
+  name: '', slug: '', styleCode: '', shape: '', shapes: [], diamondColors: [], clarity: [], price: '', kt18Delta: 200,
   compareAtPrice: '', description: '', shortDescription: '', category: '',
   images: [], video: '', tags: '', badge: '', status: 'draft',
   inStock: true, stockQty: 10, featured: false, sizes: [], defaultSize: '',
@@ -123,6 +123,15 @@ export default function ProductForm() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setImages = (images) => setForm((f) => ({ ...f, images }));
+  // Grade multi-selects (diamond color / clarity): toggle + keep scale order
+  // (best first) so cards can render compact ranges like D–F.
+  const toggleGrade = (key, scale, value) =>
+    setForm((f) => {
+      const cur = f[key] || [];
+      const next = cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value];
+      next.sort((a, b) => scale.indexOf(a) - scale.indexOf(b));
+      return { ...f, [key]: next };
+    });
 
   // Variant (Category) options: STATIC list first (always complete), DB extras
   // (quick-added customs) merged in marked with •. Same for sub-categories.
@@ -234,6 +243,8 @@ export default function ProductForm() {
           badge: p.badge || '',
           shape: p.shape || '',
           shapes: Array.isArray(p.shapes) && p.shapes.length ? p.shapes : (p.shape ? [p.shape] : []),
+          diamondColors: Array.isArray(p.diamondColors) ? p.diamondColors.filter((c) => DIAMOND_COLORS.includes(c)) : [],
+          clarity: Array.isArray(p.clarity) ? p.clarity.filter((c) => DIAMOND_CLARITY.includes(c)) : [],
           defaultSize: p.defaultSize || '',
           video: p.video || '',
           styleCode: p.styleCode || '',
@@ -269,6 +280,8 @@ export default function ProductForm() {
         styleCode: form.styleCode.trim() || undefined,
         shape: (form.shapes || [])[0] || null, // primary = first picked (legacy compat)
         shapes: (form.shapes || []).slice(0, 5),
+        diamondColors: (form.diamondColors || []).filter((c) => DIAMOND_COLORS.includes(c)).slice(0, DIAMOND_COLORS.length),
+        clarity: (form.clarity || []).filter((c) => DIAMOND_CLARITY.includes(c)).slice(0, DIAMOND_CLARITY.length),
         price: Number(form.price),
         kt18Delta: Number(form.kt18Delta) || 0,
         compareAtPrice: num(form.compareAtPrice),
@@ -422,6 +435,46 @@ export default function ProductForm() {
                     })}
                   </div>
                   <span className="block text-xs text-gray-400 mt-1">Empty = no shape (bands). Order kept as picked.</span>
+                </Field>
+                <Field label="Diamond color (D–N)">
+                  <div className="grid grid-cols-4 gap-1" role="group" aria-label="Diamond color grades">
+                    {DIAMOND_COLORS.map((c) => {
+                      const on = (form.diamondColors || []).includes(c);
+                      return (
+                        <label key={c} className="flex items-center gap-2 text-sm cursor-pointer" style={{ padding: '6px 0' }}>
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => toggleGrade('diamondColors', DIAMOND_COLORS, c)}
+                            className="accent-black"
+                            style={{ width: '16px', height: '16px' }}
+                          />
+                          {c}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <span className="block text-xs text-gray-400 mt-1">Empty = no color info. Stored best-first.</span>
+                </Field>
+                <Field label="Diamond clarity (IF–I3)">
+                  <div className="grid grid-cols-2 gap-1" role="group" aria-label="Diamond clarity grades">
+                    {DIAMOND_CLARITY.map((c) => {
+                      const on = (form.clarity || []).includes(c);
+                      return (
+                        <label key={c} className="flex items-center gap-2 text-sm cursor-pointer" style={{ padding: '6px 0' }}>
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => toggleGrade('clarity', DIAMOND_CLARITY, c)}
+                            className="accent-black"
+                            style={{ width: '16px', height: '16px' }}
+                          />
+                          {c}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <span className="block text-xs text-gray-400 mt-1">Empty = no clarity info. Stored best-first.</span>
                 </Field>
                 <Field label="SKU / Style code">
                   <input value={form.styleCode} onChange={(e) => set('styleCode', e.target.value)} placeholder="MJ72R" className={inputCls} style={inputStyle} />

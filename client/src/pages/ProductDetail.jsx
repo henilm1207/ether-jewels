@@ -457,6 +457,18 @@ export default function ProductDetail() {
                         <td className="py-3 font-medium">{product.styleCode}</td>
                       </tr>
                     )}
+                    {(product.diamondColors || []).length > 0 && (
+                      <tr className="border-b border-[#ededed]">
+                        <td className="py-3 pr-4 text-gray-500">Diamond Color</td>
+                        <td className="py-3 font-medium">{product.diamondColors.join(', ')}</td>
+                      </tr>
+                    )}
+                    {(product.clarity || []).length > 0 && (
+                      <tr className="border-b border-[#ededed]">
+                        <td className="py-3 pr-4 text-gray-500">Clarity</td>
+                        <td className="py-3 font-medium">{product.clarity.join(', ')}</td>
+                      </tr>
+                    )}
                     <tr className="border-b border-[#ededed]">
                       <td className="py-3 pr-4 text-gray-500">Certified Side Stone</td>
                       <td className="py-3 font-medium">{product.details?.sideStoneCertified ? 'Yes' : 'No'}</td>

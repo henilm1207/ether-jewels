@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { DIAMOND_SHAPES, isRingCategory } = require('../config/catalog');
+const { DIAMOND_SHAPES, DIAMOND_COLORS, DIAMOND_CLARITY, isRingCategory } = require('../config/catalog');
 
 const variantSchema = new mongoose.Schema(
   {
@@ -35,6 +35,31 @@ const productSchema = new mongoose.Schema(
           v.length <= 5 &&
           v.every((s) => DIAMOND_SHAPES.includes(s)),
         message: 'shapes must list at most 5 valid diamond shapes',
+      },
+    },
+    // Diamond color grades (multi-select, like shapes). Empty allowed
+    // (e.g. plain bands or legacy products) — UI hides empty values.
+    diamondColors: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) =>
+          Array.isArray(v) &&
+          v.length <= DIAMOND_COLORS.length &&
+          v.every((c) => DIAMOND_COLORS.includes(c)),
+        message: 'diamondColors must list valid diamond color grades (D-N)',
+      },
+    },
+    // Diamond clarity grades (multi-select, like shapes). Empty allowed.
+    clarity: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) =>
+          Array.isArray(v) &&
+          v.length <= DIAMOND_CLARITY.length &&
+          v.every((c) => DIAMOND_CLARITY.includes(c)),
+        message: 'clarity must list valid diamond clarity grades (IF-I3)',
       },
     },
     // 14KT base price. 18KT = base + kt18Delta (see PDP logic).
@@ -151,6 +176,8 @@ productSchema.pre('validate', function (next) {
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ shape: 1, status: 1 });
 productSchema.index({ shapes: 1, status: 1 });
+productSchema.index({ diamondColors: 1, status: 1 });
+productSchema.index({ clarity: 1, status: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ featured: 1 });
 productSchema.index({ legacySlugs: 1 });
