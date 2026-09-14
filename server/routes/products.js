@@ -259,8 +259,8 @@ router.delete('/:id', authRequired, requireAdmin, async (req, res, next) => {
   }
 });
 
-// DELETE /:id/permanent — irreversible: removes the product, purges its
-// Cloudinary images, and drops its reviews (no orphaned approved content).
+// DELETE /:id/permanent — irreversible: removes the product, deletes its
+// local /uploads image files, and drops its reviews (no orphaned approved content).
 router.delete('/:id/permanent', authRequired, requireAdmin, async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -268,36 +268,17 @@ router.delete('/:id/permanent', authRequired, requireAdmin, async (req, res, nex
 
     const purged = [];
     const failed = [];
-    let cloudinary = null;
-    const needsCloud = (product.images || []).some(
-      (u) => typeof u === 'string' && u.includes('res.cloudinary.com')
-    );
-    if (needsCloud) {
-      const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
-      if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET) {
-        cloudinary = require('cloudinary').v2;
-        cloudinary.config({
-          cloud_name: CLOUDINARY_CLOUD_NAME,
-          api_key: CLOUDINARY_API_KEY,
-          api_secret: CLOUDINARY_API_SECRET,
-        });
-      }
-    }
+    const { normalizeFilename, deleteLocalFile } = require('../lib/localImages');
     for (const src of product.images || []) {
-      const m = String(src || '').match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
-      const publicId = m && m[1];
-      // Exact allowlist match — a pasted lookalike URL must never delete
-      // an unrelated Cloudinary asset (prefix-only checks allowed that).
-      if (!publicId || !/^ether-jewels\/[A-Za-z0-9/_-]+$/.test(publicId)) continue;
-      if (!cloudinary) {
-        failed.push(publicId);
-        continue;
-      }
+      // Only our local uploads are deleted; external paste-URLs are skipped.
+      // The allowlist shape (YYYY-MM/<uuid>.webp) means a pasted lookalike
+      // URL can never delete an unrelated file.
+      if (!normalizeFilename(String(src || ''))) continue;
       try {
-        await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
-        purged.push(publicId);
+        await deleteLocalFile(String(src));
+        purged.push(String(src));
       } catch {
-        failed.push(publicId);
+        failed.push(String(src));
       }
     }
 

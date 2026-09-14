@@ -32,6 +32,16 @@ Always return JSON only with exactly these keys: name, shortDescription, descrip
 - seoDesc: <=160 chars, click-worthy search snippet.`;
 
 async function fetchImage(url) {
+  // Local uploads (/uploads/...) are read from disk — the admin panel sends
+  // stored product image values verbatim, which are now relative paths.
+  if (typeof url === 'string' && url.startsWith('/uploads/')) {
+    const { resolveLocalPath } = require('../lib/localImages');
+    const abs = resolveLocalPath(url);
+    if (!abs) throw new Error('Unknown image reference');
+    const buf = await require('fs').promises.readFile(abs);
+    if (buf.length > MAX_BYTES) throw new Error('Image exceeds 5MB');
+    return { bytes: buf.toString('base64'), mimeType: 'image/webp' };
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {

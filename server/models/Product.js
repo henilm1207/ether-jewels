@@ -110,10 +110,13 @@ const productSchema = new mongoose.Schema(
 // Validate metal color names loosely (allow future Platinum without breaking)
 const { DEFAULT_RING_SIZES } = require('../config/catalog');
 
-// Media URLs must be plain https? links — no javascript:/data: payloads,
-// no tracking-pixel tricks. Admin-pasted URLs render straight into <img>.
+// Media values are either plain https? links (paste-URL fallback, kept so
+// unmigrated data keeps working) or local uploads (/uploads/YYYY-MM/*.webp).
+// Admin-pasted URLs render straight into <img>.
 const MEDIA_URL_RE = /^https?:\/\/[^\s"'<>\\^`{|}]+$/i;
-const isMediaUrl = (u) => typeof u === 'string' && u.length <= 1000 && MEDIA_URL_RE.test(u);
+const LOCAL_IMG_RE = /^\/uploads\/\d{4}-\d{2}\/[A-Za-z0-9-]+\.webp$/;
+const isMediaUrl = (u) =>
+  typeof u === 'string' && u.length <= 1000 && (MEDIA_URL_RE.test(u) || LOCAL_IMG_RE.test(u));
 productSchema.pre('validate', function (next) {
   if (this.variants && this.variants.length) {
     for (const v of this.variants) {
@@ -135,7 +138,7 @@ productSchema.pre('validate', function (next) {
   // be one of the product's own images (no external swaps at checkout).
   const imgs = Array.isArray(this.images) ? this.images : [];
   for (const u of imgs) {
-    if (!isMediaUrl(u)) return next(new Error('images[] must be valid http(s) URLs'));
+    if (!isMediaUrl(u)) return next(new Error('images[] must be valid http(s) URLs or /uploads/*.webp paths'));
   }
   if (this.video != null && this.video !== '' && !isMediaUrl(this.video)) {
     return next(new Error('video must be a valid http(s) URL'));
