@@ -51,21 +51,23 @@ if [ "$NODE_MAJOR" -lt "$REQUIRED_NODE_MAJOR" ]; then
   log "ERROR: node >= $REQUIRED_NODE_MAJOR required, got $NODE_V"
   exit 1
 fi
-for cmd in npm pm2 mongosh openssl curl; do
+for cmd in npm pm2 mongosh openssl curl git; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     log "ERROR: required command '$cmd' not found. Aborting."
     exit 1
   fi
 done
 
-# Credentials: explicit env wins, otherwise generate once. Record beforehand
-# whether the caller supplied values, so the end-of-run message is accurate.
+# Credentials: explicit env wins, otherwise generate once. Hex passwords are
+# used deliberately — base64 can contain / + = which break MongoDB connection
+# URIs (MongoParseError) and confuse shells. Record beforehand whether the
+# caller supplied values, so the end-of-run message is accurate.
 HAD_GUI_RO_PW="$([ -n "${GUI_RO_PW:-}" ] && echo 1 || echo 0)"
 HAD_DASH_PW="$([ -n "${DASH_PW:-}" ] && echo 1 || echo 0)"
-GUI_RO_PW="${GUI_RO_PW:-$(openssl rand -base64 24 | tr -d '\n')}"
+GUI_RO_PW="${GUI_RO_PW:-$(openssl rand -hex 18)}"
 DASH_USER="${DASH_USER:-dbadmin}"
-DASH_PW="${DASH_PW:-$(openssl rand -base64 24 | tr -d '\n')}"
-SITE_SECRET="${SITE_SECRET:-$(openssl rand -base64 32 | tr -d '\n')}"
+DASH_PW="${DASH_PW:-$(openssl rand -hex 18)}"
+SITE_SECRET="${SITE_SECRET:-$(openssl rand -hex 32)}"
 if [ -z "${GUI_RO_PW:-}" ] || [ -z "${DASH_PW:-}" ] || [ -z "${SITE_SECRET:-}" ]; then
   log "ERROR: credential generation failed (openssl missing?). Aborting."
   exit 1
@@ -96,6 +98,26 @@ if [ ! -f "$ME_ENTRY" ]; then
   exit 1
 fi
 log "mongo-express entry at $ME_ENTRY ($(node -p "require('$ME_HOME/node_modules/mongo-express/package.json').version"))"
+
+# Frontend assets: the published tarball omits the webpack build output
+# (build-assets.json + public/javascripts), without which the app crash-loops
+# at boot. Build once from a shallow source clone and transplant the output.
+ME_PKG="$ME_HOME/node_modules/mongo-express"
+if [ ! -f "$ME_PKG/build-assets.json" ]; then
+  log "Building mongo-express frontend assets (one-time, a few minutes)"
+  rm -rf "$ME_HOME/src-build"
+  git clone --depth 1 https://github.com/mongo-express/mongo-express.git "$ME_HOME/src-build"
+  (cd "$ME_HOME/src-build" && npm i --no-audit --no-fund --legacy-peer-deps --ignore-scripts)
+  # Work around broken ajv hoisting (ajv-keywords needs the ajv v8 API, npm
+  # hoists v6 where it resolves first): nest a fresh ajv@8 underneath it.
+  mkdir -p "$ME_HOME/src-build/node_modules/ajv-keywords/node_modules" /tmp/ajvpack
+  (cd /tmp/ajvpack && rm -f ajv-*.tgz && npm pack ajv@8 >/dev/null 2>&1 && tar -xzf ajv-8.*.tgz && rm -rf "$ME_HOME/src-build/node_modules/ajv-keywords/node_modules/ajv" && mv package "$ME_HOME/src-build/node_modules/ajv-keywords/node_modules/ajv")
+  (cd "$ME_HOME/src-build" && ./node_modules/.bin/cross-env NODE_ENV=production ./node_modules/.bin/webpack)
+  cp "$ME_HOME/src-build/build-assets.json" "$ME_PKG/"
+  mkdir -p "$ME_PKG/public/javascripts"
+  cp "$ME_HOME/src-build"/public/javascripts/* "$ME_PKG/public/javascripts/"
+  log "Frontend assets transplanted"
+fi
 
 # Read-only GUI user (view everything, change nothing). Needs a privileged
 # Mongo credential once: reuse siteAdmin if you have it, else etherapp owner.
@@ -131,14 +153,16 @@ unset MONGO_ADMIN_URI
 # (Re)start under PM2 with the dashboard env. Export-then-start lets PM2
 # capture the env into its dump (persisted by `pm2 save`, local to the VPS).
 export ME_CONFIG_MONGODB_URL="mongodb://gui_ro:${GUI_RO_PW}@127.0.0.1:27017/${DB_NAME}?authSource=${DB_NAME}&directConnection=true"
+export ME_CONFIG_BASICAUTH_ENABLED=true
 export ME_CONFIG_BASICAUTH_USERNAME="$DASH_USER"
 export ME_CONFIG_BASICAUTH_PASSWORD="$DASH_PW"
-export ME_CONFIG_SITE_PORT="$ME_PORT"
+# rc-4 ignores ME_CONFIG_SITE_PORT — port comes from PORT, host from
+# VCAP_APP_HOST (bare 'localhost' binds IPv6 ::1 only, unreachable via
+# 127.0.0.1, so pin IPv4 loopback explicitly).
+export PORT="$ME_PORT"
+export VCAP_APP_HOST=127.0.0.1
 export ME_CONFIG_SITE_SESSIONSECRET="$SITE_SECRET"
 export ME_CONFIG_MONGODB_ENABLE_ADMIN=false
-# NOTE: ME_CONFIG_SITE_PORT is honored by mongo-express 1.x (default 8081).
-# If you override ME_PORT and the 401 check below hits the wrong port, leave
-# ME_PORT=8081 and point Nginx at 8081 instead.
 # NOTE: intermediates stay in this shell until the final `unset` at the end —
 # the GENERATED block below still needs DASH_PW/GUI_RO_PW for the one-time print.
 
