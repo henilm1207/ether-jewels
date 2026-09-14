@@ -565,6 +565,9 @@ export const WishlistProvider = ({ children }) => {
   // Refresh/close with a save still inside the 800ms debounce: flush the
   // latest display now. Same-origin only (Vite proxy / single-domain prod),
   // so keepalive carries the auth header with no preflight involved.
+  // NOTE: pagehide only — a beforeunload listener blocks the back/forward
+  // cache and trips the DevTools Issues panel; pagehide fires on the same
+  // hide/close paths without opting the page out of bfcache.
   useEffect(() => {
     const onUnload = () => {
       const t = tokenRef.current;
@@ -587,10 +590,8 @@ export const WishlistProvider = ({ children }) => {
         // unload path — best effort only
       }
     };
-    window.addEventListener('beforeunload', onUnload);
     window.addEventListener('pagehide', onUnload);
     return () => {
-      window.removeEventListener('beforeunload', onUnload);
       window.removeEventListener('pagehide', onUnload);
     };
   }, []);

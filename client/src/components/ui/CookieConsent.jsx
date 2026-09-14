@@ -1,29 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { getConsentChoice, setTrackingConsent } from '../../lib/consent';
 
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('etherstar-cookie-consent');
-      if (!raw) {
-        setVisible(true);
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      const ts = parsed && parsed.ts ? Number(parsed.ts) : 0;
-      // Re-prompt after 180 days or on version bump
-      if (!parsed || parsed.v !== 1 || Date.now() - ts > 180 * 24 * 3600 * 1000) setVisible(true);
-    } catch {
-      setVisible(true);
-    }
+    // Null (never chose) or stale choice -> show the banner.
+    if (!getConsentChoice()) setVisible(true);
   }, []);
 
   const store = (choice) => {
-    try {
-      localStorage.setItem('etherstar-cookie-consent', JSON.stringify({ v: 1, choice, ts: Date.now() }));
-    } catch {}
+    setTrackingConsent(choice); // persists + broadcasts to listening pages
     setVisible(false);
   };
 

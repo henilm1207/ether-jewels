@@ -21,8 +21,10 @@ export default function GoldComparison() {
   };
   const handleMouseUp = () => { isDragging.current = false; };
   const handleMouseMove = (e) => { if (isDragging.current) handleMove(e.clientX); };
+  // touch-action:none (set on the slider element below) tells the browser
+  // the gesture is handled here, so no preventDefault() is needed — calling
+  // it inside React's passive touch listener trips a DevTools Issues warning.
   const handleTouchMove = (e) => {
-    e.preventDefault();
     handleMove(e.touches[0].clientX);
   };
   const handleClick = (e) => handleMove(e.clientX);
@@ -40,6 +42,7 @@ export default function GoldComparison() {
           <div
             ref={containerRef}
             className="w-full md:w-1/2 relative overflow-hidden cursor-ew-resize select-none compare-slider"
+            style={{ touchAction: 'none' }}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}

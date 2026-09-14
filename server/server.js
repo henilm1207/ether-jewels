@@ -48,22 +48,31 @@ const frontendOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
 // referrer policy so image URLs leak less context off-site. Helmet hides
 // X-Powered-By (also disabled above) and sets frame/type protections that
 // make naive iframe-cloning harder.
+// Fonts are self-hosted (/fonts/*.woff2) — no Google Fonts hosts needed.
+// object-src 'none' + base-uri 'self' keep the CSP effective against XSS;
+// HSTS is pinned to 1yr + subdomains (deliberately no `preload`: that flag
+// is a near-irreversible commitment via hstspreload.org).
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
       imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://www.paypalobjects.com'],
       mediaSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
       // Checkout SDKs: Stripe.js + PayPal Buttons (sandbox serves from both hosts).
+      // Loaded only on /cart after cookie consent (see lib/consent.js).
       scriptSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      styleSrc: ["'self'", "'unsafe-inline'"], // React inline style={} needs this
+      fontSrc: ["'self'", 'data:'],
       connectSrc: ["'self'", 'https://api.stripe.com', ...frontendOrigins],
       // 3-D Secure + PayPal approval windows render provider iframes.
       frameSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
       frameAncestors: ["'self'"],
+      upgradeInsecureRequests: [],
     },
   },
+  hsts: { maxAge: 31536000, includeSubDomains: true },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));

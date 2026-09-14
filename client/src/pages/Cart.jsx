@@ -7,6 +7,7 @@ import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { useBag } from '../context/BagContext';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config';
+import { CONSENT_EVENT, CONSENT_KEY, hasTrackingConsent, setTrackingConsent } from '../lib/consent';
 import ProtectedImage from '../components/ui/ProtectedImage';
 import QtyStepper from '../components/cart/QtyStepper';
 
@@ -97,6 +98,22 @@ export default function Cart() {
   const [zip, setZip] = useState(() => readDraft().zip || '');
   const [method, setMethod] = useState('stripe'); // stripe | paypal
   const [payConfig, setPayConfig] = useState(null); // {stripePublishableKey, paypalClientId, ...}
+  // Payment SDKs (Stripe/PayPal) touch third-party storage: only load them
+  // after the visitor accepts the cookie banner. Stays in sync when the
+  // banner is answered on this tab or another one.
+  const [consented, setConsented] = useState(() => hasTrackingConsent());
+  useEffect(() => {
+    const sync = () => setConsented(hasTrackingConsent());
+    const onStorage = (e) => {
+      if (!e.key || e.key === CONSENT_KEY) sync();
+    };
+    window.addEventListener(CONSENT_EVENT, sync);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(CONSENT_EVENT, sync);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
   const [stripeStep, setStripeStep] = useState(null); // {clientSecret, orderId} after intent
   // One key per checkout attempt: double-clicks/replays reuse the pending
   // order server-side instead of minting duplicates. Rotated after each pay.
@@ -134,9 +151,23 @@ export default function Cart() {
     };
   }, []);
 
+  // loadStripe() injects the Stripe.js <script>: never run it pre-consent.
   const stripePromise = useMemo(
-    () => (payConfig && payConfig.stripePublishableKey ? loadStripe(payConfig.stripePublishableKey) : null),
-    [payConfig]
+    () => (consented && payConfig && payConfig.stripePublishableKey ? loadStripe(payConfig.stripePublishableKey) : null),
+    [consented, payConfig]
+  );
+
+  // Shown in place of a payment gateway until tracking is accepted — one
+  // click accepts and loads the gateway immediately (no reload needed).
+  const consentNotice = (
+    <div className="text-sm bg-[#f7f2ef] border border-[#ededed] rounded" style={{ padding: '14px' }}>
+      <p style={{ marginBottom: '10px' }}>
+        Card and PayPal checkout load secure third-party payment tools. Accept cookies to enable them.
+      </p>
+      <button type="button" onClick={() => setTrackingConsent('accepted')} className="btn btn--primary">
+        Accept cookies &amp; enable payment
+      </button>
+    </div>
   );
 
   const cartItems = () =>
@@ -637,7 +668,9 @@ export default function Cart() {
                   </div>
 
                   {method === 'stripe' ? (
-                    !payConfig?.stripePublishableKey ? (
+                    !consented ? (
+                      consentNotice
+                    ) : !payConfig?.stripePublishableKey ? (
                       <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px' }}>
                         Card payments are not configured yet — use PayPal or place a manual order below.
                       </p>
@@ -683,6 +716,8 @@ export default function Cart() {
                         <button onClick={() => setStripeStep(null)} className="underline text-sm text-gray-500 mt-3">← Back to details</button>
                       </>
                     )
+                  ) : !consented ? (
+                    consentNotice
                   ) : !payConfig?.paypalClientId ? (
                     <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px' }}>
                       PayPal is not configured yet — use Card or place a manual order below.
