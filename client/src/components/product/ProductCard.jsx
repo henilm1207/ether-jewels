@@ -12,16 +12,6 @@ export default function ProductCard({ product, priority = false }) {
   const fmt = (v) =>
     `From $${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
 
-  // Diamond spec line — grades stored best-first: color as range (D–F) or
-  // single letter, clarity as best grade. Hidden when admin set neither.
-  const colors = Array.isArray(product.diamondColors) ? product.diamondColors : [];
-  const clarities = Array.isArray(product.clarity) ? product.clarity : [];
-  const colorTxt = colors.length > 1 ? `${colors[0]}–${colors[colors.length - 1]}` : colors[0] || '';
-  const clarityTxt = clarities[0] || '';
-  const specTxt = [colorTxt && `Color ${colorTxt}`, clarityTxt && `Clarity ${clarityTxt}`]
-    .filter(Boolean)
-    .join(' · ');
-
   return (
     <>
     <Link
@@ -97,11 +87,6 @@ export default function ProductCard({ product, priority = false }) {
             )}
             {fmt(product.price)}
           </p>
-          {specTxt && (
-            <p style={{ fontSize: '13px', lineHeight: 1.5, color: '#666', marginTop: '2px' }}>
-              {specTxt}
-            </p>
-          )}
         </div>
         {/* Favorite — docked in info row, never overlaps imagery, never navigates */}
         <FavButton
