@@ -75,10 +75,27 @@ GENERATED_RO=0
 if [ "$HAD_GUI_RO_PW" = "0" ]; then GENERATED_RO=1; fi
 if [ "$HAD_DASH_PW" = "0" ]; then GENERATED_DASH=1; fi
 
-log "Installing mongo-express@1 globally (driver supports MongoDB 8.0)"
-npm i -g --no-audit --no-fund "mongo-express@1"
-ME_BIN="$(command -v mongo-express)"
-log "mongo-express at $ME_BIN"
+# Pinned version rationale (verified 2026-09-14 on this exact VPS):
+# - `mongo-express@1` (= 1.0.2) and every newer 1.x contain a `patch:`-protocol
+#   subdep that crashes npm's resolver SILENTLY (exit 1, empty log), and defeat
+#   pnpm (blockExoticSubdeps) and yarn-global (package-relative patch path).
+# - 1.1.0-rc-4 has registry-only deps, installs cleanly, and bundles mongodb
+#   driver ^6.19 (fully supports MongoDB 8.0) with prebuilt frontend assets.
+ME_VERSION="${ME_VERSION:-1.1.0-rc-4}"
+# Local (not global) install: the absolute entry path survives nvm Node
+# upgrades, unlike ~/.nvm/.../bin symlinks.
+ME_HOME="${ME_HOME:-$HOME/mongo-express}"
+
+log "Installing mongo-express@$ME_VERSION into $ME_HOME"
+mkdir -p "$ME_HOME"
+(cd "$ME_HOME" && npm init -y >/dev/null 2>&1)
+(cd "$ME_HOME" && npm i --no-audit --no-fund --omit=dev "mongo-express@$ME_VERSION")
+ME_ENTRY="$ME_HOME/node_modules/mongo-express/app.js"
+if [ ! -f "$ME_ENTRY" ]; then
+  log "ERROR: entry not found at $ME_ENTRY"
+  exit 1
+fi
+log "mongo-express entry at $ME_ENTRY ($(node -p "require('$ME_HOME/node_modules/mongo-express/package.json').version"))"
 
 # Read-only GUI user (view everything, change nothing). Needs a privileged
 # Mongo credential once: reuse siteAdmin if you have it, else etherapp owner.
@@ -129,8 +146,8 @@ if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
   log "Restarting existing PM2 app $PM2_APP"
   pm2 restart "$PM2_APP" --update-env
 else
-  log "Starting PM2 app $PM2_APP ($ME_BIN on 127.0.0.1:$ME_PORT)"
-  pm2 start "$ME_BIN" --name "$PM2_APP"
+  log "Starting PM2 app $PM2_APP ($ME_ENTRY on 127.0.0.1:$ME_PORT)"
+  pm2 start "$ME_ENTRY" --name "$PM2_APP"
 fi
 pm2 save || true
 pm2 show "$PM2_APP" | grep -qi 'status.*online'
