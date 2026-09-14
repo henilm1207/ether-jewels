@@ -10,7 +10,7 @@ code comments marked `live:` record the original values.
 | ------- | ---------------- |
 | Storefront (`client/`) | React 19, Vite 8 (dev server), Tailwind CSS 4, `react-router-dom` 7, `lucide-react` icons |
 | API (`server/`) | Node.js, Express 4, Mongoose 8, `jsonwebtoken` (auth), `bcryptjs` (passwords), `cors`, `dotenv` |
-| Database | MongoDB Atlas (cloud, `mongodb+srv://…`) — offline fallback via `mongodb-memory-server` (dev only) |
+| Database | Self-hosted MongoDB Community 8.0 on the Hostinger VPS (`mongodb://127.0.0.1:27017/…`, auth enabled) — offline dev fallback via `mongodb-memory-server` |
 | Dev tooling | `concurrently` (run both apps), `oxlint` (client lint) |
 
 Ports: **3000** storefront · **5001** API · **27017** local Mongo (fallback only).
@@ -63,20 +63,21 @@ ether-jewels/
 
 ## Run it
 
-Prerequisites: Node.js 20+, internet (Atlas cloud DB).
+Prerequisites: Node.js 20+, MongoDB Community 8.0 (VPS) or no install for the ephemeral fallback.
 
 ```bash
 # first time (from repo root)
 npm run install-all
 
-# every day — terminal 1: API (needs server/.env with Atlas MONGO_URI)
+# every day — terminal 1: API (needs server/.env with MONGO_URI, local or VPS)
 cd server && node server.js        # → http://localhost:5001/api/health
 
 # terminal 2: storefront
 cd client && npm run dev           # → http://localhost:3000
 ```
 
-No local MongoDB install needed — production path uses Atlas.
+No VPS MongoDB install needed for tinkering — production path uses the
+self-hosted VPS database.
 Offline fallback (ephemeral data, reseeds on restart):
 `cd server && npm run local` (in-memory Mongo + API), then `npm run seed` in a second terminal.
 
@@ -87,7 +88,8 @@ Offline fallback (ephemeral data, reseeds on restart):
 | root | `npm run dev` | API + storefront together |
 | root | `npm run server` / `npm run client` | One app only |
 | root | `npm run install-all` | Install root + server + client |
-| server | `node server.js` / `npm start` | API against Atlas |
+| server | `node server.js` / `npm start` | API against `MONGO_URI` (VPS or local) |
+| server | `npm run verify-local-db` | Post-restore health check: DB ping, image-URL audit, disk + HTTP sample |
 | server | `npm run local` | API against in-memory Mongo |
 | server | `npm run seed` | No-op (seed data neutralized; use /admin) |
 | client | `npm run dev` / `build` / `preview` | Vite dev / prod build / preview |
@@ -95,7 +97,7 @@ Offline fallback (ephemeral data, reseeds on restart):
 
 ## Database (MongoDB, Mongoose)
 
-Connection: `server/.env` → `MONGO_URI` (Atlas `mongodb+srv://…/etherstar-jewels`).
+Connection: `server/.env` → `MONGO_URI` (VPS: `mongodb://etherapp:<pw>@127.0.0.1:27017/etherstar-jewels?authSource=etherstar-jewels&directConnection=true`; dev: `mongodb://localhost:27017/etherstar-jewels`).
 `.env` is gitignored — never commit secrets; `.env.example` holds placeholders.
 
 Collections: `users, products, categories, orders, coupons, reviews, inquiries, subscribers`
@@ -116,7 +118,7 @@ Base `http://localhost:5001`. Auth: `Authorization: Bearer <JWT>` (register/logi
 
 | Method & path | Auth | What |
 | ------------- | ---- | ---- |
-| `GET /api/health` | – | `{"status":"ok"}` |
+| `GET /api/health` | – | `{"status":"ok","db":"up"}` (db ping, no internals leaked) |
 | `POST /api/auth/register`, `POST /api/auth/login` | – | Create session → `{token, user}` |
 | `GET /api/auth/me` | user | Own profile |
 | `GET /api/bag` | user | Bag + saved-for-later (populated; pruned counts reported) |
@@ -154,15 +156,15 @@ Conventions: section air lives in container `pt-/pb-` pairs (mobile + `lg:`) wit
 ## Setup from scratch (new machine)
 
 1. `git clone … && cd ether-jewels && npm run install-all`
-2. Copy `.env.example` → `server/.env`, fill `MONGO_URI` (Atlas: Database → Connect → Drivers → `mongodb+srv://user:pass@host/etherstar-jewels`), set a long `JWT_SECRET`
-3. Atlas: Database user + Network Access `0.0.0.0/0` (dev) — same steps as cloud.mongodb.com onboarding
+2. Copy `.env.example` → `server/.env`, fill `MONGO_URI` (VPS app-user URI above; dev machines can use plain localhost), set a long `JWT_SECRET`
+3. VPS: MongoDB Community 8.0 installed as a `mongod` systemd service, `bindIp: 127.0.0.1`, auth enabled, UFW leaves 27017 closed
 4. Add your catalog in `/admin` (categories first, then products) — `npm run seed` is neutralized
 5. `node server.js` + `cd client && npm run dev` → open `http://localhost:3000`
-6. Browse data: `http://localhost:5001/admin/db` or Atlas → Browse Collections
+6. Browse data: `http://localhost:5001/admin/db` or `mongosh` on the VPS
 
 ## Security notes
 
-- Real `MONGO_URI`/passwords only in gitignored `server/.env`; rotate the Atlas DB password after sharing it with anyone.
+- Real `MONGO_URI`/passwords only in gitignored `server/.env`; rotate the `etherapp` password after sharing it with anyone.
 - `JWT_SECRET` must be long/random in any shared/deployed env (`dev-only-change-me` is local-only).
 - `/admin/db` is dev-only; keep `NODE_ENV=production` on deploys.
-- Atlas `0.0.0.0/0` is a dev convenience — restrict to server IPs in production.
+- VPS MongoDB binds `127.0.0.1` only with auth on — never expose 27017 to the internet.

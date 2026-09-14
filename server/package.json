@@ -7,12 +7,13 @@
     "seed": "node seed.js",
     "ensure-catalog": "node scripts/ensure-catalog.js",
     "migrate-bag-wishlist": "node scripts/migrate-bag-wishlist.js",
+    "migrate-images-to-local": "node scripts/migrate-images-to-local.js",
+    "verify-local-db": "node scripts/verify-local-db.js",
     "start": "node server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^2.5.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -22,6 +23,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.0",
     "multer": "^1.4.5-lts.1",
+    "sharp": "^0.35.4",
     "stripe": "^22.6.2"
   },
   "devDependencies": {

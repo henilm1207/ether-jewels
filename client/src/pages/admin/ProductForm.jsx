@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adminFetch } from '../../components/admin/api';
+import { resolveMediaUrl, localFilename } from '../../lib/media';
 import AiCopyButton from '../../components/admin/AiCopyButton';
 import { clearMenuCache } from '../../lib/categoryTree';
 import { VARIANTS, SUBS, RING_LEAVES } from '../../data/catalog';
@@ -20,11 +21,11 @@ const EMPTY_VARIANT = { name: '', material: '', color: DEFAULT_METAL.swatch, pri
 const slugify = (s) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
 
-// Product image manager: file upload (Cloudinary) + paste-URL fallback.
+// Product image manager: file upload (local /uploads, watermarked WebP)
+// + paste-URL fallback for external https images.
 function ImageManager({ images, setImages, setError }) {
   const [url, setUrl] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [configured, setConfigured] = useState(true);
 
   const addFiles = async (files) => {
     const list = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
@@ -37,7 +38,6 @@ function ImageManager({ images, setImages, setError }) {
       const data = await adminFetch('/api/uploads', { method: 'POST', form });
       setImages([...images, ...data.files.map((f) => f.url)]);
     } catch (e) {
-      if (e.message.includes('not configured')) setConfigured(false);
       setError(e.message);
     } finally {
       setUploading(false);
@@ -52,17 +52,17 @@ function ImageManager({ images, setImages, setError }) {
     setImages(next);
   };
 
-  // Removing from the form also frees the file in Cloudinary (if ours).
-  // Best-effort: the image is dropped from the product regardless. The id
-  // must match our folder exactly — lookalike pasted URLs never trigger it.
+  // Removing from the form also deletes the local file (if ours).
+  // Best-effort: the image is dropped from the product regardless. Only
+  // /uploads/YYYY-MM/<uuid>.webp values trigger the delete — external
+  // paste-URLs never do.
   const removeAt = async (i) => {
     const src = images[i];
     setImages(images.filter((_, x) => x !== i));
-    const m = String(src || '').match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
-    const publicId = m && m[1];
-    if (publicId && /^ether-jewels\/[A-Za-z0-9/_-]+$/.test(publicId)) {
+    const filename = localFilename(src);
+    if (filename) {
       try {
-        await adminFetch('/api/uploads', { method: 'DELETE', body: { publicId } });
+        await adminFetch('/api/uploads', { method: 'DELETE', body: { filename } });
       } catch {
         // already deleted or unreachable — product data is still correct
       }
@@ -74,7 +74,7 @@ function ImageManager({ images, setImages, setError }) {
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-3">
         {images.map((src, i) => (
           <div key={`${src}-${i}`} className="relative border border-[#e5e5e5] rounded overflow-hidden bg-gray-50">
-            <img src={src} alt={`Product image ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
+            <img src={resolveMediaUrl(src)} alt={`Product image ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
             {i === 0 && <span className="absolute top-1 left-1 text-[10px] font-medium bg-[#222] text-white rounded px-1.5 py-0.5">COVER</span>}
             <div className="flex justify-between text-xs" style={{ padding: '4px 6px' }}>
               <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="underline disabled:opacity-30">←</button>
@@ -85,16 +85,10 @@ function ImageManager({ images, setImages, setError }) {
         ))}
       </div>
       {images.length === 0 && <p className="text-sm text-red-700 mb-2">At least one image is required.</p>}
-      {configured ? (
-        <label className="block border border-dashed border-[#bbb] rounded text-center text-sm cursor-pointer hover:border-[#222]" style={{ padding: '16px' }}>
-          {uploading ? 'Uploading…' : 'Drop images here or click to upload (JPG/PNG/WebP, ≤5MB each, max 8)'}
-          <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
-        </label>
-      ) : (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '8px 10px', marginBottom: '8px' }}>
-          Cloud uploads not configured on the server — paste image URLs below instead.
-        </p>
-      )}
+      <label className="block border border-dashed border-[#bbb] rounded text-center text-sm cursor-pointer hover:border-[#222]" style={{ padding: '16px' }}>
+        {uploading ? 'Uploading…' : 'Drop images here or click to upload (JPG/PNG/WebP, ≤5MB each, max 8)'}
+        <input type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+      </label>
       <div className="flex gap-2 mt-2">
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste image URL (https://…)…" className={inputCls} style={inputStyle} aria-label="Image URL" />
         <button type="button" onClick={() => { const u = url.trim(); if (!u) return; if (!/^https?:\/\//i.test(u)) { setError('Image URL must start with http(s)://'); return; } setImages([...images, u]); setUrl(''); }} className="flex-shrink-0 underline text-sm">Add URL</button>
@@ -648,7 +642,7 @@ export default function ProductForm() {
                 <div style={{ height: '16px' }} />
                 <Card>
                   <h2 className="font-medium text-sm mb-1 text-red-700">DANGER ZONE</h2>
-                  <p className="text-xs text-gray-500 mb-3">Archiving hides the product reversibly. Deleting removes it and purges its Cloudinary images forever.</p>
+                  <p className="text-xs text-gray-500 mb-3">Archiving hides the product reversibly. Deleting removes it and deletes its local upload files forever.</p>
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
@@ -684,7 +678,7 @@ export default function ProductForm() {
                           const res = await adminFetch(`/api/products/${id}/permanent`, { method: 'DELETE' });
                           navigate('/admin/products', { replace: true });
                           if (res.failed && res.failed.length) {
-                            window.alert(`Deleted, but ${res.failed.length} image(s) need manual removal in Cloudinary.`);
+                            window.alert(`Deleted, but ${res.failed.length} image(s) need manual removal from the server uploads folder.`);
                           }
                         } catch (err) {
                           setError(err.message);

@@ -44,7 +44,8 @@ const frontendOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
   .map((s) => s.trim())
   .filter(Boolean);
 
-// Anti-copy headers: CSP allows self + Cloudinary imagery only, tight
+// Anti-copy headers: CSP allows self + https imagery (local /uploads plus
+// paste-URL fallback for external https images), tight
 // referrer policy so image URLs leak less context off-site. Helmet hides
 // X-Powered-By (also disabled above) and sets frame/type protections that
 // make naive iframe-cloning harder.
@@ -58,8 +59,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       baseUri: ["'self'"],
       objectSrc: ["'none'"],
-      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://www.paypalobjects.com'],
-      mediaSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+      imgSrc: ["'self'", 'data:', 'https:', 'https://www.paypalobjects.com'],
+      mediaSrc: ["'self'", 'data:'],
       // Checkout SDKs: Stripe.js + PayPal Buttons (sandbox serves from both hosts).
       // Loaded only on /cart after cookie consent (see lib/consent.js).
       scriptSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
@@ -82,6 +83,19 @@ app.use(cors({ origin: frontendOrigins }));
 app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), webhookHandler);
 app.use(express.json({ limit: '50kb' }));
 app.use(mongoSanitize());
+
+// Local product images: serve the uploads directory statically so the
+// storefront fetches images as <API_BASE>/uploads/YYYY-MM/<uuid>.webp.
+// UPLOADS_DIR points at the persistent VPS volume in production; the helper
+// defaults to server/public/uploads for dev. Registered before the SPA
+// fallback below so /uploads/* never resolves to index.html.
+try {
+  const { UPLOAD_DIR, ensureUploadDir } = require('./lib/localImages');
+  ensureUploadDir();
+  app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '30d', immutable: true }));
+} catch (e) {
+  console.warn('Local uploads unavailable:', e.message);
+}
 
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
@@ -126,8 +140,20 @@ if (
   app.use('/admin/db', authRequired, requireAdmin, dbViewerRoutes);
 }
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', async (req, res) => {
+  // Additive `db` field (monitors matching on {status:'ok'} keep working).
+  // Never leaks internals — only up/down, details stay in server logs.
+  let db = 'down';
+  try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.db.admin().ping();
+      db = 'up';
+    }
+  } catch (e) {
+    console.warn('health db ping failed:', e.message);
+  }
+  res.json({ status: 'ok', db });
 });
 
 // Single-domain production: serve the Vite build (client/dist) from Express
@@ -136,7 +162,7 @@ const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (process.env.NODE_ENV === 'production' && fs.existsSync(clientDist)) {
   app.use(express.static(clientDist, { index: false, maxAge: '1y', immutable: true }));
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/')) return next();
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }

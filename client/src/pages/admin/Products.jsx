@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminFetch } from '../../components/admin/api';
+import { resolveMediaUrl } from '../../lib/media';
 import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
 
 export default function Products() {
@@ -62,7 +63,7 @@ export default function Products() {
       setError('');
       load();
       if (res.failed && res.failed.length) {
-        setError(`Deleted, but ${res.failed.length} image(s) need manual removal in Cloudinary.`);
+        setError(`Deleted, but ${res.failed.length} image(s) need manual removal from the server uploads folder.`);
       }
     } catch (err) {
       setError(err.message);
@@ -104,7 +105,7 @@ export default function Products() {
           <tr key={p._id}>
             <td style={td}>
               <div className="flex items-center gap-3">
-                {p.images?.[0] && <img src={p.images[0]} alt="" width={40} height={40} className="object-cover rounded flex-shrink-0" />}
+                {p.images?.[0] && <img src={resolveMediaUrl(p.images[0])} alt="" width={40} height={40} className="object-cover rounded flex-shrink-0" />}
                 <div>
                   <Link to={`/admin/products/${p._id}`} className="font-medium underline">{p.name}</Link>
                   <p className="text-xs text-gray-500">{p.slug}{p.styleCode ? ` · ${p.styleCode}` : ''}</p>
@@ -137,7 +138,7 @@ export default function Products() {
           <form onSubmit={destroy} className="relative bg-white rounded w-full" style={{ maxWidth: '440px', padding: '20px' }}>
             <h2 className="font-heading text-red-700">Delete forever?</h2>
             <p className="text-sm mt-2">
-              <strong>{deleting.name}</strong> will be permanently removed and its Cloudinary images purged.
+              <strong>{deleting.name}</strong> will be permanently removed and its uploaded images deleted.
               Reviews stay as history. This cannot be undone — archiving hides it reversibly instead.
             </p>
             <label className="block text-sm mt-3">

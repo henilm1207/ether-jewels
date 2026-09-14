@@ -3,3 +3,6 @@ dist/
 .env
 .DS_Store
 *.log
+# Local product uploads live on the VPS disk, never in git.
+server/public/uploads/*
+!server/public/uploads/.gitkeep

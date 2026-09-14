@@ -466,7 +466,7 @@ select.form-control {
 /* ========== ANTI-COPY (images-only policy) ========== */
 /* Product imagery: block drag + text-selection ring, keep page text selectable.
    Right-click/drag are also stopped in ProtectedImage.jsx via JS handlers;
-   the visible watermark comes from lib/cloudinary.js (delivery overlay). */
+   the visible watermark is baked into the file at upload time (sharp composite).
 .protected-img {
   -webkit-user-drag: none;
   user-select: none;
