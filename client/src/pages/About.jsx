@@ -27,12 +27,12 @@ const TEAM = [
     text: 'Carefully selected diamonds that meet the highest standards of quality.',
   },
   {
-    image: '/images/about/team-craftsmen.webp',
+    image: '/images/about/team-craftsmen.png',
     title: 'Master Craftsmen',
     text: 'Each piece is handcrafted by skilled artisans who bring years of experience and precision to every detail.',
   },
   {
-    image: '/images/about/team-design.webp',
+    image: '/images/about/team-design.png',
     title: 'Design & Innovation',
     text: 'Our designers blend timeless elegance with modern style to create jewelry that feels both sophisticated and unique.',
   },
@@ -46,7 +46,7 @@ export default function About() {
       {/* 1 — Hero */}
       <section className="relative overflow-hidden flex items-center">
         <img
-          src="/images/about/hero.jpg"
+          src="/images/about/hero.png"
           alt="EtherStar Jewels"
           loading="eager"
           fetchPriority="high"
@@ -113,7 +113,7 @@ export default function About() {
           </div>
           <div className="order-1 md:order-2">
             <img
-              src="/images/about/story.jpg"
+              src="/images/about/story.png"
               alt="The Beginning of Etherstar Jewels"
               loading="lazy"
               className="w-full aspect-square object-cover"
