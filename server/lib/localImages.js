@@ -11,8 +11,13 @@ const fs = require('fs');
 const crypto = require('crypto');
 const sharp = require('sharp');
 
-const UPLOAD_DIR =
-  process.env.UPLOADS_DIR || path.join(__dirname, '..', 'public', 'uploads');
+// NOTE: resolved lazily (function, not const) because server.js loads .env
+// via dotenv — modules required before that call would otherwise freeze the
+// dev default even when UPLOADS_DIR is configured (the VPS serves
+// /var/www/etherstar/uploads, not server/public/uploads).
+function getUploadDir() {
+  return process.env.UPLOADS_DIR || path.join(__dirname, '..', 'public', 'uploads');
+}
 const WATERMARK_SRC = path.join(__dirname, '..', 'assets', 'watermark.png');
 
 // DB-facing URL shape + bare filename shape (DELETE contract accepts both).
@@ -31,8 +36,9 @@ let watermarkMissingWarned = false;
 const watermarkCache = new Map();
 
 function ensureUploadDir() {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  return UPLOAD_DIR;
+  const dir = getUploadDir();
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 // Bake ~55% opacity into the logo: sharp composite has no opacity option,
@@ -77,12 +83,13 @@ function normalizeFilename(input) {
   return null;
 }
 
-// Resolve inside UPLOAD_DIR, refusing path traversal (../, absolute, separators).
+// Resolve inside the upload dir, refusing traversal (../, absolute, separators).
 function resolveLocalPath(filename) {
   const rel = normalizeFilename(filename);
   if (!rel) return null;
-  const abs = path.resolve(UPLOAD_DIR, rel);
-  const root = path.resolve(UPLOAD_DIR) + path.sep;
+  const dir = getUploadDir();
+  const abs = path.resolve(dir, rel);
+  const root = path.resolve(dir) + path.sep;
   if (!abs.startsWith(root)) return null;
   return abs;
 }
@@ -147,7 +154,12 @@ async function deleteLocalFile(filenameOrUrl) {
 }
 
 module.exports = {
-  UPLOAD_DIR,
+  getUploadDir,
+  // Deprecated alias: frozen at first require — prefer getUploadDir(), which
+  // reflects process.env.UPLOADS_DIR after dotenv loads. Kept for compat.
+  get UPLOAD_DIR() {
+    return getUploadDir();
+  },
   WATERMARK_SRC,
   LOCAL_IMG_RE,
   LOCAL_FILE_RE,

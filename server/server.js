@@ -1,8 +1,11 @@
+// dotenv FIRST — before any local require: route/lib modules read
+// process.env at load time (e.g. lib/localImages upload dir), so the .env
+// file must be parsed before those modules initialize.
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -24,8 +27,6 @@ const uploadRoutes = require('./routes/uploads');
 const aiRoutes = require('./routes/ai');
 const dbViewerRoutes = require('./routes/dbViewer');
 const { authRequired, requireAdmin } = require('./middleware/auth');
-
-dotenv.config();
 
 function validateEnv() {
   if (!process.env.MONGO_URI) throw new Error('MONGO_URI missing');
@@ -90,9 +91,9 @@ app.use(mongoSanitize());
 // defaults to server/public/uploads for dev. Registered before the SPA
 // fallback below so /uploads/* never resolves to index.html.
 try {
-  const { UPLOAD_DIR, ensureUploadDir } = require('./lib/localImages');
+  const { getUploadDir, ensureUploadDir } = require('./lib/localImages');
   ensureUploadDir();
-  app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '30d', immutable: true }));
+  app.use('/uploads', express.static(getUploadDir(), { maxAge: '30d', immutable: true }));
 } catch (e) {
   console.warn('Local uploads unavailable:', e.message);
 }

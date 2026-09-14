@@ -116,7 +116,8 @@ async function main() {
 
   // --- 4. disk presence --------------------------------------------------
   const { resolveLocalPath } = require('../lib/localImages');
-  const { UPLOAD_DIR } = require('../lib/localImages');
+  const { getUploadDir } = require('../lib/localImages');
+  const UPLOAD_DIR = getUploadDir();
   let missing = 0;
   for (const src of distinctLocal) {
     const abs = resolveLocalPath(src);

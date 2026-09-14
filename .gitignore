@@ -6,3 +6,5 @@ dist/
 # Local product uploads live on the VPS disk, never in git.
 server/public/uploads/*
 !server/public/uploads/.gitkeep
+# Migration backups hold production data snapshots — never commit.
+server/*-migration-backup.json
