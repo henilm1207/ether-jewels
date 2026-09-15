@@ -12,7 +12,10 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 
 async function main() {
   const mongod = await MongoMemoryServer.create({
-    instance: { dbName: 'etherstar-jewels' },
+    // Pinned (not a random free port) — same reasoning as local-persist.js:
+    // matches server/.env.example's default MONGO_URI, so tools like
+    // MongoDB Compass always find it at mongodb://127.0.0.1:27017.
+    instance: { dbName: 'etherstar-jewels', port: 27017 },
   });
   const uri = mongod.getUri('etherstar-jewels');
   process.env.MONGO_URI = uri;
