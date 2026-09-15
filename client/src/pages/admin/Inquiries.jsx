@@ -7,6 +7,7 @@ export default function Inquiries() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [open, setOpen] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -26,6 +27,21 @@ export default function Inquiries() {
       if (open && open._id === inq._id) setOpen(updated);
     } catch (e) {
       setError(e.message);
+    }
+  };
+
+  const remove = async (inq) => {
+    if (!window.confirm(`Delete this inquiry from ${inq.name || inq.email}? This can't be undone.`)) return;
+    setError('');
+    setDeleting(inq._id);
+    try {
+      await adminFetch(`/api/inquiries/${inq._id}`, { method: 'DELETE' });
+      if (open && open._id === inq._id) setOpen(null);
+      setList((l) => l.filter((x) => x._id !== inq._id));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -56,7 +72,12 @@ export default function Inquiries() {
             <td style={td}>{i.type}</td>
             <td style={{ ...td, maxWidth: '320px' }}><p className="truncate">{i.message}</p></td>
             <td style={td}><Pill value={i.status} /></td>
-            <td style={td}><button onClick={() => setOpen(i)} className="underline text-sm">Open</button></td>
+            <td style={{ ...td, whiteSpace: 'nowrap' }}>
+              <button onClick={() => setOpen(i)} className="underline text-sm mr-3">Open</button>
+              <button onClick={() => remove(i)} disabled={deleting === i._id} className="underline text-sm text-red-700 disabled:opacity-50">
+                {deleting === i._id ? 'Deleting…' : 'Delete'}
+              </button>
+            </td>
           </tr>
         ))}
       </Table>
@@ -78,6 +99,9 @@ export default function Inquiries() {
                   Mark {s}
                 </button>
               ))}
+              <button onClick={() => remove(sel)} disabled={deleting === sel._id} className="text-sm border border-red-700 text-red-700 rounded px-3 py-1.5 hover:bg-red-700 hover:text-white transition-colors disabled:opacity-50">
+                {deleting === sel._id ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ export default function Categories() {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [deleting, setDeleting] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -46,6 +47,21 @@ export default function Categories() {
       load();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const remove = async (c) => {
+    if (!window.confirm(`Delete category "${c.name}" (${c.key})? This can't be undone.`)) return;
+    setError('');
+    setDeleting(c.key);
+    try {
+      await adminFetch(`/api/categories/${c.key}`, { method: 'DELETE' });
+      clearMenuCache();
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -88,7 +104,12 @@ export default function Categories() {
             <td style={td}>{c.shape || '—'}</td>
             <td style={td} className="font-mono text-xs">{(c.aggregateKeys || []).join(', ') || '—'}</td>
             <td style={td}>{c.active ? 'yes' : 'no'}</td>
-            <td style={td}><button onClick={() => startEdit(c)} className="underline text-sm">Edit</button></td>
+            <td style={{ ...td, whiteSpace: 'nowrap' }}>
+              <button onClick={() => startEdit(c)} className="underline text-sm mr-3">Edit</button>
+              <button onClick={() => remove(c)} disabled={deleting === c.key} className="underline text-sm text-red-700 disabled:opacity-50">
+                {deleting === c.key ? 'Deleting…' : 'Delete'}
+              </button>
+            </td>
           </tr>
         ))}
       </Table>

@@ -79,4 +79,17 @@ router.patch('/:id', authRequired, requireAdmin, async (req, res, next) => {
   }
 });
 
+// DELETE /:id — permanent removal (spam/handled), admin only.
+router.delete('/:id', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: 'Invalid inquiry id' });
+    const inquiry = await Inquiry.findByIdAndDelete(req.params.id);
+    if (!inquiry) return res.status(404).json({ message: 'Inquiry not found' });
+    res.json({ message: 'Inquiry deleted' });
+  } catch (e) {
+    next(e);
+  }
+});
+
 module.exports = router;
