@@ -107,4 +107,19 @@ router.patch('/:id/approve', authRequired, requireAdmin, async (req, res, next) 
   }
 });
 
+// DELETE /:id — permanent removal (spam/abuse), admin only. Recalculates
+// the product's rating same as an approve/reject status change would.
+router.delete('/:id', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: 'Invalid review id' });
+    const review = await Review.findByIdAndDelete(req.params.id);
+    if (!review) return res.status(404).json({ message: 'Review not found' });
+    await Review.recalcProduct(review.product);
+    res.json({ message: 'Review deleted' });
+  } catch (e) {
+    next(e);
+  }
+});
+
 module.exports = router;

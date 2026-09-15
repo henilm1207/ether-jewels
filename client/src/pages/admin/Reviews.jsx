@@ -6,6 +6,7 @@ export default function Reviews() {
   const [list, setList] = useState([]);
   const [status, setStatus] = useState('pending');
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -24,6 +25,20 @@ export default function Reviews() {
       load();
     } catch (e) {
       setError(e.message);
+    }
+  };
+
+  const remove = async (r) => {
+    if (!window.confirm(`Permanently delete this review by ${r.name}? This can't be undone.`)) return;
+    setError('');
+    setDeleting(r._id);
+    try {
+      await adminFetch(`/api/reviews/${r._id}`, { method: 'DELETE' });
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -52,7 +67,10 @@ export default function Reviews() {
             <td style={td}><Pill value={r.status} /></td>
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
               {r.status !== 'approved' && <button onClick={() => setStatusOf(r, 'approved')} className="underline text-sm mr-3 text-green-700">Approve</button>}
-              {r.status !== 'rejected' && <button onClick={() => setStatusOf(r, 'rejected')} className="underline text-sm text-red-700">Reject</button>}
+              {r.status !== 'rejected' && <button onClick={() => setStatusOf(r, 'rejected')} className="underline text-sm mr-3 text-red-700">Reject</button>}
+              <button onClick={() => remove(r)} disabled={deleting === r._id} className="underline text-sm text-red-700 disabled:opacity-50">
+                {deleting === r._id ? 'Deleting…' : 'Delete'}
+              </button>
             </td>
           </tr>
         ))}

@@ -69,6 +69,22 @@ router.patch('/:id', authRequired, requireAdmin, async (req, res, next) => {
       patch.active = req.body.active !== false;
       patch.autoOff = false;
     }
+    // type + value travel together — the value's own bounds (pct 1-90 vs
+    // flat >0) depend on which type applies, so a lone value edit resolves
+    // against whichever type the coupon already has.
+    if (req.body.type !== undefined || req.body.value !== undefined) {
+      const existing = await Coupon.findById(req.params.id).select('type value');
+      if (!existing) return res.status(404).json({ message: 'Coupon not found' });
+      const type = req.body.type !== undefined ? req.body.type : existing.type;
+      if (!['pct', 'flat'].includes(type))
+        return res.status(400).json({ message: 'Invalid coupon type' });
+      const value = req.body.value !== undefined ? Number(req.body.value) : existing.value;
+      if (!Number.isFinite(value) || value <= 0) return res.status(400).json({ message: 'Invalid value' });
+      if (type === 'pct' && (value < 1 || value > 90))
+        return res.status(400).json({ message: 'pct value must be 1-90' });
+      patch.type = type;
+      patch.value = value;
+    }
     if (req.body.maxUses !== undefined)
       patch.maxUses = req.body.maxUses == null ? null : Math.max(1, parseInt(req.body.maxUses, 10));
     if (req.body.expiresAt !== undefined) patch.expiresAt = req.body.expiresAt || null;
@@ -79,6 +95,21 @@ router.patch('/:id', authRequired, requireAdmin, async (req, res, next) => {
     });
     if (!coupon) return res.status(404).json({ message: 'Coupon not found' });
     res.json(coupon);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// DELETE /:id — permanent. Orders keep their own couponCode/discount
+// snapshot (never a live reference), so removing a coupon never corrupts
+// past order history.
+router.delete('/:id', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: 'Invalid coupon id' });
+    const coupon = await Coupon.findByIdAndDelete(req.params.id);
+    if (!coupon) return res.status(404).json({ message: 'Coupon not found' });
+    res.json({ message: 'Coupon deleted' });
   } catch (e) {
     next(e);
   }

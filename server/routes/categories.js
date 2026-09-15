@@ -1,5 +1,6 @@
 const express = require('express');
 const Category = require('../models/Category');
+const Product = require('../models/Product');
 const { authRequired, requireAdmin } = require('../middleware/auth');
 const { LOCAL_IMG_RE } = require('../lib/localImages');
 
@@ -96,6 +97,25 @@ router.put('/:key', authRequired, requireAdmin, async (req, res, next) => {
     res.json(cat);
   } catch (e) {
     e.status = 400;
+    next(e);
+  }
+});
+
+// DELETE /:key — refuses to delete a category still in use, so a product
+// can never end up pointing at a category key that no longer exists.
+router.delete('/:key', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    const key = req.params.key;
+    const usedByProduct = await Product.exists({ category: key });
+    if (usedByProduct)
+      return res.status(400).json({ message: 'Category is used by one or more products — reassign or remove those first' });
+    const aliasedBy = await Category.exists({ aliasOf: key });
+    if (aliasedBy)
+      return res.status(400).json({ message: 'Another category aliases this one — update or delete that first' });
+    const cat = await Category.findOneAndDelete({ key });
+    if (!cat) return res.status(404).json({ message: 'Category not found' });
+    res.json({ message: 'Category deleted' });
+  } catch (e) {
     next(e);
   }
 });
