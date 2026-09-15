@@ -65,10 +65,29 @@ else
   compose up --build -d app
 fi
 
+wait_for_container() {
+  local service="$1"
+  local tries="${2:-12}"
+  local i
+  for ((i = 1; i <= tries; i++)); do
+    if compose ps "$service" | grep -qi 'running\|healthy'; then
+      log "OK (attempt $i/$tries): $service container up"
+      return 0
+    fi
+    sleep 5
+  done
+  log "ERROR: $service container not running/healthy after $((tries * 5))s"
+  compose ps "$service"
+  return 1
+}
+
 log "Verifying containers"
 compose ps
-compose ps app | grep -qi 'running\|healthy'
-compose ps mongo | grep -qi 'running\|healthy'
+# A container reads "Up ... (health: starting)" for the first few seconds
+# after `up -d` returns — check immediately after Recreate and this always
+# lost the race. Poll with backoff instead of a single point-in-time check.
+wait_for_container app
+wait_for_container mongo
 
 log "Verifying API locally"
 # Cold boots can take a while (Mongo connect, sweeper warm-up), so poll
