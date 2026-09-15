@@ -3,7 +3,12 @@
 # Runs ON the VPS as site user `etherstar` via cron (see install note below).
 # Nothing secret in this file — the DB credential lives in
 # /home/etherstar/ops/.mongo-backup-env (mode 600, created once, never committed):
-#   MONGO_BACKUP_URI='mongodb://etherapp:<APP_PW_URLENCODED>@127.0.0.1:27017/etherstar-jewels?authSource=etherstar-jewels&directConnection=true'
+#   MONGO_BACKUP_URI='mongodb://etherapp:<ROOT_PW_URLENCODED>@127.0.0.1:27017/etherstar-jewels?authSource=admin'
+# Docker edition: MongoDB now runs in the `mongo` container from
+# docker-compose.prod.yml, root creds in the app dir's `.env`
+# (MONGO_ROOT_USER/MONGO_ROOT_PASSWORD) — still reachable at
+# 127.0.0.1:27017 (loopback-only port published by that service), so
+# mongodump below is unchanged.
 #
 # Install (VPS, as etherstar):
 #   mkdir -p /home/etherstar/ops /home/etherstar/backups

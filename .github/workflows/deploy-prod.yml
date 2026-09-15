@@ -2,7 +2,8 @@ name: Deploy prod
 
 # Auto-deploy: any push to main (i.e. merged PR dev -> main) deploys to
 # https://etherstarjewels.cloud/ via SSH as site user `etherstar`.
-# Build runs on the VPS (proven pull -> vite build -> pm2 restart flow).
+# Docker edition: build + run via docker-compose.prod.yml on the VPS
+# (pull -> docker compose build app -> up -d -> health-check flow).
 on:
   push:
     branches: [main]
@@ -14,7 +15,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Docker build (npm ci x2 + vite build + image layers) is slower than the
+    # old bare pm2 restart — give it more headroom than the old 15m.
+    timeout-minutes: 20
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0

@@ -1,0 +1,42 @@
+services:
+  mongo:
+    # Pinned to match production's MongoDB version (8.0.32).
+    image: mongo:8
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-etherapp}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # Picks up JWT_SECRET, payment/mail/AI keys, etc. from .env (copy
+    # .env.example -> .env first). The overrides below wire the app to the
+    # `mongo` service and the container's uploads volume — they take
+    # precedence over the same keys in .env.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-etherapp}:${MONGO_ROOT_PASSWORD}@mongo:27017/etherstar-jewels?authSource=admin
+      UPLOADS_DIR: /app/uploads
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5001}
+    ports:
+      - "${APP_PORT:-5001}:5001"
+    volumes:
+      - uploads-data:/app/uploads
+
+volumes:
+  mongo-data:
+  uploads-data:

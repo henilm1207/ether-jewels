@@ -63,22 +63,31 @@ ether-jewels/
 
 ## Run it
 
-Prerequisites: Node.js 20+, MongoDB Community 8.0 (VPS) or no install for the ephemeral fallback.
+Prerequisites: Node.js 20+. No MongoDB install needed — see below.
 
 ```bash
 # first time (from repo root)
 npm run install-all
 
-# every day — terminal 1: API (needs server/.env with MONGO_URI, local or VPS)
-cd server && node server.js        # → http://localhost:5001/api/health
+# every day — terminal 1: API + embedded persistent Mongo (data survives restarts,
+# lives in server/.devdb — no MongoDB install needed)
+cd server && npm run local:persist   # → http://localhost:5001/api/health
 
 # terminal 2: storefront
-cd client && npm run dev           # → http://localhost:3000
+cd client && npm run dev             # → http://localhost:3000
 ```
 
-No VPS MongoDB install needed for tinkering — production path uses the
-self-hosted VPS database.
-Offline fallback (ephemeral data, reseeds on restart):
+`npm run local:persist` starts its own MongoDB (`mongodb-memory-server`) and
+overrides `MONGO_URI` in memory, so `server/.env`'s `MONGO_URI` is never read
+on this path.
+
+`node server.js` (and the root's `npm run dev`) is the production-shaped path
+instead: it connects using the literal `MONGO_URI` in `server/.env` — a real
+MongoDB, either installed locally on port 27017 or the VPS connection string.
+Without one of those running, it fails with `ECONNREFUSED 127.0.0.1:27017`.
+Use it only once you actually have a real Mongo to point at.
+
+Ephemeral fallback (throwaway data, resets every restart):
 `cd server && npm run local` (in-memory Mongo + API), then `npm run seed` in a second terminal.
 
 ### Scripts
@@ -94,6 +103,36 @@ Offline fallback (ephemeral data, reseeds on restart):
 | server | `npm run seed` | No-op (seed data neutralized; use /admin) |
 | client | `npm run dev` / `build` / `preview` | Vite dev / prod build / preview |
 | client | `npm run lint` | oxlint |
+
+## Docker
+
+Self-contained stack (app + MongoDB), no local Node/Mongo install needed:
+
+```bash
+cp .env.example .env
+# edit .env: set JWT_SECRET (32+ random chars) and MONGO_ROOT_PASSWORD at minimum
+docker compose up --build
+```
+
+→ `http://localhost:5001` serves both the API (`/api/*`) and the built storefront
+(single-domain production path — same as `NODE_ENV=production` on the VPS).
+
+- `Dockerfile` is a multi-stage build: builds `client/` with Vite, installs
+  `server/` prod deps, copies both into a minimal `node:20-alpine` runtime.
+- `docker-compose.yml` runs that image alongside a `mongo:7` container and
+  overrides `MONGO_URI`/`UPLOADS_DIR` to point at the `mongo` service and a
+  named volume — other settings (payments, mail, AI, etc.) come from `.env`
+  via `env_file`.
+- Named volumes: `mongo-data` (DB) and `uploads-data` (product images —
+  survives `docker compose down`; `docker compose down -v` wipes both).
+- Admin bootstrap still works: set `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env`
+  before first `up`.
+- Rebuild after code changes: `docker compose up --build`.
+
+This is a separate, self-contained path from the VPS deploy in `docs/` /
+`ops/` (which runs Node directly against a natively-installed MongoDB) —
+use whichever fits: Docker for portable/local runs, the VPS path for the
+current production setup.
 
 ## Database (MongoDB, Mongoose)
 
@@ -156,10 +195,10 @@ Conventions: section air lives in container `pt-/pb-` pairs (mobile + `lg:`) wit
 ## Setup from scratch (new machine)
 
 1. `git clone … && cd ether-jewels && npm run install-all`
-2. Copy `.env.example` → `server/.env`, fill `MONGO_URI` (VPS app-user URI above; dev machines can use plain localhost), set a long `JWT_SECRET`
+2. Copy `.env.example` → `server/.env`, set a long `JWT_SECRET`. Leave `MONGO_URI` as the placeholder unless you're pointing at a real Mongo (VPS app-user URI above, or a local install) — `npm run local:persist` below never reads it.
 3. VPS: MongoDB Community 8.0 installed as a `mongod` systemd service, `bindIp: 127.0.0.1`, auth enabled, UFW leaves 27017 closed
 4. Add your catalog in `/admin` (categories first, then products) — `npm run seed` is neutralized
-5. `node server.js` + `cd client && npm run dev` → open `http://localhost:3000`
+5. `cd server && npm run local:persist` + `cd client && npm run dev` → open `http://localhost:3000` (no real Mongo needed; use `node server.js` instead only once `MONGO_URI` points at a real one)
 6. Browse data: `http://localhost:5001/admin/db` or `mongosh` on the VPS
 
 ## Security notes
