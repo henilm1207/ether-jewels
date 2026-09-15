@@ -13,11 +13,14 @@
 #
 # Retention: 7 daily copies of each. Restore drill:
 #   mongorestore --uri="$MONGO_BACKUP_URI" --gzip --archive=/home/etherstar/backups/mongo-YYYY-MM-DD.gz
-#   tar -xzf /home/etherstar/backups/uploads-YYYY-MM-DD.tar.gz -C /
+#   tar -xzf /home/etherstar/backups/uploads-YYYY-MM-DD.tar.gz -C "$(dirname "$UPLOADS_DIR")"
+#   # (the tarball's top-level entry is the uploads/ dir itself, relative to UPLOADS_DIR's parent)
 set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-/home/etherstar/backups}"
-UPLOADS_DIR="${UPLOADS_DIR:-/var/www/etherstar/uploads}"
+# Must match server/.env's UPLOADS_DIR on this box — cron runs without
+# server/.env sourced, so this default has to be kept in sync by hand.
+UPLOADS_DIR="${UPLOADS_DIR:-/home/etherstar/htdocs/etherstarjewels.cloud/server/public/uploads}"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
 ENV_FILE="${ENV_FILE:-/home/etherstar/ops/.mongo-backup-env}"
 
@@ -44,7 +47,7 @@ mongodump --uri="$MONGO_BACKUP_URI" --gzip --archive="$MONGO_OUT"
 chmod 600 "$MONGO_OUT"
 
 log "Archiving $UPLOADS_DIR -> $UPLOADS_OUT"
-tar -czf "$UPLOADS_OUT" -C / var/www/etherstar/uploads
+tar -czf "$UPLOADS_OUT" -C "$(dirname "$UPLOADS_DIR")" "$(basename "$UPLOADS_DIR")"
 chmod 600 "$UPLOADS_OUT"
 
 log "Pruning backups older than $RETENTION_DAYS days"
