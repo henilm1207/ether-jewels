@@ -115,7 +115,7 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeade
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
 app.use(['/api/bag', '/api/wishlist'], bagWishlistLimiter);
-app.use(['/api/auth/profile', '/api/auth/password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 app.use(['/api/products', '/api/categories'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
