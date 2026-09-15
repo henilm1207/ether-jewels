@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { adminFetch } from '../../components/admin/api';
+import { adminFetch, adminDownload } from '../../components/admin/api';
 import { resolveMediaUrl } from '../../lib/media';
 import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
 
@@ -37,6 +37,19 @@ export default function Products() {
   }, [page, status, q]);
 
   useEffect(() => { load(); }, [load]);
+
+  const [exporting, setExporting] = useState(false);
+  const exportAlibaba = async () => {
+    setExporting(true);
+    setError('');
+    try {
+      await adminDownload('/api/products/admin/export/alibaba');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const [deleting, setDeleting] = useState(null); // product pending type-to-confirm
   const [confirmText, setConfirmText] = useState('');
@@ -77,7 +90,14 @@ export default function Products() {
       <PageHead
         title="Products"
         sub={`${total} total`}
-        action={<Link to="/admin/products/new" className="btn btn--primary text-sm">+ New product</Link>}
+        action={
+          <div className="flex gap-3">
+            <button onClick={exportAlibaba} disabled={exporting} className="btn btn--secondary text-sm disabled:opacity-40">
+              {exporting ? 'Exporting…' : 'Export for Alibaba'}
+            </button>
+            <Link to="/admin/products/new" className="btn btn--primary text-sm">+ New product</Link>
+          </div>
+        }
       />
       <ErrorMsg error={error} />
       <div className="flex flex-wrap gap-3 mb-4">

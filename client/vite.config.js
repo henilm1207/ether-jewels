@@ -17,6 +17,13 @@ export default defineConfig({
         target: process.env.VITE_API_PROXY || 'http://localhost:5001',
         changeOrigin: true,
       },
+      // Product/category imagery (server/lib/localImages.js) is served by
+      // Express under /uploads — without this, relative /uploads/*.webp
+      // paths (the default when VITE_API_URL is unset) 404 through Vite.
+      '/uploads': {
+        target: process.env.VITE_API_PROXY || 'http://localhost:5001',
+        changeOrigin: true,
+      },
     },
   },
   preview: { port: 3000 },

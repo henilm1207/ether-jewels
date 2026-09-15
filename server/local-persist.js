@@ -26,6 +26,10 @@ async function main() {
       dbName: DB_NAME,
       dbPath: DB_PATH,
       storageEngine: 'wiredTiger',
+      // Pinned (not a random free port) so MONGO_URI stays the same across
+      // restarts — matches server/.env.example's default, and gives tools
+      // like MongoDB Compass a stable mongodb://127.0.0.1:27017 to point at.
+      port: 27017,
     },
   });
   const uri = mongod.getUri(DB_NAME);
