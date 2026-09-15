@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "node server.js",
     "local": "node local.js",
+    "local:persist": "node local-persist.js",
     "seed": "node seed.js",
     "ensure-catalog": "node scripts/ensure-catalog.js",
     "migrate-bag-wishlist": "node scripts/migrate-bag-wishlist.js",

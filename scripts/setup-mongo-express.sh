@@ -100,10 +100,13 @@ fi
 log "mongo-express entry at $ME_ENTRY ($(node -p "require('$ME_HOME/node_modules/mongo-express/package.json').version"))"
 
 # Frontend assets: the published tarball omits the webpack build output
-# (build-assets.json + public/javascripts), without which the app crash-loops
-# at boot. Build once from a shallow source clone and transplant the output.
+# (build-assets.json + build/), without which all /public/* return 404 and the
+# UI renders unstyled. Build once from a shallow source clone and transplant.
+# NOTE: lib/router.js serves /public from <pkg>/build (not <pkg>/public):
+#   appRouter.use('/public', express.static(... '../build'))
+# so the transplant destination MUST be $ME_PKG/build.
 ME_PKG="$ME_HOME/node_modules/mongo-express"
-if [ ! -f "$ME_PKG/build-assets.json" ]; then
+if [ ! -f "$ME_PKG/build-assets.json" ] || ! ls "$ME_PKG"/build/vendor-*.min.js >/dev/null 2>&1; then
   log "Building mongo-express frontend assets (one-time, a few minutes)"
   rm -rf "$ME_HOME/src-build"
   git clone --depth 1 https://github.com/mongo-express/mongo-express.git "$ME_HOME/src-build"
@@ -114,9 +117,9 @@ if [ ! -f "$ME_PKG/build-assets.json" ]; then
   (cd /tmp/ajvpack && rm -f ajv-*.tgz && npm pack ajv@8 >/dev/null 2>&1 && tar -xzf ajv-8.*.tgz && rm -rf "$ME_HOME/src-build/node_modules/ajv-keywords/node_modules/ajv" && mv package "$ME_HOME/src-build/node_modules/ajv-keywords/node_modules/ajv")
   (cd "$ME_HOME/src-build" && ./node_modules/.bin/cross-env NODE_ENV=production ./node_modules/.bin/webpack)
   cp "$ME_HOME/src-build/build-assets.json" "$ME_PKG/"
-  mkdir -p "$ME_PKG/public/javascripts"
-  cp "$ME_HOME/src-build"/public/javascripts/* "$ME_PKG/public/javascripts/"
-  log "Frontend assets transplanted"
+  mkdir -p "$ME_PKG/build"
+  cp -a "$ME_HOME/src-build/build/." "$ME_PKG/build/"
+  log "Frontend assets transplanted to $ME_PKG/build"
 fi
 
 # Read-only GUI user (view everything, change nothing). Needs a privileged

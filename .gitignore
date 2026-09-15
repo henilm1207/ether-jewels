@@ -8,3 +8,5 @@ server/public/uploads/*
 !server/public/uploads/.gitkeep
 # Migration backups hold production data snapshots — never commit.
 server/*-migration-backup.json
+# Persistent memory-server data (local:persist dev DB) — never commit.
+server/.devdb/
