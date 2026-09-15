@@ -17,6 +17,7 @@ import Wishlist from './pages/Wishlist';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ReturnPolicy from './pages/ReturnPolicy';
@@ -51,7 +52,10 @@ function StorefrontLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === '/';
-  const hideFooter = location.pathname === '/account/login' || location.pathname === '/account/register';
+  const hideFooter =
+    location.pathname === '/account/login' ||
+    location.pathname === '/account/register' ||
+    location.pathname === '/account/forgot-password';
 
   useEffect(() => {
     if (cartOpen || mobileNavOpen || searchOpen) {
@@ -139,6 +143,7 @@ function App() {
             <Route path="/account" element={<Profile />} />
             <Route path="/account/login" element={<Login />} />
             <Route path="/account/register" element={<Register />} />
+            <Route path="/account/forgot-password" element={<ForgotPassword />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

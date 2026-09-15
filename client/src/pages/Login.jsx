@@ -12,6 +12,7 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [notice] = useState(location.state && location.state.notice);
 
   if (user) {
     const home = user.role === 'admin' ? '/admin' : (from.startsWith('/admin') ? '/' : from);
@@ -43,6 +44,7 @@ export default function Login() {
             Log in
           </h1>
         </div>
+        {notice && <p className="text-center text-sm text-green-700" style={{ marginBottom: '24px' }}>{notice}</p>}
         <form onSubmit={submit}>
           <div style={{ marginBottom: '16px' }}>
             <label htmlFor="login-email" className="block text-[13px] font-medium uppercase" style={{ letterSpacing: '1px', marginBottom: '8px' }}>
@@ -51,9 +53,14 @@ export default function Login() {
             <input id="login-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className="form-control" placeholder="Email" />
           </div>
           <div style={{ marginBottom: '24px' }}>
-            <label htmlFor="login-password" className="block text-[13px] font-medium uppercase" style={{ letterSpacing: '1px', marginBottom: '8px' }}>
-              Password
-            </label>
+            <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
+              <label htmlFor="login-password" className="block text-[13px] font-medium uppercase" style={{ letterSpacing: '1px' }}>
+                Password
+              </label>
+              <Link to="/account/forgot-password" className="text-[13px] underline hover:opacity-70">
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <input id="login-password" type={showPw ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className="form-control" placeholder="Password" style={{ paddingRight: '60px' }} />
               <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs underline hover:opacity-70">

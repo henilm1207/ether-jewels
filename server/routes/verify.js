@@ -4,16 +4,17 @@
 // until the WhatsApp update lands) — enforced via a short-lived token
 // bound to the exact email+phone pair.
 const express = require('express');
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const Otp = require('../models/Otp');
 const VerifiedContact = require('../models/VerifiedContact');
 const { sendMail, isMailConfigured } = require('../lib/mail');
 const { sendWhatsAppOtp } = require('../lib/whatsapp');
+const { hashCode, randomCode, codeMatches } = require('../lib/otp');
 
 const router = express.Router();
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
+const PURPOSE = 'checkout';
 
 // TEMP-DISABLED until the WhatsApp update: set WHATSAPP_VERIFY_ENABLED=false
 // to run email-only verification. Default (unset/anything else) keeps the
@@ -34,15 +35,6 @@ const normPhone = (v) => {
 };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function hashCode(code, channel, target) {
-  const pepper = process.env.JWT_SECRET || '';
-  return crypto.createHash('sha256').update(`${code}|${channel}|${target}|${pepper}`).digest('hex');
-}
-
-function randomCode() {
-  return String(crypto.randomInt(100000, 1000000));
-}
-
 // POST /api/verify/request — {channel:'email'|'whatsapp', value} → sends code.
 // Generic 200 either way (no account probing); 503 when provider unset.
 router.post('/request', async (req, res, next) => {
@@ -60,11 +52,12 @@ router.post('/request', async (req, res, next) => {
     // Honest gating: never pretend a code was sent when no provider exists.
     if (channel === 'email' && !isMailConfigured())
       return res.status(503).json({ message: 'Email OTP not configured yet' });
-    await Otp.deleteMany({ channel, target, consumed: false });
+    await Otp.deleteMany({ channel, target, purpose: PURPOSE, consumed: false });
     await Otp.create({
       channel,
       target,
-      codeHash: hashCode(code, channel, target),
+      purpose: PURPOSE,
+      codeHash: hashCode(code, channel, target, PURPOSE),
       expiresAt: new Date(Date.now() + CODE_TTL_MS),
     });
 
@@ -95,7 +88,7 @@ router.post('/check', async (req, res, next) => {
     if (channel !== 'email' && channel !== 'whatsapp')
       return res.status(400).json({ message: 'channel must be email or whatsapp' });
     const target = channel === 'email' ? normEmail(value) : normPhone(value);
-    const doc = await Otp.findOne({ channel, target, consumed: false }).sort({ createdAt: -1 });
+    const doc = await Otp.findOne({ channel, target, purpose: PURPOSE, consumed: false }).sort({ createdAt: -1 });
     if (!doc || doc.expiresAt.getTime() < Date.now()) {
       if (doc) await doc.deleteOne();
       return res.status(400).json({ message: 'Invalid or expired code' });
@@ -104,11 +97,8 @@ router.post('/check', async (req, res, next) => {
       await doc.deleteOne();
       return res.status(429).json({ message: 'Too many attempts — request a new code' });
     }
-    const guess = hashCode(String(code || '').trim(), channel, target);
-    const a = Buffer.from(guess, 'hex');
-    const b = Buffer.from(doc.codeHash, 'hex');
-    const match = a.length === b.length && crypto.timingSafeEqual(a, b);
-    if (!match) {
+    const guess = hashCode(String(code || '').trim(), channel, target, PURPOSE);
+    if (!codeMatches(guess, doc.codeHash)) {
       doc.attempts += 1;
       await doc.save();
       if (doc.attempts >= MAX_ATTEMPTS) await doc.deleteOne();
