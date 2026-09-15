@@ -1,0 +1,57 @@
+# Production compose for the VPS (etherstarjewels.cloud). Built and run
+# directly on the box by .github/workflows/deploy-prod.yml — no registry.
+# Binds the app to 127.0.0.1:5001 (nginx already proxies there — no nginx
+# change needed) and bind-mounts the *existing* uploads directory in place
+# (server/public/uploads, same path production has used natively) so
+# migrating to Docker doesn't move or duplicate product images.
+services:
+  mongo:
+    # Pinned to match production's existing native MongoDB (8.0.32) — the
+    # cross-major mongo:7 restore this replaced was flagged unsupported by
+    # mongorestore itself ("may be corrupted").
+    image: mongo:8
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?set MONGO_ROOT_USER in .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
+    volumes:
+      - mongo-data:/data/db
+    # Loopback-only, matching the native mongod this replaces — lets
+    # ops/backup/backup.sh and mongo-express (both host-side, unchanged
+    # otherwise) keep talking to 127.0.0.1:27017. Safe only because the
+    # native mongod is stopped during cutover (frees the port).
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    image: etherstar-jewels-app:prod
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # Reuses the VPS's existing server/.env (already holds the production
+    # JWT_SECRET, Stripe/PayPal/Resend/WhatsApp/Gemini keys, admin bootstrap,
+    # FRONTEND_URL, etc. — same file the native PM2 deploy used, so no
+    # secrets were duplicated for this migration). The overrides below wire
+    # the app to the `mongo` service and the uploads bind mount, taking
+    # precedence over the same keys in server/.env.
+    env_file:
+      - server/.env
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/etherstar-jewels?authSource=admin
+      UPLOADS_DIR: /app/uploads
+    ports:
+      - "127.0.0.1:5001:5001"
+    volumes:
+      - ./server/public/uploads:/app/uploads
+
+volumes:
+  mongo-data:
