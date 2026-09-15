@@ -98,6 +98,27 @@ const productSchema = new mongoose.Schema(
       metalWeightGrams: { type: Number, min: 0 },
       makingCharges: { type: Number, min: 0 },
     },
+    // Alibaba.com bulk-upload export settings — not shown on the storefront.
+    // Field names/shape follow Alibaba's official "Basic Information" template
+    // (server/assets/Alibaba default template (recommended).xlsx).
+    alibaba: {
+      enabled: { type: Boolean, default: false },
+      unit: { type: String, default: 'Piece/Pieces' },
+      category: { type: String, default: '' }, // free-text; blank = Alibaba AI assigns
+      origin: { type: String, default: '' },
+      leadTimeDays: { type: Number, min: 0 },
+      grossWeightKg: { type: Number, min: 0 }, // shipping weight, required by Alibaba for RTS listings
+      attr1Name: { type: String, default: '' },
+      attr1Value: { type: String, default: '' },
+      attr2Name: { type: String, default: '' },
+      attr2Value: { type: String, default: '' },
+      attr3Name: { type: String, default: '' },
+      attr3Value: { type: String, default: '' },
+      attr4Name: { type: String, default: '' },
+      attr4Value: { type: String, default: '' },
+      attr5Name: { type: String, default: '' },
+      attr5Value: { type: String, default: '' },
+    },
     // Denormalized from reviews
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },

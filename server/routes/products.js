@@ -2,6 +2,7 @@ const express = require('express');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const { authRequired, requireAdmin } = require('../middleware/auth');
+const { buildAlibabaCsv } = require('../lib/alibabaExport');
 
 const router = express.Router();
 const ALLOWED_STATUSES = ['active', 'draft', 'archived'];
@@ -9,7 +10,7 @@ const PRODUCT_FIELDS = [
   'name', 'slug', 'legacySlugs', 'styleCode', 'shape', 'shapes', 'diamondColors', 'clarity', 'price', 'kt18Delta',
   'compareAtPrice', 'description', 'shortDescription', 'category', 'images',
   'video', 'variants', 'tags', 'badge', 'status', 'inStock', 'stockQty',
-  'featured', 'sizes', 'defaultSize', 'details', 'seoTitle', 'seoDesc',
+  'featured', 'sizes', 'defaultSize', 'details', 'seoTitle', 'seoDesc', 'alibaba',
 ];
 const pick = (obj, keys) => {
   const out = {};
@@ -180,6 +181,20 @@ router.get('/admin/all', authRequired, requireAdmin, async (req, res, next) => {
       Product.countDocuments(filter),
     ]);
     res.json({ items, total, page: pg, pages: Math.ceil(total / lim) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Alibaba.com bulk-upload CSV — must be before /:slug.
+router.get('/admin/export/alibaba', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    const products = await Product.find({ status: 'active', 'alibaba.enabled': true });
+    const publicApiBase = process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`;
+    const csv = buildAlibabaCsv(products, publicApiBase);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="alibaba-products-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(csv);
   } catch (e) {
     next(e);
   }

@@ -15,6 +15,11 @@ const EMPTY = {
   inStock: true, stockQty: 10, featured: false, sizes: [], defaultSize: '',
   sideStoneCertified: false, deliveryDays: 30, metalWeightGrams: '', makingCharges: '',
   seoTitle: '', seoDesc: '',
+  alibabaEnabled: false, alibabaUnit: 'Piece/Pieces', alibabaCategory: '',
+  alibabaOrigin: '', alibabaLeadTimeDays: '', alibabaGrossWeightKg: '',
+  alibabaAttr1Name: '', alibabaAttr1Value: '', alibabaAttr2Name: '', alibabaAttr2Value: '',
+  alibabaAttr3Name: '', alibabaAttr3Value: '', alibabaAttr4Name: '', alibabaAttr4Value: '',
+  alibabaAttr5Name: '', alibabaAttr5Value: '',
 };
 const EMPTY_VARIANT = { name: '', material: '', color: DEFAULT_METAL.swatch, price: '', inStock: true };
 
@@ -244,6 +249,17 @@ export default function ProductForm() {
           styleCode: p.styleCode || '',
           seoTitle: p.seoTitle || '',
           seoDesc: p.seoDesc || '',
+          alibabaEnabled: !!p.alibaba?.enabled,
+          alibabaUnit: p.alibaba?.unit || 'Piece/Pieces',
+          alibabaCategory: p.alibaba?.category || '',
+          alibabaOrigin: p.alibaba?.origin || '',
+          alibabaLeadTimeDays: p.alibaba?.leadTimeDays != null ? String(p.alibaba.leadTimeDays) : '',
+          alibabaGrossWeightKg: p.alibaba?.grossWeightKg != null ? String(p.alibaba.grossWeightKg) : '',
+          alibabaAttr1Name: p.alibaba?.attr1Name || '', alibabaAttr1Value: p.alibaba?.attr1Value || '',
+          alibabaAttr2Name: p.alibaba?.attr2Name || '', alibabaAttr2Value: p.alibaba?.attr2Value || '',
+          alibabaAttr3Name: p.alibaba?.attr3Name || '', alibabaAttr3Value: p.alibaba?.attr3Value || '',
+          alibabaAttr4Name: p.alibaba?.attr4Name || '', alibabaAttr4Value: p.alibaba?.attr4Value || '',
+          alibabaAttr5Name: p.alibaba?.attr5Name || '', alibabaAttr5Value: p.alibaba?.attr5Value || '',
         });
         setVariants(p.variants?.length ? p.variants.map((v) => ({ ...EMPTY_VARIANT, ...v, price: String(v.price ?? '') })) : [{ ...EMPTY_VARIANT }]);
       } catch (e) {
@@ -310,6 +326,19 @@ export default function ProductForm() {
         },
         seoTitle: form.seoTitle.trim() || undefined,
         seoDesc: form.seoDesc.trim() || undefined,
+        alibaba: {
+          enabled: !!form.alibabaEnabled,
+          unit: form.alibabaUnit.trim() || 'Piece/Pieces',
+          category: form.alibabaCategory.trim(),
+          origin: form.alibabaOrigin.trim(),
+          leadTimeDays: num(form.alibabaLeadTimeDays),
+          grossWeightKg: num(form.alibabaGrossWeightKg),
+          attr1Name: form.alibabaAttr1Name.trim(), attr1Value: form.alibabaAttr1Value.trim(),
+          attr2Name: form.alibabaAttr2Name.trim(), attr2Value: form.alibabaAttr2Value.trim(),
+          attr3Name: form.alibabaAttr3Name.trim(), attr3Value: form.alibabaAttr3Value.trim(),
+          attr4Name: form.alibabaAttr4Name.trim(), attr4Value: form.alibabaAttr4Value.trim(),
+          attr5Name: form.alibabaAttr5Name.trim(), attr5Value: form.alibabaAttr5Value.trim(),
+        },
       };
       const saved = isNew
         ? await adminFetch('/api/products', { method: 'POST', body })
@@ -636,6 +665,29 @@ export default function ProductForm() {
                 {saving ? 'Saving…' : isNew ? 'Create product' : 'Save changes'}
               </button>
               {savedNote && <p role="status" className="text-sm text-green-700 mt-2">{savedNote}</p>}
+            </Card>
+            <div style={{ height: '16px' }} />
+            <Card>
+              <h2 className="font-medium text-sm mb-3">ALIBABA EXPORT</h2>
+              <label className="flex items-center gap-2 text-sm mb-3">
+                <input type="checkbox" checked={!!form.alibabaEnabled} onChange={(e) => set('alibabaEnabled', e.target.checked)} /> Include in Alibaba export
+              </label>
+              <Field label="Category (e.g. Fine Jewelry &gt; Rings)"><input value={form.alibabaCategory} onChange={(e) => set('alibabaCategory', e.target.value)} placeholder="Leave blank for Alibaba AI to assign" className={inputCls} style={inputStyle} /></Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Unit"><input value={form.alibabaUnit} onChange={(e) => set('alibabaUnit', e.target.value)} className={inputCls} style={inputStyle} /></Field>
+                <Field label="Origin"><input value={form.alibabaOrigin} onChange={(e) => set('alibabaOrigin', e.target.value)} className={inputCls} style={inputStyle} /></Field>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Lead time (days)"><input type="number" min="0" value={form.alibabaLeadTimeDays} onChange={(e) => set('alibabaLeadTimeDays', e.target.value)} placeholder={String(form.deliveryDays)} className={inputCls} style={inputStyle} /></Field>
+                <Field label="Gross weight (KG)"><input type="number" min="0" step="0.01" value={form.alibabaGrossWeightKg} onChange={(e) => set('alibabaGrossWeightKg', e.target.value)} className={inputCls} style={inputStyle} /></Field>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">Product attributes (e.g. Metal / 14K Gold, Gemstone / Diamond) — shown to Alibaba buyers, up to 5 pairs.</p>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <div key={n} className="grid grid-cols-2 gap-2" style={{ marginBottom: '8px' }}>
+                  <input value={form[`alibabaAttr${n}Name`]} onChange={(e) => set(`alibabaAttr${n}Name`, e.target.value)} placeholder={`Attribute ${n} name`} className={inputCls} style={inputStyle} />
+                  <input value={form[`alibabaAttr${n}Value`]} onChange={(e) => set(`alibabaAttr${n}Value`, e.target.value)} placeholder={`Attribute ${n} value`} className={inputCls} style={inputStyle} />
+                </div>
+              ))}
             </Card>
             {!isNew && (
               <>
