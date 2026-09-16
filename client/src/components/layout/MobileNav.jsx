@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getMenuTree } from '../../lib/categoryTree';
 
 const menuItems = [
-  { label: 'Jewellery', to: '/collections', dynamic: true },
+  { label: 'Jewellery', to: '/collections/all', dynamic: true },
   { label: 'Diamonds', to: '/pages/diamond' },
   { label: 'Contact', to: '/pages/contact' },
   { label: 'About', to: '/pages/about-us' },
@@ -92,7 +92,7 @@ export default function MobileNav({ isOpen, onClose }) {
                           <>
                             <p className="px-8 py-3 text-sm text-gray-500">New collections coming soon</p>
                             <Link
-                              to="/collections"
+                              to="/collections/all"
                               onClick={onClose}
                               className="block px-8 py-3 text-sm text-gray-600 hover:text-[#222] hover:bg-gray-100 underline"
                             >
@@ -102,7 +102,7 @@ export default function MobileNav({ isOpen, onClose }) {
                         ) : (
                           <>
                             <Link
-                              to="/collections"
+                              to="/collections/all"
                               onClick={onClose}
                               className="block px-8 py-3 text-sm font-medium underline"
                             >
