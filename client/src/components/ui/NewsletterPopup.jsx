@@ -6,6 +6,8 @@ export default function NewsletterPopup() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const openRef = useRef(false);
@@ -48,9 +50,6 @@ export default function NewsletterPopup() {
     };
   }, [handleClose]);
 
-  const closeTimer = useRef(null);
-  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || loading) return;
@@ -65,12 +64,23 @@ export default function NewsletterPopup() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Subscription failed');
       setSubscribed(true);
+      setCouponCode(data.couponCode || '');
       setEmail('');
-      closeTimer.current = setTimeout(handleClose, 2000);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(couponCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API unavailable (e.g. insecure context) — the code is
+      // still selectable/visible in the box, so this is a silent no-op.
     }
   };
 
@@ -112,7 +122,25 @@ export default function NewsletterPopup() {
           </p>
 
           {subscribed ? (
-            <p role="status" className="text-[15px]">You have already subscribed!</p>
+            <div role="status">
+              <p className="text-[15px]" style={{ marginBottom: couponCode ? '12px' : 0 }}>You're subscribed!</p>
+              {couponCode && (
+                <>
+                  <p className="text-sm text-gray-600" style={{ marginBottom: '8px' }}>Your code — enter it at checkout:</p>
+                  <div className="flex items-center gap-2">
+                    <code
+                      className="flex-1 text-sm font-medium"
+                      style={{ padding: '10px 12px', background: '#f7f2ef', letterSpacing: '1px', borderRadius: '4px' }}
+                    >
+                      {couponCode}
+                    </code>
+                    <button type="button" onClick={handleCopy} className="btn btn--secondary text-sm">
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ marginTop: '24px' }}>
               <label htmlFor="popup-newsletter-email" className="sr-only">Email</label>

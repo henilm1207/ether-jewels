@@ -61,4 +61,27 @@ function sendOrderConfirmation(order) {
   });
 }
 
-module.exports = { sendMail, sendOrderConfirmation, orderConfirmationHtml, isMailConfigured };
+// Welcome coupon mail — fired from POST /api/newsletter/subscribe (fire-and-forget;
+// the code is also returned in the API response so the popup shows it immediately).
+function welcomeCouponHtml(code) {
+  return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#222;">
+    <h2 style="letter-spacing:1px;">ETHERSTAR JEWELS</h2>
+    <p>Welcome! Here's your code for <strong>5% off your first order</strong>:</p>
+    <p style="font-size:20px;font-weight:bold;letter-spacing:2px;padding:12px 16px;background:#f7f2ef;display:inline-block;">${esc(code)}</p>
+    <p style="font-size:13px;color:#555;">Enter it at checkout. One-time use, valid for 30 days.</p>
+  </div>`;
+}
+
+function sendWelcomeCoupon(email, code) {
+  if (!email || !code) return Promise.resolve({ skipped: true });
+  return sendMail({
+    to: email,
+    subject: 'Your 5% welcome discount — EtherStar Jewels',
+    html: welcomeCouponHtml(code),
+  }).catch((e) => {
+    console.error(`welcome coupon mail failed for ${email}:`, e.message);
+    return { failed: true };
+  });
+}
+
+module.exports = { sendMail, sendOrderConfirmation, orderConfirmationHtml, sendWelcomeCoupon, isMailConfigured };

@@ -17,6 +17,9 @@ const subscriberSchema = new mongoose.Schema({
   },
   active: { type: Boolean, default: true },
   unsubscribedAt: { type: Date, default: null },
+  // First-order welcome coupon (see routes/newsletter.js#ensureWelcomeCoupon).
+  // Minted once per subscriber and reused on repeat subscribe calls.
+  welcomeCode: { type: String, default: null },
 });
 
 module.exports = mongoose.model('Subscriber', subscriberSchema);

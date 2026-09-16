@@ -31,6 +31,8 @@ const slugify = (s) =>
 function ImageManager({ images, setImages, setError }) {
   const [url, setUrl] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
 
   const addFiles = async (files) => {
     const list = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
@@ -57,6 +59,16 @@ function ImageManager({ images, setImages, setError }) {
     setImages(next);
   };
 
+  // Drag-to-reorder: pulls the dragged image out and re-inserts it at the
+  // drop index, so later images can shift left/right past it (not just swap).
+  const reorder = (from, to) => {
+    if (from === to || from == null || to == null) return;
+    const next = [...images];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setImages(next);
+  };
+
   // Removing from the form also deletes the local file (if ours).
   // Best-effort: the image is dropped from the product regardless. Only
   // /uploads/YYYY-MM/<uuid>.webp values trigger the delete — external
@@ -78,8 +90,19 @@ function ImageManager({ images, setImages, setError }) {
     <div>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-3">
         {images.map((src, i) => (
-          <div key={`${src}-${i}`} className="relative border border-[#e5e5e5] rounded overflow-hidden bg-gray-50">
-            <img src={resolveMediaUrl(src)} alt={`Product image ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
+          <div
+            key={`${src}-${i}`}
+            draggable
+            onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = 'move'; }}
+            onDragEnter={() => { if (dragIndex !== null) setOverIndex(i); }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); reorder(dragIndex, i); setDragIndex(null); setOverIndex(null); }}
+            onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+            className={`relative border rounded overflow-hidden bg-gray-50 cursor-grab active:cursor-grabbing transition ${
+              dragIndex === i ? 'opacity-40' : ''
+            } ${overIndex === i && dragIndex !== null && dragIndex !== i ? 'border-[#222] ring-2 ring-[#222]' : 'border-[#e5e5e5]'}`}
+          >
+            <img src={resolveMediaUrl(src)} alt={`Product image ${i + 1}`} className="w-full aspect-square object-cover pointer-events-none" loading="lazy" draggable={false} />
             {i === 0 && <span className="absolute top-1 left-1 text-[10px] font-medium bg-[#222] text-white rounded px-1.5 py-0.5">COVER</span>}
             <div className="flex justify-between text-xs" style={{ padding: '4px 6px' }}>
               <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="underline disabled:opacity-30">←</button>
