@@ -122,15 +122,6 @@ export default function ProductForm() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setImages = (images) => setForm((f) => ({ ...f, images }));
-  // Grade multi-selects (diamond color / clarity): toggle + keep scale order
-  // (best first) so cards can render compact ranges like D–F.
-  const toggleGrade = (key, scale, value) =>
-    setForm((f) => {
-      const cur = f[key] || [];
-      const next = cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value];
-      next.sort((a, b) => scale.indexOf(a) - scale.indexOf(b));
-      return { ...f, [key]: next };
-    });
 
   // Variant (Category) options: STATIC list first (always complete), DB extras
   // (quick-added customs) merged in marked with •. Same for sub-categories.
@@ -393,6 +384,7 @@ export default function ProductForm() {
                       <option key={c.key} value={c.key}>{c.name}{c.custom ? ' •' : ''}</option>
                     ))}
                   </select>
+                  <button type="button" onClick={() => setQa({ kind: 'variant', name: '' })} className="block underline text-xs text-gray-500 mt-1">+ New category</button>
                 </Field>
                 <Field label="Sub-category *">
                   <select
@@ -408,11 +400,8 @@ export default function ProductForm() {
                       <option key={c.key} value={c.key}>{c.name} ({c.key}){c.custom ? ' •' : ''}</option>
                     ))}
                   </select>
+                  <button type="button" onClick={() => setQa({ kind: 'sub', name: '' })} disabled={!variantKey} className="block underline text-xs text-gray-500 mt-1 disabled:opacity-40" title={variantKey ? '' : 'Pick a category first'}>+ New sub-category</button>
                 </Field>
-                <div className="sm:col-span-2 flex flex-wrap items-center gap-4" style={{ paddingBottom: '14px' }}>
-                  <button type="button" onClick={() => setQa({ kind: 'variant', name: '' })} className="underline text-sm">+ New category</button>
-                  <button type="button" onClick={() => setQa({ kind: 'sub', name: '' })} disabled={!variantKey} className="underline text-sm disabled:opacity-40" title={variantKey ? '' : 'Pick a category first'}>+ New sub-category</button>
-                </div>
                 {qa && (
                   <form onSubmit={quickAdd} className="sm:col-span-3 flex flex-wrap items-end gap-2 bg-[#fafafa] border border-[#e5e5e5] rounded" style={{ padding: '12px' }}>
                     <p className="text-sm font-medium w-full">
@@ -435,68 +424,30 @@ export default function ProductForm() {
                   </form>
                 )}
                 <Field label="Diamond shapes (max 5, first = primary)">
-                  <div className="grid grid-cols-2 gap-1" role="group" aria-label="Diamond shapes">
-                    {SHAPE_NAMES.map((s) => {
-                      const on = (form.shapes || []).includes(s);
-                      const full = !on && (form.shapes || []).length >= 5;
-                      return (
-                        <label key={s} className={`flex items-center gap-2 text-sm ${full ? 'opacity-40' : 'cursor-pointer'}`} style={{ padding: '6px 0' }}>
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            disabled={full}
-                            onChange={() => {
-                              const cur = form.shapes || [];
-                              set('shapes', on ? cur.filter((x) => x !== s) : [...cur, s]);
-                            }}
-                            className="accent-black"
-                            style={{ width: '16px', height: '16px' }}
-                          />
-                          {s}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <MultiSelectDropdown
+                    options={SHAPE_NAMES.map((s) => ({ value: s, label: s }))}
+                    values={form.shapes || []}
+                    onChange={(vals) => set('shapes', vals.slice(0, 5))}
+                    placeholder="Select shapes…"
+                  />
                   <span className="block text-xs text-gray-400 mt-1">Empty = no shape (bands). Order kept as picked.</span>
                 </Field>
                 <Field label="Diamond color (D–N)">
-                  <div className="grid grid-cols-4 gap-1" role="group" aria-label="Diamond color grades">
-                    {DIAMOND_COLORS.map((c) => {
-                      const on = (form.diamondColors || []).includes(c);
-                      return (
-                        <label key={c} className="flex items-center gap-2 text-sm cursor-pointer" style={{ padding: '6px 0' }}>
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() => toggleGrade('diamondColors', DIAMOND_COLORS, c)}
-                            className="accent-black"
-                            style={{ width: '16px', height: '16px' }}
-                          />
-                          {c}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <MultiSelectDropdown
+                    options={DIAMOND_COLORS.map((c) => ({ value: c, label: c }))}
+                    values={form.diamondColors || []}
+                    onChange={(vals) => set('diamondColors', [...vals].sort((a, b) => DIAMOND_COLORS.indexOf(a) - DIAMOND_COLORS.indexOf(b)))}
+                    placeholder="Select color grades…"
+                  />
                   <span className="block text-xs text-gray-400 mt-1">Empty = no color info. Stored best-first.</span>
                 </Field>
                 <Field label="Diamond clarity (IF–I3)">
-                  <div className="grid grid-cols-2 gap-1" role="group" aria-label="Diamond clarity grades">
-                    {DIAMOND_CLARITY.map((c) => {
-                      const on = (form.clarity || []).includes(c);
-                      return (
-                        <label key={c} className="flex items-center gap-2 text-sm cursor-pointer" style={{ padding: '6px 0' }}>
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() => toggleGrade('clarity', DIAMOND_CLARITY, c)}
-                            className="accent-black"
-                            style={{ width: '16px', height: '16px' }}
-                          />
-                          {c}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <MultiSelectDropdown
+                    options={DIAMOND_CLARITY.map((c) => ({ value: c, label: c }))}
+                    values={form.clarity || []}
+                    onChange={(vals) => set('clarity', [...vals].sort((a, b) => DIAMOND_CLARITY.indexOf(a) - DIAMOND_CLARITY.indexOf(b)))}
+                    placeholder="Select clarity grades…"
+                  />
                   <span className="block text-xs text-gray-400 mt-1">Empty = no clarity info. Stored best-first.</span>
                 </Field>
                 <Field label="SKU / Style code">
