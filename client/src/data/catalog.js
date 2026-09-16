@@ -48,3 +48,13 @@ export const SUBS = {
 
 // Ring leaves get sizes on the product page; everything else sells without.
 export const RING_LEAVES = new Set(SUBS.rings.map((s) => s.key));
+
+// Alibaba category picker options — derived from our own catalog tree so the
+// Alibaba taxonomy never drifts out of sync with the site's real categories.
+export const ALIBABA_CATEGORY_OPTIONS = VARIANTS.flatMap((v) => [
+  { value: `Fine Jewelry > ${v.name}`, label: v.name },
+  ...(SUBS[v.key] || []).map((s) => ({
+    value: `Fine Jewelry > ${v.name} > ${s.name}`,
+    label: `${v.name} > ${s.name}`,
+  })),
+]);

@@ -19,17 +19,35 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 8000;
 
 // Hard caps matching Product schema / SEO best practice
-const CAPS = { name: 80, shortDescription: 120, description: 1200, seoTitle: 60, seoDesc: 160 };
+const CAPS = { name: 80, shortDescription: 160, description: 1200, seoTitle: 60, seoDesc: 160, tags: 200 };
 
-const SYSTEM_PROMPT = `You are the senior copywriter for EtherStar Jewels, a lab-grown diamond jewelry house.
-Voice: elegant, confident, warm. Short sentences. No hype words like "stunning" more than once.
-Facts you may state: lab-grown certified diamonds, handcrafted settings, USD pricing decided separately (never invent prices).
-Always return JSON only with exactly these keys: name, shortDescription, description, seoTitle, seoDesc.
-- name: product display name, no price, no "USD".
-- shortDescription: one line shown under the title.
-- description: 2-3 sentences for the product page.
-- seoTitle: <=60 chars, includes main keywords.
-- seoDesc: <=160 chars, click-worthy search snippet.`;
+// Cut on the last word boundary instead of slicing mid-word when the model
+// runs over a field's cap (the richer brand voice makes this more likely).
+function truncateAtWord(v, cap) {
+  if (v.length <= cap) return v;
+  const cut = v.slice(0, cap);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim();
+}
+
+// Brand voice + structure per gemini-code-1789537618388.md (house copywriting
+// brief). Reshaped from that doc's 5-section markdown chat format into the
+// strict single-line-JSON contract this endpoint parses: shortDescription
+// renders in a one-line admin <input> and description is plain text (no
+// markdown) on the storefront, so no headers/bullets/asterisks survive here
+// even though the brief's "Long Description" step uses them.
+const SYSTEM_PROMPT = `You are a premium e-commerce copywriter and SEO specialist for EtherStar Jewels, a luxury lab-grown diamond jewelry house specializing in large carat weights, complex cuts (radiant, emerald, round, pear, marquise), statement engagement rings, and intricate eternity bands in 14K/18K white, yellow, and rose gold.
+Voice: professional, premium English — luxurious, romantic, elegant, persuasive. Short sentences. No hype words like "stunning" more than once.
+Weave in (where true of the piece) without listing them mechanically: maximum brilliance, eco-friendly/sustainable and conflict-free origin, impeccable craftsmanship, and exact physical/chemical equivalence to mined diamonds.
+Facts you may state: lab-grown certified diamonds, handcrafted settings, USD pricing decided separately (never invent prices, carat weights, or clarity grades you cannot see).
+Rely on visual analysis of the provided images to describe setting types (e.g. micro-pavé, hidden halo, eternity, scattered setting) and metal color.
+Always return JSON only, no markdown, no conversational filler, with exactly these keys: name, shortDescription, description, seoTitle, seoDesc, tags.
+- name: product title, ideally "[Carat weight] [Diamond cut] Lab-Grown Diamond [Product type] in [Metal]" when those facts are visible/given (e.g. "4.08 Carat Round Cut Lab-Grown Diamond Engagement Ring in 14K Gold"), otherwise an equally descriptive title. No price, no "USD".
+- shortDescription: ONE compelling sentence, under 150 characters, shown under the title — the piece's centerpiece stone, design style, and best use-case (engagement, anniversary, everyday luxury).
+- description: 2-4 short plain-text paragraphs (no bullets, no headers, no asterisks) — open with a romantic/luxurious scene-setter, then cover the centerpiece stone and brilliance, the band/setting detailing (pavé, halo, prongs, gallery work — only what's visible), the metal, and close on the sustainable lab-grown craftsmanship.
+- seoTitle: 50-60 chars, keyword-rich (carat, shape, product type).
+- seoDesc: <=160 chars, click-worthy meta-description search snippet.
+- tags: 10-15 comma-separated SEO keywords/long-tail phrases (carat weight, shape, style terms like "eco-friendly diamond ring") — comma-separated string, not an array.`;
 
 async function fetchImage(url) {
   // Local uploads (/uploads/...) are read from disk — the admin panel sends
@@ -147,7 +165,7 @@ router.post('/describe', authRequired, requireAdmin, async (req, res, next) => {
     const fields = {};
     for (const [key, cap] of Object.entries(CAPS)) {
       const v = typeof parsed[key] === 'string' ? parsed[key].trim() : '';
-      if (v) fields[key] = v.slice(0, cap);
+      if (v) fields[key] = truncateAtWord(v, cap);
     }
     if (!Object.keys(fields).length)
       return res.status(502).json({ message: 'AI returned empty copy — try again' });

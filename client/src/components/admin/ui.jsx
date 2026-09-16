@@ -1,4 +1,7 @@
 // Shared admin UI atoms — plain back-office styling.
+import { useEffect, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
+
 export const SHAPE_NAMES = ['Round', 'Princess', 'Cushion', 'Oval', 'Pear', 'Emerald', 'Marquise', 'Asscher', 'Heart', 'Radiant'];
 export const RING_SIZES = ['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9'];
 export const RING_CATEGORIES = ['rings', 'solitaire-rings', 'halo-rings', 'engagement-rings', 'three-stone-rings', 'bands'];
@@ -28,11 +31,16 @@ export function Card({ children }) {
   );
 }
 
-export function Field({ label, children, hint }) {
+export function Field({ label, children, hint, info }) {
   return (
     <label className="block" style={{ marginBottom: '14px' }}>
-      <span className="block text-xs font-medium uppercase tracking-wider text-gray-600" style={{ marginBottom: '6px' }}>
+      <span className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-gray-600" style={{ marginBottom: '6px' }}>
         {label}
+        {info && (
+          <span title={info} className="inline-flex normal-case tracking-normal flex-shrink-0">
+            <Info size={13} className="text-gray-400" aria-label={info} />
+          </span>
+        )}
       </span>
       {children}
       {hint && <span className="block text-xs text-gray-400 mt-1">{hint}</span>}
@@ -42,6 +50,68 @@ export function Field({ label, children, hint }) {
 
 export const inputCls = 'w-full bg-white border border-[#d9d9d9] rounded text-sm';
 export const inputStyle = { padding: '10px 12px', color: '#222' };
+
+// Multi-select dropdown: closed button showing a "N selected" summary, opens
+// a checkbox-list panel. The only "pick several" idiom elsewhere in the admin
+// panel is inline checkbox grids, which don't fit a single form field's slot.
+export function MultiSelectDropdown({ options, values, onChange, placeholder = 'Select…' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const toggle = (value) => {
+    onChange(values.includes(value) ? values.filter((v) => v !== value) : [...values, value]);
+  };
+
+  const summary = values.length
+    ? `${values.length} selected`
+    : placeholder;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`${inputCls} text-left flex items-center justify-between gap-2`}
+        style={inputStyle}
+      >
+        <span className={values.length ? '' : 'text-gray-400'}>{summary}</span>
+        <span className="text-gray-400 flex-shrink-0">▾</span>
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          className="absolute z-10 bg-white border border-[#d9d9d9] rounded shadow-sm overflow-y-auto"
+          style={{ top: 'calc(100% + 4px)', left: 0, right: 0, maxHeight: '240px', padding: '6px' }}
+        >
+          {options.length === 0 ? (
+            <p className="text-xs text-gray-400" style={{ padding: '6px 8px' }}>No options.</p>
+          ) : (
+            options.map((opt) => (
+              <label key={opt.value} className="flex items-center gap-2 text-sm rounded hover:bg-gray-50 cursor-pointer" style={{ padding: '6px 8px' }}>
+                <input type="checkbox" checked={values.includes(opt.value)} onChange={() => toggle(opt.value)} />
+                {opt.label}
+              </label>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Pill({ value, map }) {
   const colors = {
