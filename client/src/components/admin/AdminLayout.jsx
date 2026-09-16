@@ -9,6 +9,7 @@ const LINKS = [
   { to: '/admin/reviews', label: 'Reviews' },
   { to: '/admin/inquiries', label: 'Inquiries' },
   { to: '/admin/categories', label: 'Categories' },
+  { to: '/admin/pricing', label: 'Pricing' },
 ];
 
 // Back-office chrome — deliberately plain, separate from the storefront theme.

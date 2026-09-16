@@ -10,10 +10,11 @@ import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, DIA
 
 const EMPTY = {
   name: '', slug: '', styleCode: '', shape: '', shapes: [], diamondColors: [], clarity: [], price: '', kt18Delta: 200,
+  kt10Delta: -100, autoPriced: true,
   compareAtPrice: '', description: '', shortDescription: '', category: '',
   images: [], video: '', tags: '', badge: '', status: 'draft',
   inStock: true, stockQty: 10, featured: false, sizes: [], defaultSize: '',
-  sideStoneCertified: false, deliveryDays: 30, metalWeightGrams: '', makingCharges: '',
+  sideStoneCertified: false, deliveryDays: 30, metalWeightGrams: '', diamondCaratWeight: '',
   seoTitle: '', seoDesc: '',
   alibabaEnabled: false, alibabaUnit: 'Piece/Pieces', alibabaCategory: '',
   alibabaOrigin: '', alibabaLeadTimeDays: '', alibabaGrossWeightKg: '',
@@ -246,11 +247,13 @@ export default function ProductForm() {
           ...p,
           price: String(p.price ?? ''),
           kt18Delta: p.kt18Delta ?? 200,
+          kt10Delta: p.kt10Delta ?? -100,
+          autoPriced: p.autoPriced !== undefined ? !!p.autoPriced : true,
           compareAtPrice: p.compareAtPrice != null ? String(p.compareAtPrice) : '',
           stockQty: p.stockQty ?? 10,
           deliveryDays: p.details?.deliveryDays ?? 30,
           metalWeightGrams: p.details?.metalWeightGrams != null ? String(p.details.metalWeightGrams) : '',
-          makingCharges: p.details?.makingCharges != null ? String(p.details.makingCharges) : '',
+          diamondCaratWeight: p.details?.diamondCaratWeight != null ? String(p.details.diamondCaratWeight) : '',
           sideStoneCertified: !!p.details?.sideStoneCertified,
           tags: (p.tags || []).join(', '),
           badge: p.badge || '',
@@ -295,6 +298,8 @@ export default function ProductForm() {
     if (!form.images.length) return setError('Add at least one product image.');
     if (!variants.length) return setError('Add at least one metal variant.');
     if (!leafDoc && !inStatic) return setError('Pick a valid category + sub-category before saving.');
+    if (form.autoPriced && !(Number(form.metalWeightGrams) > 0))
+      return setError('Enter metal weight (g) to auto-price this product, or turn off auto-pricing and set a price manually.');
     setSaving(true);
     try {
       const num = (v) => (v === '' || v == null ? undefined : Number(v));
@@ -308,6 +313,8 @@ export default function ProductForm() {
         clarity: (form.clarity || []).filter((c) => DIAMOND_CLARITY.includes(c)).slice(0, DIAMOND_CLARITY.length),
         price: Number(form.price),
         kt18Delta: Number(form.kt18Delta) || 0,
+        kt10Delta: Number(form.kt10Delta) || 0,
+        autoPriced: !!form.autoPriced,
         compareAtPrice: num(form.compareAtPrice),
         description: form.description,
         shortDescription: form.shortDescription,
@@ -336,7 +343,7 @@ export default function ProductForm() {
           sideStoneCertified: !!form.sideStoneCertified,
           deliveryDays: Number(form.deliveryDays) || 0,
           metalWeightGrams: num(form.metalWeightGrams),
-          makingCharges: num(form.makingCharges),
+          diamondCaratWeight: num(form.diamondCaratWeight),
         },
         seoTitle: form.seoTitle.trim() || undefined,
         seoDesc: form.seoDesc.trim() || undefined,
@@ -370,7 +377,7 @@ export default function ProductForm() {
 
   return (
     <div>
-      <PageHead title={isNew ? 'New product' : 'Edit product'} sub="Prices are USD, 14KT base — 18KT adds the delta" />
+      <PageHead title={isNew ? 'New product' : 'Edit product'} sub="Prices are USD, 14KT base — 10KT/18KT add their delta" />
       <ErrorMsg error={error} />
       {staleCategory && (
         <p role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px', marginBottom: '14px' }}>
@@ -477,12 +484,40 @@ export default function ProductForm() {
                   <input value={form.styleCode} onChange={(e) => set('styleCode', e.target.value)} placeholder="MJ72R" className={inputCls} style={inputStyle} />
                 </Field>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <label className="flex items-center gap-2 text-sm" style={{ marginBottom: '10px' }}>
+                <input type="checkbox" checked={!!form.autoPriced} onChange={(e) => set('autoPriced', e.target.checked)} />
+                Auto-price this product from live gold/diamond rates
+              </label>
+              {form.autoPriced && (
+                <p className="text-xs text-gray-400" style={{ marginTop: '-4px', marginBottom: '10px' }}>
+                  Auto-priced from live gold/diamond rates — edit weight/diamond ct below, or the global rates under Admin → Pricing.
+                </p>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <Field label="14KT base price (USD) *">
-                  <input type="number" min="0" step="0.01" value={form.price} onChange={(e) => set('price', e.target.value)} required className={inputCls} style={inputStyle} />
+                  <input
+                    type="number" min="0" step="0.01" value={form.price}
+                    onChange={(e) => set('price', e.target.value)}
+                    placeholder={form.autoPriced ? 'Computed on save' : undefined}
+                    required={!form.autoPriced} disabled={form.autoPriced}
+                    className={inputCls} style={inputStyle}
+                  />
                 </Field>
                 <Field label="18KT delta (USD)">
-                  <input type="number" min="0" step="0.01" value={form.kt18Delta} onChange={(e) => set('kt18Delta', e.target.value)} className={inputCls} style={inputStyle} />
+                  <input
+                    type="number" step="0.01" value={form.kt18Delta}
+                    onChange={(e) => set('kt18Delta', e.target.value)}
+                    disabled={form.autoPriced}
+                    className={inputCls} style={inputStyle}
+                  />
+                </Field>
+                <Field label="10KT delta (USD)" hint="Usually negative — 10KT is lower purity than the 14KT base">
+                  <input
+                    type="number" step="0.01" value={form.kt10Delta}
+                    onChange={(e) => set('kt10Delta', e.target.value)}
+                    disabled={form.autoPriced}
+                    className={inputCls} style={inputStyle}
+                  />
                 </Field>
                 <Field label="Compare-at price">
                   <input type="number" min="0" step="0.01" value={form.compareAtPrice} onChange={(e) => set('compareAtPrice', e.target.value)} className={inputCls} style={inputStyle} />
@@ -530,7 +565,15 @@ export default function ProductForm() {
                       style={{ height: '42px', backgroundColor: metalColor(v.material || v.name, v.color) }}
                     />
                   </Field>
-                  <Field label="Price"><input type="number" min="0" step="0.01" value={v.price} onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, price: e.target.value } : x))} required className={inputCls} style={inputStyle} /></Field>
+                  <Field label="Price">
+                    <input
+                      type="number" min="0" step="0.01" value={v.price}
+                      onChange={(e) => setVariants(variants.map((x, xi) => xi === i ? { ...x, price: e.target.value } : x))}
+                      placeholder={form.autoPriced ? 'Computed on save' : undefined}
+                      required={!form.autoPriced} disabled={form.autoPriced}
+                      className={inputCls} style={inputStyle}
+                    />
+                  </Field>
                   <Field label="Photo (auto gallery)">
                     <select
                       value={v.image && form.images.includes(v.image) ? v.image : ''}
@@ -630,7 +673,7 @@ export default function ProductForm() {
               </Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Metal wt (g)"><input type="number" min="0" step="0.01" value={form.metalWeightGrams} onChange={(e) => set('metalWeightGrams', e.target.value)} className={inputCls} style={inputStyle} /></Field>
-                <Field label="Making ₹/$"><input type="number" min="0" step="0.01" value={form.makingCharges} onChange={(e) => set('makingCharges', e.target.value)} className={inputCls} style={inputStyle} /></Field>
+                <Field label="Diamond wt (ct)"><input type="number" min="0" step="0.01" value={form.diamondCaratWeight} onChange={(e) => set('diamondCaratWeight', e.target.value)} className={inputCls} style={inputStyle} /></Field>
               </div>
               <label className="flex items-center gap-2 text-sm mb-3"><input type="checkbox" checked={!!form.sideStoneCertified} onChange={(e) => set('sideStoneCertified', e.target.checked)} /> Side stones certified</label>
               <Field label="SEO title"><input value={form.seoTitle} onChange={(e) => set('seoTitle', e.target.value)} className={inputCls} style={inputStyle} /></Field>

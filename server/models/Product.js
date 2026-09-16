@@ -62,10 +62,17 @@ const productSchema = new mongoose.Schema(
         message: 'clarity must list valid diamond clarity grades (IF-I3)',
       },
     },
-    // 14KT base price. 18KT = base + kt18Delta (see PDP logic).
+    // 14KT base price. 18KT/10KT = base + their delta (see PDP logic).
     price: { type: Number, required: true, min: 0 },
     kt18Delta: { type: Number, default: 200, min: 0 },
+    // 10KT is lower purity than the 14KT base, so unlike kt18Delta this is
+    // expected to be negative — no min: 0 clamp.
+    kt10Delta: { type: Number, default: -100, min: -1000000, max: 1000000 },
     compareAtPrice: { type: Number, min: 0 },
+    // Auto-priced from PricingSettings (see the pre('validate') hook below)
+    // whenever details.metalWeightGrams is set. Off = fully manual, for
+    // one-off/custom pieces.
+    autoPriced: { type: Boolean, default: true },
     // USD-only v1 per client decision
     currency: { type: String, enum: ['USD'], default: 'USD', required: true },
     description: { type: String, default: '' },
@@ -96,7 +103,7 @@ const productSchema = new mongoose.Schema(
       sideStoneCertified: { type: Boolean, default: false },
       deliveryDays: { type: Number, default: 30, min: 0 },
       metalWeightGrams: { type: Number, min: 0 },
-      makingCharges: { type: Number, min: 0 },
+      diamondCaratWeight: { type: Number, min: 0, default: 0 },
     },
     // Alibaba.com bulk-upload export settings — not shown on the storefront.
     // Field names/shape follow Alibaba's official "Basic Information" template
@@ -138,6 +145,42 @@ const MEDIA_URL_RE = /^https?:\/\/[^\s"'<>\\^`{|}]+$/i;
 const LOCAL_IMG_RE = /^\/uploads\/\d{4}-\d{2}\/[A-Za-z0-9-]+\.webp$/;
 const isMediaUrl = (u) =>
   typeof u === 'string' && u.length <= 1000 && (MEDIA_URL_RE.test(u) || LOCAL_IMG_RE.test(u));
+
+// Auto-pricing — registered BEFORE the invariant-check hook below so that
+// hook's compareAtPrice > price validation sees the freshly computed price.
+// Leaves price/kt18Delta/kt10Delta/variant prices untouched (fully manual,
+// today's behavior) whenever autoPriced is off, weight isn't set yet, or
+// PricingSettings hasn't been configured — never disruptive to existing data.
+const PricingSettings = require('./PricingSettings');
+const { computeProductPricing } = require('../lib/pricing');
+productSchema.pre('validate', async function (next) {
+  try {
+    if (this.autoPriced) {
+      const hasWeight = this.details && this.details.metalWeightGrams > 0;
+      if (hasWeight) {
+        const settings = this.$locals.pricingSettings || (await PricingSettings.findById('global'));
+        const result = computeProductPricing(settings, {
+          metalWeightGrams: this.details.metalWeightGrams,
+          diamondCaratWeight: this.details.diamondCaratWeight || 0,
+        });
+        if (result) {
+          this.price = result.price;
+          this.kt18Delta = result.kt18Delta;
+          this.kt10Delta = result.kt10Delta;
+          for (const v of this.variants || []) v.price = result.price;
+        }
+      } else if (this.isNew && !(this.price > 0)) {
+        // Only blocks a brand-new, genuinely price-less product — never an
+        // existing product being edited before its weight is filled in.
+        return next(new Error('Add metal weight (g) to auto-price this product, or turn off auto-pricing and set a price manually.'));
+      }
+    }
+    next();
+  } catch (e) {
+    next(e);
+  }
+});
+
 productSchema.pre('validate', function (next) {
   if (this.variants && this.variants.length) {
     for (const v of this.variants) {

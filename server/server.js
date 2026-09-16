@@ -24,6 +24,7 @@ const couponRoutes = require('./routes/coupons');
 const reviewRoutes = require('./routes/reviews');
 const inquiryRoutes = require('./routes/inquiries');
 const uploadRoutes = require('./routes/uploads');
+const pricingSettingsRoutes = require('./routes/pricingSettings');
 const aiRoutes = require('./routes/ai');
 const dbViewerRoutes = require('./routes/dbViewer');
 const { authRequired, requireAdmin } = require('./middleware/auth');
@@ -115,7 +116,7 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeade
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
 app.use(['/api/bag', '/api/wishlist'], bagWishlistLimiter);
-app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe', '/api/pricing-settings'], strictLimiter);
 app.use(['/api/products', '/api/categories'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
@@ -131,6 +132,7 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/pricing-settings', pricingSettingsRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Read-only browser DB viewer — dev only, explicitly enabled, admin only

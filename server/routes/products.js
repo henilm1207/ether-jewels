@@ -8,6 +8,7 @@ const router = express.Router();
 const ALLOWED_STATUSES = ['active', 'draft', 'archived'];
 const PRODUCT_FIELDS = [
   'name', 'slug', 'legacySlugs', 'styleCode', 'shape', 'shapes', 'diamondColors', 'clarity', 'price', 'kt18Delta',
+  'kt10Delta', 'autoPriced',
   'compareAtPrice', 'description', 'shortDescription', 'category', 'images',
   'video', 'variants', 'tags', 'badge', 'status', 'inStock', 'stockQty',
   'featured', 'sizes', 'defaultSize', 'details', 'seoTitle', 'seoDesc', 'alibaba',
@@ -20,7 +21,7 @@ const pick = (obj, keys) => {
 const escapeRegExp = (s) => String(s).slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Anti-copy: public list returns card-only fields. Cost/internal fields
-// (styleCode/SKU, kt18Delta, stockQty, metalWeightGrams/makingCharges,
+// (styleCode/SKU, kt18Delta/kt10Delta, stockQty, metalWeightGrams/diamondCaratWeight,
 // legacySlugs, seoDesc, description, video) stay on the slug detail route
 // (needed for PDP) or admin routes — bulk list scraping yields no SKU,
 // cost breakdown, or SEO copy.

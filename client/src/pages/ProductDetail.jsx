@@ -102,7 +102,8 @@ export default function ProductDetail() {
 
   const currentVariant = product.variants?.[selectedVariant] || null;
   const basePrice = Number(currentVariant?.price ?? product.price) || 0;
-  const ktDelta = selectedKt === '18KT' ? Number(product.kt18Delta ?? 200) : 0;
+  const KT_DELTA = { '10KT': Number(product.kt10Delta ?? -100), '18KT': Number(product.kt18Delta ?? 200) };
+  const ktDelta = KT_DELTA[selectedKt] || 0;
   const currentPrice = basePrice + ktDelta;
   // Ring categories carry sizes[]; the server rejects ring orders without one.
   const needsSize = (product.sizes || []).length > 0;
@@ -275,7 +276,7 @@ export default function ProductDetail() {
                   <span className="text-gray-600">{selectedKt}</span>
                 </p>
                 <div className="flex" style={{ gap: '12px' }}>
-                  {['14KT', '18KT'].map((kt) => (
+                  {['10KT', '14KT', '18KT'].map((kt) => (
                     <button
                       key={kt}
                       onClick={() => setSelectedKt(kt)}

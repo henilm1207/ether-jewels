@@ -49,7 +49,7 @@ async function quoteCart(items, couponCode) {
       throw bad(400, `Invalid qty for ${product.name} (1-10)`);
 
     const karat = it.karat;
-    if (karat !== undefined && karat !== '14KT' && karat !== '18KT')
+    if (karat !== undefined && karat !== '10KT' && karat !== '14KT' && karat !== '18KT')
       throw bad(400, `Invalid karat for ${product.name}`);
     const useKarat = karat || '14KT';
 
@@ -68,7 +68,8 @@ async function quoteCart(items, couponCode) {
       throw bad(400, `${product.name} (${variant.material || variant.name || 'this metal'}) is out of stock`);
 
     const base = variant.price;
-    const unitPrice = round2(base + (useKarat === '18KT' ? product.kt18Delta || 0 : 0));
+    const ktDeltas = { '10KT': product.kt10Delta || 0, '18KT': product.kt18Delta || 0 };
+    const unitPrice = round2(base + (ktDeltas[useKarat] || 0));
 
     const ring = isRingCategory(product.category);
     if (ring) {

@@ -34,6 +34,7 @@ import AdminCoupons from './pages/admin/Coupons';
 import AdminReviews from './pages/admin/Reviews';
 import AdminInquiries from './pages/admin/Inquiries';
 import AdminCategories from './pages/admin/Categories';
+import AdminPricing from './pages/admin/Pricing';
 import NewsletterPopup from './components/ui/NewsletterPopup';
 import CookieConsent from './components/ui/CookieConsent';
 import ErrorBoundary from './components/ui/ErrorBoundary';
@@ -122,6 +123,7 @@ function App() {
             <Route path="reviews" element={<AdminReviews />} />
             <Route path="inquiries" element={<AdminInquiries />} />
             <Route path="categories" element={<AdminCategories />} />
+            <Route path="pricing" element={<AdminPricing />} />
           </Route>
 
           <Route element={<StorefrontLayout />}>
