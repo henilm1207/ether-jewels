@@ -1,7 +1,12 @@
 services:
   mongo:
-    # Pinned to match production's MongoDB version (8.0.32).
-    image: mongo:8
+    # Pinned to mongo:7, NOT production's 8.0.32: this compose file's
+    # `mongo-data` volume was initialized by a mongo:7 container, and MongoDB
+    # refuses to start a newer major version against older on-disk data
+    # (needs the official step-by-step major-version upgrade procedure first,
+    # not just an image bump) — bumping this tag alone crash-loops the
+    # container. See docker-compose.prod.yml for the real 8.x pin.
+    image: mongo:7
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-etherapp}
@@ -20,11 +25,13 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-    # Picks up JWT_SECRET, payment/mail/AI keys, etc. from .env (copy
-    # .env.example -> .env first). The overrides below wire the app to the
-    # `mongo` service and the container's uploads volume — they take
-    # precedence over the same keys in .env.
+    # Picks up JWT_SECRET, payment/mail/AI keys, etc. from server/.env,
+    # matching docker-compose.prod.yml — keeps one source of secrets instead
+    # of duplicating them across a root .env too. The overrides below wire
+    # the app to the `mongo` service and the container's uploads volume —
+    # they take precedence over the same keys in server/.env.
     env_file:
+      - server/.env
       - .env
     environment:
       NODE_ENV: production

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { adminFetch, adminDownload } from '../../components/admin/api';
 import { resolveMediaUrl } from '../../lib/media';
 import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
@@ -92,8 +93,15 @@ export default function Products() {
         sub={`${total} total`}
         action={
           <div className="flex gap-3">
-            <button onClick={exportAlibaba} disabled={exporting} className="btn btn--secondary text-sm disabled:opacity-40">
-              {exporting ? 'Exporting…' : 'Export for Alibaba'}
+            <button
+              onClick={exportAlibaba}
+              disabled={exporting}
+              title={exporting ? 'Exporting…' : 'Export for Alibaba'}
+              aria-label={exporting ? 'Exporting…' : 'Export for Alibaba'}
+              className="bg-white border border-[#d9d9d9] rounded flex items-center justify-center hover:bg-gray-50 disabled:opacity-40"
+              style={{ width: '40px', height: '40px' }}
+            >
+              <Download size={18} className={exporting ? 'animate-pulse' : ''} />
             </button>
             <Link to="/admin/products/new" className="btn btn--primary text-sm">+ New product</Link>
           </div>

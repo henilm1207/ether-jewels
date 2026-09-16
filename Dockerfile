@@ -28,8 +28,12 @@ COPY --from=client-build /app/client/dist ./client/dist
 
 # Default UPLOADS_DIR (server/lib/localImages.js) — override via env to point
 # at a mounted volume; created here so the non-root user below can write it
-# even when no volume is mounted.
-RUN mkdir -p /app/server/public/uploads \
+# even when no volume is mounted. /app/uploads is also pre-created and owned
+# by app:app so a *named* volume (docker-compose.yml, local dev) mounted
+# there inherits app ownership on first init instead of root's — a bind
+# mount (docker-compose.prod.yml) always takes the host path's own ownership
+# regardless, so this is a no-op for production.
+RUN mkdir -p /app/server/public/uploads /app/uploads \
   && addgroup -S app && adduser -S app -G app \
   && chown -R app:app /app
 USER app

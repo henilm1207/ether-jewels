@@ -4,9 +4,9 @@ import { adminFetch } from '../../components/admin/api';
 import { resolveMediaUrl, localFilename } from '../../lib/media';
 import AiCopyButton from '../../components/admin/AiCopyButton';
 import { clearMenuCache } from '../../lib/categoryTree';
-import { VARIANTS, SUBS, RING_LEAVES } from '../../data/catalog';
+import { VARIANTS, SUBS, RING_LEAVES, ALIBABA_CATEGORY_OPTIONS } from '../../data/catalog';
 import { METALS, metalColor, DEFAULT_METAL } from '../../lib/metals';
-import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, DIAMOND_COLORS, DIAMOND_CLARITY, RING_SIZES, isRingCategory } from '../../components/admin/ui';
+import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, DIAMOND_COLORS, DIAMOND_CLARITY, RING_SIZES, isRingCategory, MultiSelectDropdown } from '../../components/admin/ui';
 
 const EMPTY = {
   name: '', slug: '', styleCode: '', shape: '', shapes: [], diamondColors: [], clarity: [], price: '', kt18Delta: 200,
@@ -672,7 +672,14 @@ export default function ProductForm() {
               <label className="flex items-center gap-2 text-sm mb-3">
                 <input type="checkbox" checked={!!form.alibabaEnabled} onChange={(e) => set('alibabaEnabled', e.target.checked)} /> Include in Alibaba export
               </label>
-              <Field label="Category (e.g. Fine Jewelry &gt; Rings)"><input value={form.alibabaCategory} onChange={(e) => set('alibabaCategory', e.target.value)} placeholder="Leave blank for Alibaba AI to assign" className={inputCls} style={inputStyle} /></Field>
+              <Field label="Category" info="Alibaba's own product category. Pick one or more matching paths from your catalog, or leave blank for Alibaba's AI to assign one.">
+                <MultiSelectDropdown
+                  options={ALIBABA_CATEGORY_OPTIONS}
+                  values={form.alibabaCategory ? form.alibabaCategory.split('; ') : []}
+                  onChange={(vals) => set('alibabaCategory', vals.join('; '))}
+                  placeholder="Leave blank for Alibaba AI to assign"
+                />
+              </Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Unit"><input value={form.alibabaUnit} onChange={(e) => set('alibabaUnit', e.target.value)} className={inputCls} style={inputStyle} /></Field>
                 <Field label="Origin"><input value={form.alibabaOrigin} onChange={(e) => set('alibabaOrigin', e.target.value)} className={inputCls} style={inputStyle} /></Field>

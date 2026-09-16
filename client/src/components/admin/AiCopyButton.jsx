@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { adminFetch } from './api';
 
-const AI_FIELDS = ['name', 'shortDescription', 'description', 'seoTitle', 'seoDesc'];
+const AI_FIELDS = ['name', 'shortDescription', 'description', 'seoTitle', 'seoDesc', 'tags'];
 
 // ✨ button for the product IMAGES card: generates copy from the first 3
 // images + category/shape/metal context. Fills ONLY blank fields — your
@@ -21,6 +21,10 @@ export default function AiCopyButton({ images, category, shape, variants, curren
     try {
       const data = await adminFetch('/api/ai/describe', {
         method: 'POST',
+        // Vision + up to 6 model failovers (server/routes/ai.js MODELS) can
+        // legitimately run past the client's 30s default under prod load —
+        // this isn't a dead server, so give it real headroom before aborting.
+        timeoutMs: 75000,
         body: {
           images: images.slice(0, 3),
           category,
@@ -70,7 +74,7 @@ export default function AiCopyButton({ images, category, shape, variants, curren
         className="w-full text-sm font-medium border border-[#222] rounded transition-colors hover:bg-[#222] hover:text-white disabled:opacity-40"
         style={{ padding: '10px 12px' }}
       >
-        {busy ? '✨ Writing copy… (5–15s)' : '✨ Generate copy with AI'}
+        {busy ? '✨ Writing copy… (can take up to a minute)' : '✨ Generate copy with AI'}
       </button>
       {note && <p role="status" className="text-xs text-green-700 mt-2">{note}</p>}
       {!images.length && <p className="text-xs text-gray-400 mt-1">Add at least one image first.</p>}
