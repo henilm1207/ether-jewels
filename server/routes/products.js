@@ -1,14 +1,18 @@
 const express = require('express');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const PricingSettings = require('../models/PricingSettings');
 const { authRequired, requireAdmin } = require('../middleware/auth');
 const { buildAlibabaCsv } = require('../lib/alibabaExport');
+const { buildCatalogCsv } = require('../lib/catalogExport');
 
 const router = express.Router();
 const ALLOWED_STATUSES = ['active', 'draft', 'archived'];
+const LOW_STOCK_THRESHOLD = 3;
+const BULK_ACTIONS = ['archive', 'feature', 'unfeature'];
 const PRODUCT_FIELDS = [
   'name', 'slug', 'legacySlugs', 'styleCode', 'shape', 'shapes', 'diamondColors', 'clarity', 'price', 'kt18Delta',
-  'kt10Delta', 'autoPriced',
+  'kt14Delta', 'autoPriced',
   'compareAtPrice', 'description', 'shortDescription', 'category', 'images',
   'video', 'variants', 'tags', 'badge', 'status', 'inStock', 'stockQty',
   'featured', 'sizes', 'defaultSize', 'details', 'seoTitle', 'seoDesc', 'alibaba',
@@ -21,12 +25,12 @@ const pick = (obj, keys) => {
 const escapeRegExp = (s) => String(s).slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Anti-copy: public list returns card-only fields. Cost/internal fields
-// (styleCode/SKU, kt18Delta/kt10Delta, stockQty, metalWeightGrams/diamondCaratWeight,
+// (styleCode/SKU, kt14Delta/kt18Delta, stockQty, metalWeightGrams/diamondCaratWeight,
 // legacySlugs, seoDesc, description, video) stay on the slug detail route
 // (needed for PDP) or admin routes — bulk list scraping yields no SKU,
 // cost breakdown, or SEO copy.
 const PUBLIC_LIST_SELECT =
-  'name slug price compareAtPrice category shape shapes diamondColors clarity images variants featured badge inStock sizes defaultSize';
+  'name slug price compareAtPrice category shape shapes diamondColors clarity images variants featured badge inStock sizes defaultSize createdAt';
 
 // Products must live in a real (leaf) category — aggregates (e.g. `rings`)
 // and aliases match no collection expansion, so such products would be
@@ -75,74 +79,73 @@ async function resolveCategory(key) {
   return null;
 }
 
-// GET /api/products?category=&shape=&metal=&color=&clarity=&minPrice=&maxPrice=&search=&featured=&sort=&page=&limit=
+// Shared by the public list and the admin list — everything except `status`
+// (each caller applies its own: public is always active-only, admin passes
+// whatever it was given). Throws { status, message } on bad input so both
+// callers can just forward it to their existing catch -> next(e).
+async function buildProductFilter(query) {
+  const { category, shape, metal, color, clarity, minPrice, maxPrice, search, featured, inStock } = query;
+  const filter = {};
+
+  // Shape matches ANY listed shape (multi-shape products) or the legacy primary.
+  const shapeOr = (value) => ({ $or: [{ shapes: value }, { shape: value }] });
+  if (category && category !== 'all') {
+    const cat = await resolveCategory(category);
+    if (cat?.aggregateKeys?.length) {
+      filter.category = { $in: cat.aggregateKeys };
+    } else if (cat?.shape) {
+      Object.assign(filter, shapeOr(cat.shape));
+    } else if (cat) {
+      filter.category = cat.key;
+    } else {
+      filter.category = String(category);
+    }
+  }
+  const andClauses = [];
+  if (shape) andClauses.push(shapeOr(String(shape)));
+  // Diamond color / clarity match ANY listed grade (multi-grade products).
+  if (color) andClauses.push({ diamondColors: String(color).toUpperCase() });
+  if (clarity) andClauses.push({ clarity: String(clarity).toUpperCase() });
+  if (featured === 'true') filter.featured = true;
+  else if (featured === 'false') filter.featured = false;
+  if (inStock === 'true') filter.inStock = true;
+  else if (inStock === 'false') filter.inStock = false;
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    const lo = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : NaN;
+    const hi = maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : NaN;
+    if ((minPrice !== '' && minPrice !== undefined && !Number.isFinite(lo)) || (maxPrice !== '' && maxPrice !== undefined && !Number.isFinite(hi)))
+      throw Object.assign(new Error('Invalid price range'), { status: 400 });
+    if (Number.isFinite(lo) && Number.isFinite(hi) && lo > hi)
+      throw Object.assign(new Error('minPrice must be <= maxPrice'), { status: 400 });
+    filter.price = {};
+    if (Number.isFinite(lo)) filter.price.$gte = Math.max(0, lo);
+    if (Number.isFinite(hi)) filter.price.$lte = Math.max(0, hi);
+  }
+  if (metal) {
+    const safe = escapeRegExp(String(metal).split(' ')[0]);
+    andClauses.push({
+      $or: [
+        { 'variants.material': new RegExp(safe, 'i') },
+        { 'variants.name': new RegExp(safe, 'i') },
+      ],
+    });
+  }
+  if (andClauses.length) filter.$and = andClauses;
+  if (search) filter.$text = { $search: String(search).slice(0, 100) };
+  return filter;
+}
+
+// GET /api/products?category=&shape=&metal=&color=&clarity=&minPrice=&maxPrice=&search=&featured=&inStock=&sort=&page=&limit=
 router.get('/', async (req, res, next) => {
   try {
-    const {
-      category,
-      shape,
-      metal,
-      color,
-      clarity,
-      minPrice,
-      maxPrice,
-      search,
-      featured,
-      sort,
-      status,
-      page = '1',
-      limit = '50',
-    } = req.query;
+    const { status, sort, page = '1', limit = '50' } = req.query;
 
     // Public list is active-only; other statuses need the admin list below.
-    const filter = { status: 'active' };
     if (status && status !== 'active') {
       return res.status(403).json({ message: 'Use admin product list for non-active status' });
     }
-
-    // Shape matches ANY listed shape (multi-shape products) or the legacy primary.
-    const shapeOr = (value) => ({ $or: [{ shapes: value }, { shape: value }] });
-    if (category && category !== 'all') {
-      const cat = await resolveCategory(category);
-      if (cat?.aggregateKeys?.length) {
-        filter.category = { $in: cat.aggregateKeys };
-      } else if (cat?.shape) {
-        Object.assign(filter, shapeOr(cat.shape));
-      } else if (cat) {
-        filter.category = cat.key;
-      } else {
-        filter.category = String(category);
-      }
-    }
-    const andClauses = [];
-    if (shape) andClauses.push(shapeOr(String(shape)));
-    // Diamond color / clarity match ANY listed grade (multi-grade products).
-    if (color) andClauses.push({ diamondColors: String(color).toUpperCase() });
-    if (clarity) andClauses.push({ clarity: String(clarity).toUpperCase() });
-    if (featured === 'true') filter.featured = true;
-    else if (featured === 'false') filter.featured = false;
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      const lo = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : NaN;
-      const hi = maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : NaN;
-      if ((minPrice !== '' && minPrice !== undefined && !Number.isFinite(lo)) || (maxPrice !== '' && maxPrice !== undefined && !Number.isFinite(hi)))
-        return res.status(400).json({ message: 'Invalid price range' });
-      if (Number.isFinite(lo) && Number.isFinite(hi) && lo > hi)
-        return res.status(400).json({ message: 'minPrice must be <= maxPrice' });
-      filter.price = {};
-      if (Number.isFinite(lo)) filter.price.$gte = Math.max(0, lo);
-      if (Number.isFinite(hi)) filter.price.$lte = Math.max(0, hi);
-    }
-    if (metal) {
-      const safe = escapeRegExp(String(metal).split(' ')[0]);
-      andClauses.push({
-        $or: [
-          { 'variants.material': new RegExp(safe, 'i') },
-          { 'variants.name': new RegExp(safe, 'i') },
-        ],
-      });
-    }
-    if (andClauses.length) filter.$and = andClauses;
-    if (search) filter.$text = { $search: String(search).slice(0, 100) };
+    const filter = await buildProductFilter(req.query);
+    filter.status = 'active';
 
     const pgRaw = parseInt(page, 10);
     const limRaw = parseInt(limit, 10);
@@ -161,41 +164,147 @@ router.get('/', async (req, res, next) => {
     ]);
     res.json({ items, total, page: pg, pages: Math.ceil(total / lim) });
   } catch (error) {
+    error.status = error.status || 400;
     next(error);
   }
 });
 
-// Admin list (all statuses) — must be before /:slug
+// Admin list (all statuses) — must be before /:slug. Same filters as the
+// public list (category/shape/color/clarity/price/metal/featured/inStock),
+// plus `status` (any, not just active) and `stale=true` (auto-priced
+// products whose stored price predates the last PricingSettings change).
 router.get('/admin/all', authRequired, requireAdmin, async (req, res, next) => {
   try {
-    const { status, page = '1', limit = '50' } = req.query;
-    const filter = {};
+    const { status, stale, missingSeo, missingCert, sort, page = '1', limit = '50' } = req.query;
+    const filter = await buildProductFilter(req.query);
     if (status) {
       if (!ALLOWED_STATUSES.includes(String(status)))
         return res.status(400).json({ message: 'Invalid status' });
       filter.status = status;
     }
+    if (stale === 'true') {
+      const settings = await PricingSettings.findById('global');
+      if (settings) {
+        filter.autoPriced = true;
+        filter.$or = [
+          { 'details.pricedAt': null },
+          { 'details.pricedAt': { $lt: settings.updatedAt } },
+        ];
+      }
+    }
+    // Dashboard "incomplete listing" deep links — mirror the counts in
+    // GET /admin/stats below.
+    if (missingSeo === 'true') filter.$or = [{ seoTitle: { $in: [null, ''] } }, { seoDesc: { $in: [null, ''] } }];
+    if (missingCert === 'true') filter['details.certNumber'] = { $in: [null, ''] };
     const pg = Math.max(1, parseInt(page, 10) || 1);
     const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
     const [items, total] = await Promise.all([
-      Product.find(filter).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
+      Product.find(filter).sort(sort ? buildSort(sort) : { createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
       Product.countDocuments(filter),
     ]);
     res.json({ items, total, page: pg, pages: Math.ceil(total / lim) });
   } catch (e) {
+    e.status = e.status || 400;
     next(e);
   }
 });
 
 // Alibaba.com bulk-upload CSV — must be before /:slug.
+// Defaults to only products never exported before AT THIS KARAT TIER, so
+// re-downloading after adding new products doesn't re-list ones already
+// uploaded to Alibaba as duplicates — while still allowing the same
+// products to be exported once per tier (10KT/14KT/18KT) to build out the
+// SKU variants of one listing. ?all=true or an explicit ?ids= selection
+// bypass that filter for a deliberate re-export.
+const ALIBABA_TIER_KEYS = { '10KT': 'kt10', '14KT': 'kt14', '18KT': 'kt18' };
 router.get('/admin/export/alibaba', authRequired, requireAdmin, async (req, res, next) => {
   try {
-    const products = await Product.find({ status: 'active', 'alibaba.enabled': true });
+    const tier = ALIBABA_TIER_KEYS[req.query.tier] ? req.query.tier : '10KT';
+    const tierKey = ALIBABA_TIER_KEYS[tier];
+    const { ids } = req.query;
+    const forceAll = req.query.all === 'true' || !!ids;
+    const filter = { status: 'active', 'alibaba.enabled': true };
+    if (ids) filter._id = { $in: String(ids).split(',').filter(Boolean) };
+    if (!forceAll) filter[`alibabaExportedAt.${tierKey}`] = null;
+    const products = await Product.find(filter);
     const publicApiBase = process.env.PUBLIC_API_BASE || `${req.protocol}://${req.get('host')}`;
-    const csv = buildAlibabaCsv(products, publicApiBase);
+    const csv = buildAlibabaCsv(products, publicApiBase, tier);
+    if (products.length) {
+      await Product.updateMany(
+        { _id: { $in: products.map((p) => p._id) } },
+        { $set: { [`alibabaExportedAt.${tierKey}`]: new Date() } }
+      );
+    }
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="alibaba-products-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="alibaba-products-${tier}-${new Date().toISOString().slice(0, 10)}.csv"`);
     res.send(csv);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// General catalog CSV (every field, not the Alibaba template) — optional
+// ?ids=a,b,c exports just a selection (bulk-toolbar "Export selected").
+router.get('/admin/export/csv', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    const { ids } = req.query;
+    const filter = ids ? { _id: { $in: String(ids).split(',').filter(Boolean) } } : {};
+    const products = await Product.find(filter);
+    const csv = buildCatalogCsv(products);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="catalog-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(csv);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Dashboard widgets: low-stock list + data-completeness counts. Must be
+// before /:slug.
+router.get('/admin/stats', authRequired, requireAdmin, async (_req, res, next) => {
+  try {
+    const settings = await PricingSettings.findById('global');
+    const staleFilter = settings
+      ? { autoPriced: true, $or: [{ 'details.pricedAt': null }, { 'details.pricedAt': { $lt: settings.updatedAt } }] }
+      : { autoPriced: true, 'details.pricedAt': null };
+    const [lowStock, missingSeo, missingCert, stale] = await Promise.all([
+      Product.find({ status: 'active', inStock: true, stockQty: { $lte: LOW_STOCK_THRESHOLD } })
+        .select('name slug stockQty')
+        .sort({ stockQty: 1 })
+        .limit(20),
+      Product.countDocuments({ status: 'active', $or: [{ seoTitle: { $in: [null, ''] } }, { seoDesc: { $in: [null, ''] } }] }),
+      Product.countDocuments({ status: 'active', 'details.certNumber': { $in: [null, ''] } }),
+      Product.countDocuments(staleFilter),
+    ]);
+    res.json({ lowStock, missingSeoCount: missingSeo, missingCertCount: missingCert, staleCount: stale });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Bulk row actions from the admin Products list (checkbox multi-select).
+// Load-then-save per doc (not updateMany) — same reason as PUT /:id below:
+// update validators skip the pre('validate') ring-size guard.
+router.patch('/admin/bulk', authRequired, requireAdmin, async (req, res, next) => {
+  try {
+    const { ids, action } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: 'ids[] required' });
+    if (!BULK_ACTIONS.includes(action)) return res.status(400).json({ message: `action must be one of ${BULK_ACTIONS.join(', ')}` });
+    const products = await Product.find({ _id: { $in: ids } });
+    const failed = [];
+    let updated = 0;
+    for (const p of products) {
+      try {
+        if (action === 'archive') p.status = 'archived';
+        else if (action === 'feature') p.featured = true;
+        else if (action === 'unfeature') p.featured = false;
+        await p.save();
+        updated++;
+      } catch (e) {
+        failed.push({ id: p._id, name: p.name, error: e.message });
+      }
+    }
+    res.json({ updated, failed });
   } catch (e) {
     next(e);
   }

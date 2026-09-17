@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { adminFetch } from '../../components/admin/api';
 import { clearMenuCache } from '../../lib/categoryTree';
-import { PageHead, Table, td, ErrorMsg, Card, Field, inputCls, inputStyle } from '../../components/admin/ui';
+import { PageHead, Table, td, ErrorMsg, Card, Field, inputCls, inputStyle, RowIconButton } from '../../components/admin/ui';
 
 const EMPTY = { key: '', name: '', parent: 'Collection', description: '', image: '', shape: '', aggregateKeys: '', sortOrder: 0, active: true };
 
@@ -105,10 +106,16 @@ export default function Categories() {
             <td style={td} className="font-mono text-xs">{(c.aggregateKeys || []).join(', ') || '—'}</td>
             <td style={td}>{c.active ? 'yes' : 'no'}</td>
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
-              <button onClick={() => startEdit(c)} className="underline text-sm mr-3">Edit</button>
-              <button onClick={() => remove(c)} disabled={deleting === c.key} className="underline text-sm text-red-700 disabled:opacity-50">
-                {deleting === c.key ? 'Deleting…' : 'Delete'}
-              </button>
+              <div className="flex items-center gap-1">
+                <RowIconButton icon={Pencil} label="Edit" onClick={() => startEdit(c)} />
+                <RowIconButton
+                  icon={Trash2}
+                  label={deleting === c.key ? 'Deleting…' : 'Delete'}
+                  tone="danger"
+                  disabled={deleting === c.key}
+                  onClick={() => remove(c)}
+                />
+              </div>
             </td>
           </tr>
         ))}

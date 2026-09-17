@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+// Rate table for fancy diamonds (rare cuts like Baguette/Trillion paired
+// with a natural fancy color like Fancy Yellow/Pink) — an open-ended
+// vocabulary the admin maintains here, not a fixed enum. A product's
+// details.fancyDiamonds entries (see Product.js) reference a shape+color
+// pair from this list; server/lib/pricing.js matches them case-insensitively.
+const fancyDiamondRateSchema = new mongoose.Schema(
+  {
+    shape: { type: String, required: true, trim: true },
+    color: { type: String, required: true, trim: true },
+    ratePerCaratInr: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+);
+
 // Singleton — one global document at _id 'global'. Rates default to 0,
 // which server/lib/pricing.js treats as "not configured yet" and skips
 // auto-pricing rather than computing from a zero rate.
@@ -8,6 +22,7 @@ const pricingSettingsSchema = new mongoose.Schema(
     _id: { type: String, default: 'global' },
     goldRate24ktInr: { type: Number, default: 0, min: 0 },
     diamondRatePerCaratInr: { type: Number, default: 0, min: 0 },
+    fancyDiamondRates: { type: [fancyDiamondRateSchema], default: [] },
     karatPurityPct: {
       '10KT': { type: Number, default: 50, min: 0, max: 100 },
       '14KT': { type: Number, default: 65, min: 0, max: 100 },

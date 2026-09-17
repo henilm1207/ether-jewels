@@ -10,6 +10,8 @@
     "ensure-shapes": "node scripts/ensure-shapes.js",
     "migrate-bag-wishlist": "node scripts/migrate-bag-wishlist.js",
     "migrate-images-to-local": "node scripts/migrate-images-to-local.js",
+    "import-mitva": "node scripts/import-mitva-products.js",
+    "split-gold-variants": "node scripts/split-gold-variants.js",
     "verify-local-db": "node scripts/verify-local-db.js",
     "start": "node server.js"
   },

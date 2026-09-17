@@ -74,6 +74,14 @@ export default function ProductAccordions({ product }) {
                 <td className="py-3 font-medium">{product.clarity.join(', ')}</td>
               </tr>
             )}
+            {(product.details?.fancyDiamonds || []).length > 0 && (
+              <tr className="border-b border-[#ededed]">
+                <td className="py-3 pr-4 text-gray-500">Fancy Diamond{product.details.fancyDiamonds.length > 1 ? 's' : ''}</td>
+                <td className="py-3 font-medium">
+                  {product.details.fancyDiamonds.map((fd) => `${fd.caratWeight}ct ${fd.shape}, ${fd.color}`).join('; ')}
+                </td>
+              </tr>
+            )}
             <tr className="border-b border-[#ededed]">
               <td className="py-3 pr-4 text-gray-500">Certified Side Stone</td>
               <td className="py-3 font-medium">{product.details?.sideStoneCertified ? 'Yes' : 'No'}</td>

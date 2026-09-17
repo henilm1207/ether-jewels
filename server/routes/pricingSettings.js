@@ -7,7 +7,7 @@ const router = express.Router();
 const SETTINGS_FIELDS = [
   'goldRate24ktInr', 'diamondRatePerCaratInr', 'karatPurityPct',
   'makingChargesPct', 'shippingFlatInr', 'profitMarginPct', 'profitMarginFlatInr',
-  'usdInrRate', 'roundToNearestInr', 'roundToNearestUsd',
+  'usdInrRate', 'roundToNearestInr', 'roundToNearestUsd', 'fancyDiamondRates',
 ];
 const pick = (obj, keys) => {
   const out = {};

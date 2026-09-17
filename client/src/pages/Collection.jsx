@@ -45,7 +45,7 @@ const sortOptions = [
 const metalColors = ['Rose Gold', 'White Gold', 'Yellow Gold'].map(
   (name) => METALS.find((m) => m.name === name)
 );
-const metalKts = ['14K', '18K'];
+const metalKts = ['10KT', '14KT', '18KT'];
 
 // Diamond grade scales — source of truth is server/config/catalog.js
 // (DIAMOND_COLORS / DIAMOND_CLARITY); admin ui.jsx mirrors them.
@@ -118,11 +118,23 @@ export default function Collection() {
         }
         setResolvedKey(info.key);
         setCategoryInfo(info);
-        const res = await fetch(apiUrl(`/api/products?category=${encodeURIComponent(category)}&limit=100`));
-        if (!res.ok) throw new Error('Could not load products');
-        const data = await res.json();
-        if (!live) return;
-        setBaseProducts(Array.isArray(data.items) ? data.items : []);
+        // The public list endpoint caps at 50/page regardless of `limit`
+        // (anti-scraping) — page through every page so a collection past
+        // 50 products doesn't silently truncate (and undercount every
+        // filter facet). Capped at 20 pages (1000 products) as a sanity bound.
+        let items = [];
+        let pageNum = 1;
+        let totalPages = 1;
+        do {
+          const res = await fetch(apiUrl(`/api/products?category=${encodeURIComponent(category)}&limit=50&page=${pageNum}`));
+          if (!res.ok) throw new Error('Could not load products');
+          const data = await res.json();
+          if (!live) return;
+          items = items.concat(Array.isArray(data.items) ? data.items : []);
+          totalPages = data.pages || 1;
+          pageNum++;
+        } while (pageNum <= totalPages && pageNum <= 20);
+        setBaseProducts(items);
       } catch (e) {
         if (live) setLoadError(e.message || 'Could not load this collection.');
       } finally {
@@ -176,10 +188,26 @@ export default function Collection() {
   }, [baseProducts]);
   const categoryKeys = useMemo(() => Object.keys(categoryCounts).sort((a, b) => catName(a).localeCompare(catName(b))), [categoryCounts]);
 
+  const inStockCount = useMemo(() => baseProducts.filter((p) => p.inStock !== false).length, [baseProducts]);
+  const outOfStockCount = useMemo(() => baseProducts.filter((p) => p.inStock === false).length, [baseProducts]);
+
+  // Price bounds for the slider/inputs — derived from what's actually in
+  // this collection (falls back to a sane range while loading) so pricier
+  // or cheaper future products never fall outside a stale hardcoded band.
+  const priceBounds = useMemo(() => {
+    if (!baseProducts.length) return { min: PRICE_MIN, max: PRICE_MAX };
+    const prices = baseProducts.map((p) => p.price).filter((n) => Number.isFinite(n));
+    const lo = Math.floor(Math.min(...prices) / 100) * 100;
+    const hiRaw = Math.ceil(Math.max(...prices) / 100) * 100;
+    return { min: lo, max: hiRaw > lo ? hiRaw : lo + 100 };
+  }, [baseProducts]);
+
   const filteredProducts = useMemo(() => {
     let list = [...baseProducts];
-    // Availability: empty = all; "out" alone yields none (everything is in stock).
-    if (applied.availability.length > 0 && !applied.availability.includes('in')) list = [];
+    // Availability: empty = all; otherwise match the product's real inStock flag.
+    if (applied.availability.length > 0) {
+      list = list.filter((p) => applied.availability.includes(p.inStock !== false ? 'in' : 'out'));
+    }
     const from = parseFloat(applied.priceFrom);
     const to = parseFloat(applied.priceTo);
     if (!Number.isNaN(from)) list = list.filter((p) => p.price >= from);
@@ -199,7 +227,7 @@ export default function Collection() {
         )
       );
     }
-    // KT: every setting is offered in 14K and 18K, so KT never excludes.
+    // KT: every setting is offered at 10KT/14KT/18KT (price-only difference), so KT never excludes.
     const sorted = [...list];
     if (sortBy === 'featured' || sortBy === 'most-relevant') sorted.sort((a, b) => Number(b.featured || false) - Number(a.featured || false));
     if (sortBy === 'best-selling') sorted.sort((a, b) => Number((b.tags || []).includes('bestseller')) - Number((a.tags || []).includes('bestseller')));
@@ -207,7 +235,8 @@ export default function Collection() {
     if (sortBy === 'price-desc') sorted.sort((a, b) => b.price - a.price);
     if (sortBy === 'name-asc') sorted.sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === 'name-desc') sorted.sort((a, b) => b.name.localeCompare(a.name));
-    if (sortBy === 'date-asc' || sortBy === 'date-desc') sorted.sort((a, b) => Number(b.featured || false) - Number(a.featured || false));
+    if (sortBy === 'date-asc') sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    if (sortBy === 'date-desc') sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return sorted;
   }, [baseProducts, applied, sortBy]);
 
@@ -237,8 +266,8 @@ export default function Collection() {
     chips.push({ key: `avail-${v}`, label: v === 'in' ? 'In stock' : 'Out of stock', clear: () => syncClear({ availability: applied.availability.filter((x) => x !== v) }) });
   });
   if (applied.priceFrom !== '' || applied.priceTo !== '') {
-    const from = applied.priceFrom !== '' ? `$${applied.priceFrom}` : `$${PRICE_MIN}`;
-    const to = applied.priceTo !== '' ? `$${applied.priceTo}` : `$${PRICE_MAX}`;
+    const from = applied.priceFrom !== '' ? `$${applied.priceFrom}` : `$${priceBounds.min}`;
+    const to = applied.priceTo !== '' ? `$${applied.priceTo}` : `$${priceBounds.max}`;
     chips.push({ key: 'price', label: `${from} – ${to}`, clear: () => syncClear({ priceFrom: '', priceTo: '' }) });
   }
   applied.shapes.forEach((s) => {
@@ -248,7 +277,7 @@ export default function Collection() {
     chips.push({ key: `cat-${c}`, label: catName(c), clear: () => syncClear({ categories: applied.categories.filter((x) => x !== c) }) });
   });
   applied.kts.forEach((k) => {
-    chips.push({ key: `kt-${k}`, label: `${k} (all settings offered in 14K & 18K)`, clear: () => syncClear({ kts: applied.kts.filter((x) => x !== k) }) });
+    chips.push({ key: `kt-${k}`, label: `${k} (every setting is offered in 10KT, 14KT & 18KT)`, clear: () => syncClear({ kts: applied.kts.filter((x) => x !== k) }) });
   });
   applied.colors.forEach((c) => {
     chips.push({ key: `color-${c}`, label: c, clear: () => syncClear({ colors: applied.colors.filter((x) => x !== c) }) });
@@ -263,10 +292,10 @@ export default function Collection() {
 
   const numOr = (v, fallback) => {
     const n = Number(v);
-    return Number.isFinite(n) ? Math.max(PRICE_MIN, Math.min(PRICE_MAX, n)) : fallback;
+    return Number.isFinite(n) ? Math.max(priceBounds.min, Math.min(priceBounds.max, n)) : fallback;
   };
-  const sliderLo = draft.priceFrom !== '' ? numOr(draft.priceFrom, PRICE_MIN) : PRICE_MIN;
-  const sliderHi = draft.priceTo !== '' ? numOr(draft.priceTo, PRICE_MAX) : PRICE_MAX;
+  const sliderLo = draft.priceFrom !== '' ? numOr(draft.priceFrom, priceBounds.min) : priceBounds.min;
+  const sliderHi = draft.priceTo !== '' ? numOr(draft.priceTo, priceBounds.max) : priceBounds.max;
 
   const description =
     categoryInfo?.description ||
@@ -497,8 +526,8 @@ export default function Collection() {
               <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Availability</h3>
                 {[
-                  { v: 'in', label: `In stock (${baseProducts.length})` },
-                  { v: 'out', label: 'Out of stock (0)' },
+                  { v: 'in', label: `In stock (${inStockCount})` },
+                  { v: 'out', label: `Out of stock (${outOfStockCount})` },
                 ].map((o) => (
                   <label key={o.v} className="flex items-center cursor-pointer" style={{ gap: '10px', fontSize: '15px', lineHeight: '36px' }}>
                     <input
@@ -517,22 +546,22 @@ export default function Collection() {
               <div style={{ borderBottom: '1px solid #ededed', marginTop: '16px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 500, padding: '16px 0' }}>Price</h3>
                 <RangeSlider
-                  min={PRICE_MIN}
-                  max={PRICE_MAX}
+                  min={priceBounds.min}
+                  max={priceBounds.max}
                   step={100}
                   lo={sliderLo}
                   hi={sliderHi}
-                  onChange={(lo, hi) => setDraft({ ...draft, priceFrom: lo === PRICE_MIN ? '' : String(lo), priceTo: hi === PRICE_MAX ? '' : String(hi) })}
+                  onChange={(lo, hi) => setDraft({ ...draft, priceFrom: lo === priceBounds.min ? '' : String(lo), priceTo: hi === priceBounds.max ? '' : String(hi) })}
                 />
                 <div className="flex items-center" style={{ gap: '8px', marginTop: '12px' }}>
                   <label className="relative flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
                     <span aria-hidden="true" className="absolute text-[15px] text-gray-500 pointer-events-none shrink-0" style={{ left: '12px' }}>$</span>
-                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="From" aria-label="Price from" value={draft.priceFrom} onChange={(e) => setDraft({ ...draft, priceFrom: e.target.value })} className="price-input flex-1 min-w-0 w-full bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px 0 28px' }} />
+                    <input type="number" min={priceBounds.min} max={priceBounds.max} placeholder="From" aria-label="Price from" value={draft.priceFrom} onChange={(e) => setDraft({ ...draft, priceFrom: e.target.value })} className="price-input flex-1 min-w-0 w-full bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px 0 28px' }} />
                   </label>
                   <span className="text-[15px] text-gray-500">to</span>
                   <label className="relative flex items-center flex-1 border border-[#ededed] bg-white" style={{ height: '38px' }}>
                     <span aria-hidden="true" className="absolute text-[15px] text-gray-500 pointer-events-none shrink-0" style={{ left: '12px' }}>$</span>
-                    <input type="number" min={PRICE_MIN} max={PRICE_MAX} placeholder="To" aria-label="Price to" value={draft.priceTo} onChange={(e) => setDraft({ ...draft, priceTo: e.target.value })} className="price-input flex-1 min-w-0 w-full bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px 0 28px' }} />
+                    <input type="number" min={priceBounds.min} max={priceBounds.max} placeholder="To" aria-label="Price to" value={draft.priceTo} onChange={(e) => setDraft({ ...draft, priceTo: e.target.value })} className="price-input flex-1 min-w-0 w-full bg-transparent text-[15px] focus:outline-none" style={{ padding: '0 8px 0 28px' }} />
                   </label>
                 </div>
                 <div style={{ height: '16px' }} />

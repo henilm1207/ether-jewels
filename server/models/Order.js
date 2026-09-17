@@ -8,7 +8,7 @@ const orderItemSchema = new mongoose.Schema(
     image: String, // first image snapshot
     category: String, // category snapshot (for ring-size validation)
     metal: {
-      karat: { type: String, enum: ['10KT', '14KT', '18KT'], default: '14KT' },
+      karat: { type: String, enum: ['10KT', '14KT', '18KT'], default: '10KT' },
       color: String, // e.g. Rose Gold
     },
     size: { type: String, default: null }, // required for ring categories (enforced in route)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { adminFetch } from '../../components/admin/api';
-import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
+import { PageHead, Table, td, Pill, ErrorMsg, RowIconButton } from '../../components/admin/ui';
 
 export default function Reviews() {
   const [list, setList] = useState([]);
@@ -66,11 +67,17 @@ export default function Reviews() {
             <td style={td}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</td>
             <td style={td}><Pill value={r.status} /></td>
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
-              {r.status !== 'approved' && <button onClick={() => setStatusOf(r, 'approved')} className="underline text-sm mr-3 text-green-700">Approve</button>}
-              {r.status !== 'rejected' && <button onClick={() => setStatusOf(r, 'rejected')} className="underline text-sm mr-3 text-red-700">Reject</button>}
-              <button onClick={() => remove(r)} disabled={deleting === r._id} className="underline text-sm text-red-700 disabled:opacity-50">
-                {deleting === r._id ? 'Deleting…' : 'Delete'}
-              </button>
+              <div className="flex items-center gap-1">
+                {r.status !== 'approved' && <button onClick={() => setStatusOf(r, 'approved')} className="underline text-sm mr-2 text-green-700">Approve</button>}
+                {r.status !== 'rejected' && <button onClick={() => setStatusOf(r, 'rejected')} className="underline text-sm mr-2 text-red-700">Reject</button>}
+                <RowIconButton
+                  icon={Trash2}
+                  label={deleting === r._id ? 'Deleting…' : 'Delete'}
+                  tone="danger"
+                  disabled={deleting === r._id}
+                  onClick={() => remove(r)}
+                />
+              </div>
             </td>
           </tr>
         ))}
