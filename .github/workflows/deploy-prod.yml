@@ -7,6 +7,7 @@ name: Deploy prod
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}
 
 concurrency:
   group: prod-deploy

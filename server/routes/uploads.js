@@ -32,6 +32,14 @@ router.post('/', authRequired, requireAdmin, upload.array('images', MAX_FILES), 
       try {
         out.push(await saveImageBuffer(f.buffer));
       } catch (e) {
+        // fs/mkdir/write failures (disk full, permission denied, missing
+        // dir) always set `syscall` — sharp decode errors never do. Keep
+        // those distinct so a server/infra problem doesn't get reported to
+        // the admin as "your file is a bad JPG/PNG/WebP".
+        if (typeof e.syscall === 'string') {
+          console.error(`uploads: failed to save '${f.originalname || 'upload'}':`, e);
+          throw Object.assign(new Error('Server error saving image — please try again shortly'), { status: 500, cause: e });
+        }
         e.status = e.status || 400;
         throw Object.assign(new Error(`Could not process image '${f.originalname || 'upload'}' — use JPG/PNG/WebP`), { status: 400, cause: e });
       }
