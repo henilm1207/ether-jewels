@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { adminFetch } from '../../components/admin/api';
-import { PageHead, Table, td, Pill, ErrorMsg, Card, Field, inputCls, inputStyle } from '../../components/admin/ui';
+import { PageHead, Table, td, Pill, ErrorMsg, Card, Field, inputCls, inputStyle, RowIconButton } from '../../components/admin/ui';
 
 const EMPTY_FORM = { code: '', type: 'pct', value: '', minOrder: '', maxUses: '', expiresAt: '' };
 
@@ -117,11 +118,17 @@ export default function Coupons() {
             <td style={td}>{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '—'}</td>
             <td style={td}><Pill value={c.active ? 'approved' : 'cancelled'} map={{ approved: 'on', cancelled: 'off' }} />{!c.active && c.autoOff ? <span className="text-xs text-gray-500"> · auto</span> : null}</td>
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
-              <button onClick={() => toggle(c)} className="underline text-sm mr-3">{c.active ? 'Disable' : 'Enable'}</button>
-              <button onClick={() => startEdit(c)} className="underline text-sm mr-3">Edit</button>
-              <button onClick={() => remove(c)} disabled={deleting === c._id} className="underline text-sm text-red-700 disabled:opacity-50">
-                {deleting === c._id ? 'Deleting…' : 'Delete'}
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => toggle(c)} className="underline text-sm mr-2">{c.active ? 'Disable' : 'Enable'}</button>
+                <RowIconButton icon={Pencil} label="Edit" onClick={() => startEdit(c)} />
+                <RowIconButton
+                  icon={Trash2}
+                  label={deleting === c._id ? 'Deleting…' : 'Delete'}
+                  tone="danger"
+                  disabled={deleting === c._id}
+                  onClick={() => remove(c)}
+                />
+              </div>
             </td>
           </tr>
         ))}

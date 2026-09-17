@@ -413,7 +413,11 @@ export default function ProductDetail() {
               <div className="space-y-2.5" style={{ marginBottom: '24px' }}>
                 <div className="flex items-center gap-3 text-[15px] text-gray-600">
                   <ShieldCheck size={16} strokeWidth={1.5} />
-                  <span>Certified by GIA/IGI/SHC</span>
+                  <span>
+                    {product.details?.certAuthority && product.details?.certNumber
+                      ? `Certified by ${product.details.certAuthority} — #${product.details.certNumber}`
+                      : 'Certified by GIA/IGI/SHC'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 text-[15px] text-gray-600">
                   <Truck size={16} strokeWidth={1.5} />

@@ -119,6 +119,15 @@ const productSchema = new mongoose.Schema(
       metalWeightGrams: { type: Number, min: 0 },
       diamondCaratWeight: { type: Number, min: 0, default: 0 },
       fancyDiamonds: { type: [fancyDiamondSchema], default: [] },
+      // High-value trust fields — shown on the PDP when present, never
+      // required (older/lower-value products stay valid without them).
+      certAuthority: { type: String, enum: ['GIA', 'IGI', 'SHC', 'other', null], default: null },
+      certNumber: { type: String, trim: true, default: '' },
+      appraisalValue: { type: Number, min: 0 }, // insurance replacement value, separate from retail price
+      // Stamped by the auto-pricing hook below every time it actually
+      // recomputes price — lets the admin see which products were priced
+      // under a since-changed gold/diamond rate (PricingSettings.updatedAt).
+      pricedAt: { type: Date, default: null },
     },
     // Alibaba.com bulk-upload export settings — not shown on the storefront.
     // Field names/shape follow Alibaba's official "Basic Information" template
@@ -140,6 +149,18 @@ const productSchema = new mongoose.Schema(
       attr4Value: { type: String, default: '' },
       attr5Name: { type: String, default: '' },
       attr5Value: { type: String, default: '' },
+    },
+    // Set per karat tier when this product is included in an Alibaba export
+    // download; lets the export endpoint skip already-downloaded tiers on
+    // the next run instead of re-listing them as duplicates (exporting at
+    // 14KT must not be blocked by having already exported at 10KT). Kept
+    // top-level (NOT inside `alibaba` above, and NOT in PRODUCT_FIELDS in
+    // routes/products.js) so routine product-form saves — which always
+    // resend the whole `alibaba` sub-object — never touch or reset it.
+    alibabaExportedAt: {
+      kt10: { type: Date, default: null },
+      kt14: { type: Date, default: null },
+      kt18: { type: Date, default: null },
     },
     // Denormalized from reviews
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
@@ -184,6 +205,7 @@ productSchema.pre('validate', async function (next) {
           this.kt14Delta = result.kt14Delta;
           this.kt18Delta = result.kt18Delta;
           for (const v of this.variants || []) v.price = result.price;
+          this.details.pricedAt = new Date();
         }
       } else if (this.isNew && !(this.price > 0)) {
         // Only blocks a brand-new, genuinely price-less product — never an

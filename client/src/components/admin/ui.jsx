@@ -1,5 +1,6 @@
 // Shared admin UI atoms — plain back-office styling.
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Info } from 'lucide-react';
 
 export const SHAPE_NAMES = ['Round', 'Princess', 'Cushion', 'Oval', 'Pear', 'Emerald', 'Marquise', 'Asscher', 'Heart', 'Radiant'];
@@ -147,8 +148,8 @@ export function Table({ head, children }) {
       <table className="w-full text-sm" style={{ minWidth: '640px' }}>
         <thead>
           <tr className="text-left text-xs uppercase tracking-wider text-gray-500 border-b border-[#e5e5e5]">
-            {head.map((h) => (
-              <th key={h} className="font-medium" style={{ padding: '10px 12px' }}>{h}</th>
+            {head.map((h, i) => (
+              <th key={i} className="font-medium" style={{ padding: '10px 12px' }}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -159,6 +160,28 @@ export function Table({ head, children }) {
 }
 
 export const td = { padding: '10px 12px', borderTop: '1px solid #f0f0f0', verticalAlign: 'top' };
+
+// Icon-only row action (Edit/Archive/Delete across every admin list table).
+// `to` renders a Link (navigate to an edit page); omit it for an inline
+// onClick action. `tone="danger"` is for anything that removes/hides a
+// record from the storefront (archive, delete) — plain pencil-gray otherwise.
+export function RowIconButton({ icon: Icon, label, onClick, to, tone = 'default', disabled, size = 16 }) {
+  const toneCls = tone === 'danger' ? 'text-red-700 hover:bg-red-50' : 'text-gray-600 hover:bg-gray-100';
+  const cls = `inline-flex items-center justify-center rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${toneCls}`;
+  const style = { width: '30px', height: '30px' };
+  if (to) {
+    return (
+      <Link to={to} title={label} aria-label={label} className={cls} style={style}>
+        <Icon size={size} />
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} title={label} aria-label={label} className={cls} style={style}>
+      <Icon size={size} />
+    </button>
+  );
+}
 
 export function ErrorMsg({ error }) {
   if (!error) return null;

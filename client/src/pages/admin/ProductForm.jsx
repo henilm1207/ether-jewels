@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Archive, Trash2 } from 'lucide-react';
 import { adminFetch } from '../../components/admin/api';
 import { resolveMediaUrl, localFilename } from '../../lib/media';
 import AiCopyButton from '../../components/admin/AiCopyButton';
@@ -16,6 +17,7 @@ const EMPTY = {
   inStock: true, stockQty: 10, featured: false, sizes: [], defaultSize: '',
   sideStoneCertified: false, deliveryDays: 30, metalWeightGrams: '', diamondCaratWeight: '',
   fancyDiamonds: [],
+  certAuthority: '', certNumber: '', appraisalValue: '',
   seoTitle: '', seoDesc: '',
   alibabaEnabled: false, alibabaUnit: 'Piece/Pieces', alibabaCategory: '',
   alibabaOrigin: '', alibabaLeadTimeDays: '', alibabaGrossWeightKg: '',
@@ -263,6 +265,9 @@ export default function ProductForm() {
             ? p.details.fancyDiamonds.map((fd) => ({ shape: fd.shape, color: fd.color, caratWeight: String(fd.caratWeight ?? '') }))
             : [],
           sideStoneCertified: !!p.details?.sideStoneCertified,
+          certAuthority: p.details?.certAuthority || '',
+          certNumber: p.details?.certNumber || '',
+          appraisalValue: p.details?.appraisalValue != null ? String(p.details.appraisalValue) : '',
           tags: (p.tags || []).join(', '),
           badge: p.badge || '',
           shape: p.shape || '',
@@ -355,6 +360,9 @@ export default function ProductForm() {
           metalWeightGrams: num(form.metalWeightGrams),
           diamondCaratWeight: num(form.diamondCaratWeight),
           fancyDiamonds: form.fancyDiamonds.map((fd) => ({ shape: fd.shape, color: fd.color, caratWeight: Number(fd.caratWeight) })),
+          certAuthority: form.certAuthority || null,
+          certNumber: form.certNumber.trim(),
+          appraisalValue: num(form.appraisalValue),
         },
         seoTitle: form.seoTitle.trim() || undefined,
         seoDesc: form.seoDesc.trim() || undefined,
@@ -747,6 +755,24 @@ export default function ProductForm() {
               </div>
 
               <label className="flex items-center gap-2 text-sm mb-3"><input type="checkbox" checked={!!form.sideStoneCertified} onChange={(e) => set('sideStoneCertified', e.target.checked)} /> Side stones certified</label>
+
+              <h2 className="font-medium text-sm mb-3">CERTIFICATION &amp; APPRAISAL</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Cert authority">
+                  <select value={form.certAuthority} onChange={(e) => set('certAuthority', e.target.value)} className={inputCls} style={inputStyle}>
+                    <option value="">None</option>
+                    <option value="GIA">GIA</option>
+                    <option value="IGI">IGI</option>
+                    <option value="SHC">SHC</option>
+                    <option value="other">Other</option>
+                  </select>
+                </Field>
+                <Field label="Cert number"><input value={form.certNumber} onChange={(e) => set('certNumber', e.target.value)} placeholder="e.g. 6234567890" className={inputCls} style={inputStyle} /></Field>
+              </div>
+              <Field label="Appraisal value ($)" hint="Insurance replacement value — separate from the retail price shown to customers.">
+                <input type="number" min="0" step="1" value={form.appraisalValue} onChange={(e) => set('appraisalValue', e.target.value)} className={inputCls} style={inputStyle} />
+              </Field>
+
               <Field label="SEO title"><input value={form.seoTitle} onChange={(e) => set('seoTitle', e.target.value)} className={inputCls} style={inputStyle} /></Field>
               <Field label="SEO description"><input value={form.seoDesc} onChange={(e) => set('seoDesc', e.target.value)} className={inputCls} style={inputStyle} /></Field>
               <button type="submit" disabled={saving} className="btn btn--primary w-full disabled:opacity-50">
@@ -803,15 +829,17 @@ export default function ProductForm() {
                           setError(e.message);
                         }
                       }}
-                      className="underline text-sm text-red-700"
+                      className="underline text-sm text-red-700 inline-flex items-center gap-1.5"
                     >
+                      <Archive size={14} />
                       Archive
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmSlug('__ask')}
-                      className="underline text-sm text-red-700 font-medium"
+                      className="underline text-sm text-red-700 font-medium inline-flex items-center gap-1.5"
                     >
+                      <Trash2 size={14} />
                       Delete forever
                     </button>
                   </div>
@@ -851,9 +879,10 @@ export default function ProductForm() {
                         <button
                           type="submit"
                           disabled={destroying || confirmSlug.trim() !== form.slug}
-                          className="text-sm text-white rounded disabled:opacity-40"
+                          className="text-sm text-white rounded disabled:opacity-40 inline-flex items-center gap-1.5"
                           style={{ padding: '10px 20px', background: '#B00020' }}
                         >
+                          <Trash2 size={14} />
                           {destroying ? 'Deleting…' : 'Delete forever'}
                         </button>
                         <button type="button" onClick={() => setConfirmSlug('')} className="underline text-sm">Cancel</button>

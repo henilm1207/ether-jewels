@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { adminFetch } from '../../components/admin/api';
-import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
+import { PageHead, Table, td, Pill, ErrorMsg, RowIconButton } from '../../components/admin/ui';
 
 export default function Inquiries() {
   const [list, setList] = useState([]);
@@ -73,10 +74,16 @@ export default function Inquiries() {
             <td style={{ ...td, maxWidth: '320px' }}><p className="truncate">{i.message}</p></td>
             <td style={td}><Pill value={i.status} /></td>
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
-              <button onClick={() => setOpen(i)} className="underline text-sm mr-3">Open</button>
-              <button onClick={() => remove(i)} disabled={deleting === i._id} className="underline text-sm text-red-700 disabled:opacity-50">
-                {deleting === i._id ? 'Deleting…' : 'Delete'}
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setOpen(i)} className="underline text-sm mr-2">Open</button>
+                <RowIconButton
+                  icon={Trash2}
+                  label={deleting === i._id ? 'Deleting…' : 'Delete'}
+                  tone="danger"
+                  disabled={deleting === i._id}
+                  onClick={() => remove(i)}
+                />
+              </div>
             </td>
           </tr>
         ))}
@@ -99,7 +106,8 @@ export default function Inquiries() {
                   Mark {s}
                 </button>
               ))}
-              <button onClick={() => remove(sel)} disabled={deleting === sel._id} className="text-sm border border-red-700 text-red-700 rounded px-3 py-1.5 hover:bg-red-700 hover:text-white transition-colors disabled:opacity-50">
+              <button onClick={() => remove(sel)} disabled={deleting === sel._id} className="text-sm border border-red-700 text-red-700 rounded px-3 py-1.5 hover:bg-red-700 hover:text-white transition-colors disabled:opacity-50 inline-flex items-center gap-1.5">
+                <Trash2 size={14} />
                 {deleting === sel._id ? 'Deleting…' : 'Delete'}
               </button>
             </div>

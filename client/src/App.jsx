@@ -30,6 +30,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/Products';
 import AdminProductForm from './pages/admin/ProductForm';
 import AdminOrders from './pages/admin/Orders';
+import AdminCustomers from './pages/admin/Customers';
 import AdminCoupons from './pages/admin/Coupons';
 import AdminReviews from './pages/admin/Reviews';
 import AdminInquiries from './pages/admin/Inquiries';
@@ -119,6 +120,7 @@ function App() {
             <Route path="products/new" element={<AdminProductForm />} />
             <Route path="products/:id" element={<AdminProductForm />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="customers" element={<AdminCustomers />} />
             <Route path="coupons" element={<AdminCoupons />} />
             <Route path="reviews" element={<AdminReviews />} />
             <Route path="inquiries" element={<AdminInquiries />} />

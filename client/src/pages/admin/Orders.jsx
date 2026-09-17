@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { adminFetch } from '../../components/admin/api';
 import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
 
 const STATUSES = ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'];
+const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
 const NEXT = { pending: ['confirmed', 'cancelled'], confirmed: ['making', 'cancelled'], making: ['shipped', 'cancelled'], shipped: ['delivered'], delivered: [], cancelled: [] };
+// Orders at/above this total get a visual flag for extra care (signature on
+// delivery, insured shipping) — a plain constant, not a setting, for now.
+const HIGH_VALUE_THRESHOLD = 2000;
 
 // Shipment tracking editor — admin sets the id + carrier; the customer sees
 // it on /account. Locked once delivered/cancelled (server enforces too).
@@ -64,19 +69,39 @@ function TrackingForm({ order, onSaved, onError }) {
 }
 
 export default function Orders() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
+  // Pre-filled from ?email= when arriving via a Customers-page "view orders"
+  // link. `email` is what's actually sent to the server; `emailDraft` is the
+  // input's live value — committed on Enter/blur so typing doesn't fire a
+  // request per keystroke.
+  const [email, setEmail] = useState(searchParams.get('email') || '');
+  const [emailDraft, setEmailDraft] = useState(searchParams.get('email') || '');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [error, setError] = useState('');
   const [open, setOpen] = useState(null);
 
   const load = useCallback(async () => {
     setError('');
     try {
-      setOrders(await adminFetch(`/api/orders${status ? `?status=${status}` : ''}`));
+      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      if (status) params.set('status', status);
+      if (paymentStatus) params.set('paymentStatus', paymentStatus);
+      if (email.trim()) params.set('email', email.trim());
+      if (dateFrom) params.set('dateFrom', dateFrom);
+      if (dateTo) params.set('dateTo', dateTo);
+      const data = await adminFetch(`/api/orders?${params}`);
+      setOrders(data.items);
+      setTotal(data.total);
     } catch (e) {
       setError(e.message);
     }
-  }, [status]);
+  }, [page, status, paymentStatus, email, dateFrom, dateTo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -94,13 +119,35 @@ export default function Orders() {
 
   return (
     <div>
-      <PageHead title="Orders" sub={`${orders.length} shown`} />
+      <PageHead title="Orders" sub={`${total} total`} />
       <ErrorMsg error={error} />
-      <div className="mb-4">
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-white border border-[#d9d9d9] rounded text-sm" style={{ padding: '10px 12px' }} aria-label="Filter by status">
+      <div className="flex flex-wrap gap-3 mb-4">
+        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="bg-white border border-[#d9d9d9] rounded text-sm" style={{ padding: '10px 12px' }} aria-label="Filter by status">
           <option value="">All statuses</option>
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
+        <select value={paymentStatus} onChange={(e) => { setPaymentStatus(e.target.value); setPage(1); }} className="bg-white border border-[#d9d9d9] rounded text-sm" style={{ padding: '10px 12px' }} aria-label="Filter by payment status">
+          <option value="">All payment statuses</option>
+          {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <input
+          value={emailDraft}
+          onChange={(e) => setEmailDraft(e.target.value)}
+          onBlur={() => { setEmail(emailDraft); setPage(1); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { setEmail(emailDraft); setPage(1); } }}
+          placeholder="Customer email…"
+          className="bg-white border border-[#d9d9d9] rounded text-sm"
+          style={{ padding: '10px 12px', minWidth: '200px' }}
+          aria-label="Filter by customer email"
+        />
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          From
+          <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} className="bg-white border border-[#d9d9d9] rounded text-sm" style={{ padding: '9px 10px' }} aria-label="From date" />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          To
+          <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="bg-white border border-[#d9d9d9] rounded text-sm" style={{ padding: '9px 10px' }} aria-label="To date" />
+        </label>
       </div>
       <Table head={['Order', 'Customer', 'Total', 'Payment', 'Status', '']}>
         {orders.length === 0 ? (
@@ -115,13 +162,24 @@ export default function Orders() {
               <p className="text-sm">{o.shippingAddress?.fullName || o.contact?.name || '—'}</p>
               <p className="text-xs text-gray-500">{o.contact?.email}</p>
             </td>
-            <td style={td}>${Number(o.pricing?.total || 0).toFixed(2)}{o.couponCode && <p className="text-xs text-gray-500">{o.couponCode} (−${Number(o.pricing?.discount || 0).toFixed(2)})</p>}</td>
+            <td style={td}>
+              ${Number(o.pricing?.total || 0).toFixed(2)}
+              {Number(o.pricing?.total || 0) >= HIGH_VALUE_THRESHOLD && (
+                <span title={`$${HIGH_VALUE_THRESHOLD}+ order — consider signature/insured shipping`} className="inline-block text-xs font-medium rounded px-1.5 py-0.5 ml-2 bg-purple-100 text-purple-800">high-value</span>
+              )}
+              {o.couponCode && <p className="text-xs text-gray-500">{o.couponCode} (−${Number(o.pricing?.discount || 0).toFixed(2)})</p>}
+            </td>
             <td style={td}><Pill value={o.payment?.status} /> <span className="text-xs text-gray-500">{o.payment?.method}</span></td>
             <td style={td}><Pill value={o.status} /></td>
             <td style={td}><button onClick={() => setOpen(o)} className="underline text-sm">Open</button></td>
           </tr>
         ))}
       </Table>
+      <div className="flex items-center gap-3 mt-4 text-sm">
+        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="underline disabled:opacity-40">← Prev</button>
+        <span>Page {page}</span>
+        <button disabled={orders.length < 20} onClick={() => setPage((p) => p + 1)} className="underline disabled:opacity-40">Next →</button>
+      </div>
 
       {sel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ padding: '16px' }}>

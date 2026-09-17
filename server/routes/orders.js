@@ -5,6 +5,7 @@ const { authOptional, authRequired, requireAdmin } = require('../middleware/auth
 
 const router = express.Router();
 const ORDER_TTL_MS = 24 * 60 * 60 * 1000; // unpaid orders auto-cancel after 24h
+const escapeRegExp = (s) => String(s).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // True once any online gateway is keyed — manual pending orders then stop
 // (staff phone orders go through the admin account instead).
@@ -82,19 +83,59 @@ router.get('/mine', authRequired, async (req, res, next) => {
   }
 });
 
+// GET /api/orders?status=&paymentStatus=&email=&dateFrom=&dateTo=&page=&limit=
 router.get('/', authRequired, requireAdmin, async (req, res, next) => {
   try {
-    const { status, page = '1', limit = '20' } = req.query;
+    const { status, paymentStatus, email, dateFrom, dateTo, page = '1', limit = '20' } = req.query;
     const allowed = ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'];
+    const allowedPayment = ['pending', 'paid', 'failed', 'refunded'];
     const filter = {};
     if (status) {
       if (!allowed.includes(String(status))) return res.status(400).json({ message: 'Invalid status' });
       filter.status = status;
     }
+    if (paymentStatus) {
+      if (!allowedPayment.includes(String(paymentStatus))) return res.status(400).json({ message: 'Invalid payment status' });
+      filter['payment.status'] = paymentStatus;
+    }
+    // contact.email is always set (guest or logged-in, see POST / above),
+    // so it's the one reliable field to search a customer's orders by.
+    if (email) filter['contact.email'] = new RegExp(escapeRegExp(String(email).trim().slice(0, 100)), 'i');
+    if (dateFrom || dateTo) {
+      const from = dateFrom ? new Date(dateFrom) : null;
+      const to = dateTo ? new Date(dateTo) : null;
+      if ((dateFrom && Number.isNaN(from?.getTime())) || (dateTo && Number.isNaN(to?.getTime())))
+        return res.status(400).json({ message: 'Invalid date range' });
+      filter.createdAt = {};
+      if (from) filter.createdAt.$gte = from;
+      if (to) filter.createdAt.$lte = to;
+    }
     const pg = Number.isFinite(Number(page)) ? Math.max(1, parseInt(page, 10)) : 1;
     const lim = Number.isFinite(Number(limit)) ? Math.min(100, Math.max(1, parseInt(limit, 10))) : 20;
-    const orders = await Order.find(filter).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim);
-    res.json(orders);
+    const [items, total] = await Promise.all([
+      Order.find(filter).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
+      Order.countDocuments(filter),
+    ]);
+    res.json({ items, total, page: pg, pages: Math.ceil(total / lim) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Revenue/AOV for the Dashboard — paid orders only (pending/failed carry no
+// realized revenue).
+router.get('/admin/stats', authRequired, requireAdmin, async (_req, res, next) => {
+  try {
+    const [agg] = await Order.aggregate([
+      { $match: { 'payment.status': 'paid' } },
+      { $group: { _id: null, revenue: { $sum: '$pricing.total' }, paidCount: { $sum: 1 } } },
+    ]);
+    const revenue = agg?.revenue || 0;
+    const paidCount = agg?.paidCount || 0;
+    const byStatusAgg = await Order.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
+    const byStatus = {};
+    for (const row of byStatusAgg) byStatus[row._id] = row.count;
+    res.json({ revenue, paidCount, aov: paidCount ? revenue / paidCount : 0, byStatus });
   } catch (e) {
     next(e);
   }

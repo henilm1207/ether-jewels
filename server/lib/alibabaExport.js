@@ -1,9 +1,11 @@
 // Column headers match row 3 of Alibaba's official bulk-upload template
 // (server/assets/Alibaba default template (recommended).xlsx) exactly, in
 // the same order, so exported rows can be pasted straight into that sheet
-// starting at row 5. Columns we don't populate (SPU grouping, tiered/range
-// pricing, shipping template, product dimensions) are left blank for the
-// admin to fill in manually before uploading.
+// starting at row 5. SPU ID + SKU code/pricing/attribute 1 are populated to
+// group a product's 3 karat-tier exports as one listing with 3 SKU
+// variants (see buildAlibabaCsv). Remaining columns we don't populate
+// (tiered/range pricing, shipping template, product dimensions) are left
+// blank for the admin to fill in manually before uploading.
 const CSV_HEADERS = [
   'Product title', 'Product image 1', 'Product image 2', 'Product image 3', 'Product image 4',
   'Product image 5', 'Product image 6', 'Product description', 'Place of origin', 'Brand name',
@@ -34,7 +36,16 @@ function toAbsoluteImageUrl(image, publicApiBase) {
   return `${publicApiBase.replace(/\/$/, '')}${image}`;
 }
 
-function buildAlibabaCsv(products, publicApiBase) {
+// Karat price tiers — every product stores a 10KT base `price` plus
+// `kt14Delta`/`kt18Delta` (same fields that power the storefront's PDP
+// karat toggle). One export call = one tier's price for every row.
+function tierPrice(p, tier) {
+  if (tier === '14KT') return p.price + (p.kt14Delta || 0);
+  if (tier === '18KT') return p.price + (p.kt18Delta || 0);
+  return p.price;
+}
+
+function buildAlibabaCsv(products, publicApiBase, tier = '10KT') {
   const rows = [CSV_HEADERS];
   for (const p of products) {
     const images = Array.isArray(p.images) ? p.images : [];
@@ -60,12 +71,12 @@ function buildAlibabaCsv(products, publicApiBase) {
       '', // Batch quantity — only used when selling by batch
       a.unit || 'Piece/Pieces',
       'USD',
-      'SKU pricing', // one row per product, price ← base 14KT price
+      'SKU pricing', // one row per product per karat tier
       p.stockQty ?? '',
-      '', // SPU ID — not required for a single-SKU listing
-      p.styleCode || '',
-      p.price,
-      '', '', '', '', '', '', '', '', // SKU attribute name/value 1-4 — unused in single-row mode
+      p.styleCode || '', // SPU ID — shared across the 3 tier exports so Alibaba groups them as one listing with 3 SKU variants
+      `${p.styleCode || p._id}-${tier}`, // SKU code — unique per karat tier
+      tierPrice(p, tier),
+      'Karat', tier, '', '', '', '', '', '', // SKU attribute 1 = Karat/tier; 2-4 unused
       '', '', '', '', '', '', '', '', // Tiered pricing 1-3 + MOQ 1-3 + range pricing lower/higher — unused (pricing type is SKU pricing)
       a.grossWeightKg ?? '',
       '', // Shipping template name — set up in the Alibaba seller account, fill in manually

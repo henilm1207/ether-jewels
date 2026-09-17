@@ -27,6 +27,7 @@ const uploadRoutes = require('./routes/uploads');
 const pricingSettingsRoutes = require('./routes/pricingSettings');
 const aiRoutes = require('./routes/ai');
 const dbViewerRoutes = require('./routes/dbViewer');
+const userRoutes = require('./routes/users');
 const { authRequired, requireAdmin } = require('./middleware/auth');
 
 function validateEnv() {
@@ -138,6 +139,7 @@ app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/pricing-settings', pricingSettingsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/users', userRoutes);
 
 // Read-only browser DB viewer — dev only, explicitly enabled, admin only
 if (
