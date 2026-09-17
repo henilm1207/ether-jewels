@@ -102,7 +102,7 @@ router.get('/', async (req, res, next) => {
 
     // Shape matches ANY listed shape (multi-shape products) or the legacy primary.
     const shapeOr = (value) => ({ $or: [{ shapes: value }, { shape: value }] });
-    if (category) {
+    if (category && category !== 'all') {
       const cat = await resolveCategory(category);
       if (cat?.aggregateKeys?.length) {
         filter.category = { $in: cat.aggregateKeys };

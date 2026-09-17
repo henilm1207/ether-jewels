@@ -45,6 +45,11 @@ router.get('/', async (_req, res, next) => {
 
 router.get('/:key', async (req, res, next) => {
   try {
+    // Synthetic "all jewellery" collection — not a real Category doc, so it
+    // never shows up in the nav/admin list and needs no aggregateKeys upkeep.
+    if (req.params.key === 'all') {
+      return res.json({ key: 'all', name: 'All Jewellery', description: '', parent: 'Collection', shape: null, aggregateKeys: [], active: true });
+    }
     const cat = await resolveCategory(req.params.key);
     if (!cat) return res.status(404).json({ message: 'Category not found' });
     res.json(cat);

@@ -7,6 +7,7 @@
     "local:persist": "node local-persist.js",
     "seed": "node seed.js",
     "ensure-catalog": "node scripts/ensure-catalog.js",
+    "ensure-shapes": "node scripts/ensure-shapes.js",
     "migrate-bag-wishlist": "node scripts/migrate-bag-wishlist.js",
     "migrate-images-to-local": "node scripts/migrate-images-to-local.js",
     "verify-local-db": "node scripts/verify-local-db.js",

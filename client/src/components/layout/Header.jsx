@@ -12,7 +12,7 @@ import { getMenuTree } from '../../lib/categoryTree';
 const navItems = [
   {
     label: 'Jewellery',
-    to: '/collections',
+    to: '/collections/all',
     dynamic: true, // children (variant groups) load live from DB categories
   },
   { label: 'Diamonds', to: '/pages/diamond' },
