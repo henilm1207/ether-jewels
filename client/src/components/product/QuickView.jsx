@@ -20,7 +20,7 @@ export default function ProductQuickView({ slug, onClose }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [imageIdx, setImageIdx] = useState(0);
-  const [selectedKt, setSelectedKt] = useState('14KT');
+  const [selectedKt, setSelectedKt] = useState('10KT');
   const [selectedVariant, setSelectedVariant] = useState(0);
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function ProductQuickView({ slug, onClose }) {
 
   const variant = product?.variants?.[selectedVariant] || null;
   const basePrice = Number(variant?.price ?? product?.price) || 0;
-  const KT_DELTA = { '10KT': Number(product?.kt10Delta ?? -100), '18KT': Number(product?.kt18Delta ?? 200) };
+  const KT_DELTA = { '14KT': Number(product?.kt14Delta ?? 100), '18KT': Number(product?.kt18Delta ?? 300) };
   const price = basePrice + (KT_DELTA[selectedKt] || 0);
   const fmt = (v) =>
     `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;

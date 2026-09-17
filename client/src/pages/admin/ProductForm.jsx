@@ -9,12 +9,13 @@ import { METALS, metalColor, DEFAULT_METAL } from '../../lib/metals';
 import { PageHead, Card, Field, inputCls, inputStyle, ErrorMsg, SHAPE_NAMES, DIAMOND_COLORS, DIAMOND_CLARITY, RING_SIZES, isRingCategory, MultiSelectDropdown } from '../../components/admin/ui';
 
 const EMPTY = {
-  name: '', slug: '', styleCode: '', shape: '', shapes: [], diamondColors: [], clarity: [], price: '', kt18Delta: 200,
-  kt10Delta: -100, autoPriced: true,
+  name: '', slug: '', styleCode: '', shape: '', shapes: [], diamondColors: [], clarity: [], price: '', kt18Delta: 300,
+  kt14Delta: 100, autoPriced: true,
   compareAtPrice: '', description: '', shortDescription: '', category: '',
   images: [], video: '', tags: '', badge: '', status: 'draft',
   inStock: true, stockQty: 10, featured: false, sizes: [], defaultSize: '',
   sideStoneCertified: false, deliveryDays: 30, metalWeightGrams: '', diamondCaratWeight: '',
+  fancyDiamonds: [],
   seoTitle: '', seoDesc: '',
   alibabaEnabled: false, alibabaUnit: 'Piece/Pieces', alibabaCategory: '',
   alibabaOrigin: '', alibabaLeadTimeDays: '', alibabaGrossWeightKg: '',
@@ -133,6 +134,7 @@ export default function ProductForm() {
   const [form, setForm] = useState(EMPTY);
   const [variants, setVariants] = useState([{ ...EMPTY_VARIANT }]);
   const [categories, setCategories] = useState([]);
+  const [fancyRates, setFancyRates] = useState([]); // admin's fancy diamond shape/color rate table
   const [variantKey, setVariantKey] = useState(''); // selected variant (Category dropdown)
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState('');
@@ -218,6 +220,9 @@ export default function ProductForm() {
 
   useEffect(() => {
     adminFetch('/api/categories').then(setCategories).catch(() => setCategories([]));
+    adminFetch('/api/pricing-settings')
+      .then((s) => setFancyRates(Array.isArray(s.fancyDiamondRates) ? s.fancyDiamondRates : []))
+      .catch(() => setFancyRates([]));
   }, []);
 
   // Once categories arrive, point the Category dropdown at the variant that
@@ -246,14 +251,17 @@ export default function ProductForm() {
           ...EMPTY,
           ...p,
           price: String(p.price ?? ''),
-          kt18Delta: p.kt18Delta ?? 200,
-          kt10Delta: p.kt10Delta ?? -100,
+          kt18Delta: p.kt18Delta ?? 300,
+          kt14Delta: p.kt14Delta ?? 100,
           autoPriced: p.autoPriced !== undefined ? !!p.autoPriced : true,
           compareAtPrice: p.compareAtPrice != null ? String(p.compareAtPrice) : '',
           stockQty: p.stockQty ?? 10,
           deliveryDays: p.details?.deliveryDays ?? 30,
           metalWeightGrams: p.details?.metalWeightGrams != null ? String(p.details.metalWeightGrams) : '',
           diamondCaratWeight: p.details?.diamondCaratWeight != null ? String(p.details.diamondCaratWeight) : '',
+          fancyDiamonds: Array.isArray(p.details?.fancyDiamonds)
+            ? p.details.fancyDiamonds.map((fd) => ({ shape: fd.shape, color: fd.color, caratWeight: String(fd.caratWeight ?? '') }))
+            : [],
           sideStoneCertified: !!p.details?.sideStoneCertified,
           tags: (p.tags || []).join(', '),
           badge: p.badge || '',
@@ -300,6 +308,8 @@ export default function ProductForm() {
     if (!leafDoc && !inStatic) return setError('Pick a valid category + sub-category before saving.');
     if (form.autoPriced && !(Number(form.metalWeightGrams) > 0))
       return setError('Enter metal weight (g) to auto-price this product, or turn off auto-pricing and set a price manually.');
+    if (form.fancyDiamonds.some((fd) => !fd.shape || !fd.color || !(Number(fd.caratWeight) > 0)))
+      return setError('Every fancy diamond needs a shape/color selected and a carat weight greater than 0.');
     setSaving(true);
     try {
       const num = (v) => (v === '' || v == null ? undefined : Number(v));
@@ -313,7 +323,7 @@ export default function ProductForm() {
         clarity: (form.clarity || []).filter((c) => DIAMOND_CLARITY.includes(c)).slice(0, DIAMOND_CLARITY.length),
         price: Number(form.price),
         kt18Delta: Number(form.kt18Delta) || 0,
-        kt10Delta: Number(form.kt10Delta) || 0,
+        kt14Delta: Number(form.kt14Delta) || 0,
         autoPriced: !!form.autoPriced,
         compareAtPrice: num(form.compareAtPrice),
         description: form.description,
@@ -344,6 +354,7 @@ export default function ProductForm() {
           deliveryDays: Number(form.deliveryDays) || 0,
           metalWeightGrams: num(form.metalWeightGrams),
           diamondCaratWeight: num(form.diamondCaratWeight),
+          fancyDiamonds: form.fancyDiamonds.map((fd) => ({ shape: fd.shape, color: fd.color, caratWeight: Number(fd.caratWeight) })),
         },
         seoTitle: form.seoTitle.trim() || undefined,
         seoDesc: form.seoDesc.trim() || undefined,
@@ -377,7 +388,7 @@ export default function ProductForm() {
 
   return (
     <div>
-      <PageHead title={isNew ? 'New product' : 'Edit product'} sub="Prices are USD, 14KT base — 10KT/18KT add their delta" />
+      <PageHead title={isNew ? 'New product' : 'Edit product'} sub="Prices are USD, 10KT base — 14KT/18KT add their delta" />
       <ErrorMsg error={error} />
       {staleCategory && (
         <p role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px', marginBottom: '14px' }}>
@@ -494,7 +505,7 @@ export default function ProductForm() {
                 </p>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <Field label="14KT base price (USD) *">
+                <Field label="10KT base price (USD) *">
                   <input
                     type="number" min="0" step="0.01" value={form.price}
                     onChange={(e) => set('price', e.target.value)}
@@ -503,18 +514,18 @@ export default function ProductForm() {
                     className={inputCls} style={inputStyle}
                   />
                 </Field>
-                <Field label="18KT delta (USD)">
+                <Field label="14KT delta (USD)">
                   <input
-                    type="number" step="0.01" value={form.kt18Delta}
-                    onChange={(e) => set('kt18Delta', e.target.value)}
+                    type="number" min="0" step="0.01" value={form.kt14Delta}
+                    onChange={(e) => set('kt14Delta', e.target.value)}
                     disabled={form.autoPriced}
                     className={inputCls} style={inputStyle}
                   />
                 </Field>
-                <Field label="10KT delta (USD)" hint="Usually negative — 10KT is lower purity than the 14KT base">
+                <Field label="18KT delta (USD)">
                   <input
-                    type="number" step="0.01" value={form.kt10Delta}
-                    onChange={(e) => set('kt10Delta', e.target.value)}
+                    type="number" min="0" step="0.01" value={form.kt18Delta}
+                    onChange={(e) => set('kt18Delta', e.target.value)}
                     disabled={form.autoPriced}
                     className={inputCls} style={inputStyle}
                   />
@@ -675,6 +686,66 @@ export default function ProductForm() {
                 <Field label="Metal wt (g)"><input type="number" min="0" step="0.01" value={form.metalWeightGrams} onChange={(e) => set('metalWeightGrams', e.target.value)} className={inputCls} style={inputStyle} /></Field>
                 <Field label="Diamond wt (ct)"><input type="number" min="0" step="0.01" value={form.diamondCaratWeight} onChange={(e) => set('diamondCaratWeight', e.target.value)} className={inputCls} style={inputStyle} /></Field>
               </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label className="flex items-center gap-2 text-sm" style={{ marginBottom: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.fancyDiamonds.length > 0}
+                    onChange={(e) => set('fancyDiamonds', e.target.checked ? [{ shape: '', color: '', caratWeight: '' }] : [])}
+                  />
+                  This product has fancy diamond(s)
+                </label>
+                {form.fancyDiamonds.length > 0 && (
+                  <div style={{ paddingLeft: '4px' }}>
+                    {fancyRates.length === 0 && (
+                      <p className="text-xs text-amber-700 mb-2">Add fancy diamond rates in Admin → Pricing first.</p>
+                    )}
+                    {form.fancyDiamonds.map((fd, i) => {
+                      const key = fd.shape && fd.color ? `${fd.shape}|||${fd.color}` : '';
+                      return (
+                        <div key={i} className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-end" style={{ marginBottom: '8px' }}>
+                          <Field label="Shape / Color">
+                            <select
+                              value={key}
+                              onChange={(e) => {
+                                const [shape, color] = e.target.value.split('|||');
+                                set('fancyDiamonds', form.fancyDiamonds.map((x, xi) => (xi === i ? { ...x, shape: shape || '', color: color || '' } : x)));
+                              }}
+                              className={inputCls}
+                              style={inputStyle}
+                            >
+                              <option value="">Select…</option>
+                              {fancyRates.map((r) => (
+                                <option key={`${r.shape}|||${r.color}`} value={`${r.shape}|||${r.color}`}>
+                                  {r.shape} — {r.color} (₹{r.ratePerCaratInr}/ct)
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="Carat weight (ct)">
+                            <input
+                              type="number" min="0" step="0.01" value={fd.caratWeight}
+                              onChange={(e) => set('fancyDiamonds', form.fancyDiamonds.map((x, xi) => (xi === i ? { ...x, caratWeight: e.target.value } : x)))}
+                              className={inputCls} style={inputStyle}
+                            />
+                          </Field>
+                          <button type="button" onClick={() => set('fancyDiamonds', form.fancyDiamonds.filter((_, xi) => xi !== i))} className="underline text-sm text-red-700" style={{ paddingBottom: '10px' }}>Remove</button>
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => set('fancyDiamonds', [...form.fancyDiamonds, { shape: '', color: '', caratWeight: '' }])}
+                      disabled={fancyRates.length === 0}
+                      className="underline text-sm disabled:opacity-40"
+                    >
+                      + Add another fancy diamond
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <label className="flex items-center gap-2 text-sm mb-3"><input type="checkbox" checked={!!form.sideStoneCertified} onChange={(e) => set('sideStoneCertified', e.target.checked)} /> Side stones certified</label>
               <Field label="SEO title"><input value={form.seoTitle} onChange={(e) => set('seoTitle', e.target.value)} className={inputCls} style={inputStyle} /></Field>
               <Field label="SEO description"><input value={form.seoDesc} onChange={(e) => set('seoDesc', e.target.value)} className={inputCls} style={inputStyle} /></Field>

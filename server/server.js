@@ -116,8 +116,12 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeade
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
 app.use(['/api/bag', '/api/wishlist'], bagWishlistLimiter);
-app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe', '/api/pricing-settings'], strictLimiter);
-app.use(['/api/products', '/api/categories'], catalogLimiter);
+app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+// pricing-settings GET fires on every admin product-form page load (fancy
+// diamond picker) — too frequent for strictLimiter's 20/min, which is meant
+// for rare heavy actions (uploads, AI copy) and would otherwise 429 those
+// too once browsing a few products burns through the shared budget.
+app.use(['/api/products', '/api/categories', '/api/pricing-settings'], catalogLimiter);
 
 app.use('/api/products', productRoutes);
 app.use('/api/newsletter', newsletterRoutes);

@@ -51,7 +51,7 @@ async function quoteCart(items, couponCode) {
     const karat = it.karat;
     if (karat !== undefined && karat !== '10KT' && karat !== '14KT' && karat !== '18KT')
       throw bad(400, `Invalid karat for ${product.name}`);
-    const useKarat = karat || '14KT';
+    const useKarat = karat || '10KT';
 
     let variant = null;
     if (it.metalColor != null) {
@@ -68,7 +68,7 @@ async function quoteCart(items, couponCode) {
       throw bad(400, `${product.name} (${variant.material || variant.name || 'this metal'}) is out of stock`);
 
     const base = variant.price;
-    const ktDeltas = { '10KT': product.kt10Delta || 0, '18KT': product.kt18Delta || 0 };
+    const ktDeltas = { '14KT': product.kt14Delta || 0, '18KT': product.kt18Delta || 0 };
     const unitPrice = round2(base + (ktDeltas[useKarat] || 0));
 
     const ring = isRingCategory(product.category);

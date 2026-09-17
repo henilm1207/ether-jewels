@@ -22,7 +22,7 @@ export default function ProductDetail() {
   const { addItem } = useBag();
 
   const [selectedVariant, setSelectedVariant] = useState(0);
-  const [selectedKt, setSelectedKt] = useState('14KT');
+  const [selectedKt, setSelectedKt] = useState('10KT');
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(null);
   const [sizeError, setSizeError] = useState('');
@@ -31,7 +31,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     setSelectedVariant(0);
-    setSelectedKt('14KT');
+    setSelectedKt('10KT');
     setSelectedImage(0);
     setSelectedSize(null);
     setSizeError('');
@@ -102,7 +102,7 @@ export default function ProductDetail() {
 
   const currentVariant = product.variants?.[selectedVariant] || null;
   const basePrice = Number(currentVariant?.price ?? product.price) || 0;
-  const KT_DELTA = { '10KT': Number(product.kt10Delta ?? -100), '18KT': Number(product.kt18Delta ?? 200) };
+  const KT_DELTA = { '14KT': Number(product.kt14Delta ?? 100), '18KT': Number(product.kt18Delta ?? 300) };
   const ktDelta = KT_DELTA[selectedKt] || 0;
   const currentPrice = basePrice + ktDelta;
   // Ring categories carry sizes[]; the server rejects ring orders without one.

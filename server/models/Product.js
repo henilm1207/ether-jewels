@@ -16,6 +16,20 @@ const variantSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// A fancy diamond attached to this product — a rare cut (Baguette, Trillion,
+// etc.) paired with a natural fancy color (Fancy Yellow, Fancy Pink, etc.),
+// each priced separately from the plain diamond weight via its own
+// shape+color rate in PricingSettings.fancyDiamondRates. A product can carry
+// several, each with its own carat weight.
+const fancyDiamondSchema = new mongoose.Schema(
+  {
+    shape: { type: String, required: true, trim: true },
+    color: { type: String, required: true, trim: true },
+    caratWeight: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+);
+
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -62,12 +76,12 @@ const productSchema = new mongoose.Schema(
         message: 'clarity must list valid diamond clarity grades (IF-I3)',
       },
     },
-    // 14KT base price. 18KT/10KT = base + their delta (see PDP logic).
+    // 10KT base price (lowest purity = cheapest karat). 14KT/18KT = base +
+    // their delta (see PDP logic) — both deltas are always >= 0 since 10KT
+    // is the floor, so an admin never has to type a negative number.
     price: { type: Number, required: true, min: 0 },
-    kt18Delta: { type: Number, default: 200, min: 0 },
-    // 10KT is lower purity than the 14KT base, so unlike kt18Delta this is
-    // expected to be negative — no min: 0 clamp.
-    kt10Delta: { type: Number, default: -100, min: -1000000, max: 1000000 },
+    kt14Delta: { type: Number, default: 100, min: 0 },
+    kt18Delta: { type: Number, default: 300, min: 0 },
     compareAtPrice: { type: Number, min: 0 },
     // Auto-priced from PricingSettings (see the pre('validate') hook below)
     // whenever details.metalWeightGrams is set. Off = fully manual, for
@@ -104,6 +118,7 @@ const productSchema = new mongoose.Schema(
       deliveryDays: { type: Number, default: 30, min: 0 },
       metalWeightGrams: { type: Number, min: 0 },
       diamondCaratWeight: { type: Number, min: 0, default: 0 },
+      fancyDiamonds: { type: [fancyDiamondSchema], default: [] },
     },
     // Alibaba.com bulk-upload export settings — not shown on the storefront.
     // Field names/shape follow Alibaba's official "Basic Information" template
@@ -148,7 +163,7 @@ const isMediaUrl = (u) =>
 
 // Auto-pricing — registered BEFORE the invariant-check hook below so that
 // hook's compareAtPrice > price validation sees the freshly computed price.
-// Leaves price/kt18Delta/kt10Delta/variant prices untouched (fully manual,
+// Leaves price/kt14Delta/kt18Delta/variant prices untouched (fully manual,
 // today's behavior) whenever autoPriced is off, weight isn't set yet, or
 // PricingSettings hasn't been configured — never disruptive to existing data.
 const PricingSettings = require('./PricingSettings');
@@ -162,11 +177,12 @@ productSchema.pre('validate', async function (next) {
         const result = computeProductPricing(settings, {
           metalWeightGrams: this.details.metalWeightGrams,
           diamondCaratWeight: this.details.diamondCaratWeight || 0,
+          fancyDiamonds: this.details.fancyDiamonds || [],
         });
         if (result) {
           this.price = result.price;
+          this.kt14Delta = result.kt14Delta;
           this.kt18Delta = result.kt18Delta;
-          this.kt10Delta = result.kt10Delta;
           for (const v of this.variants || []) v.price = result.price;
         }
       } else if (this.isNew && !(this.price > 0)) {

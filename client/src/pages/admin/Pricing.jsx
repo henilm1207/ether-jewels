@@ -13,6 +13,7 @@ const EMPTY = {
   usdInrRate: 96,
   roundToNearestInr: 500,
   roundToNearestUsd: 50,
+  fancyDiamondRates: [],
 };
 
 // Live rate → recompute button: after any save/recompute, shows how many
@@ -48,9 +49,18 @@ export default function Pricing() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setPurity = (kt, v) => setForm((f) => ({ ...f, karatPurityPct: { ...f.karatPurityPct, [kt]: v } }));
 
+  const addFancyRate = () => setForm((f) => ({ ...f, fancyDiamondRates: [...f.fancyDiamondRates, { shape: '', color: '', ratePerCaratInr: '' }] }));
+  const setFancyRate = (i, k, v) => setForm((f) => ({ ...f, fancyDiamondRates: f.fancyDiamondRates.map((r, ri) => (ri === i ? { ...r, [k]: v } : r)) }));
+  const removeFancyRate = (i) => setForm((f) => ({ ...f, fancyDiamondRates: f.fancyDiamondRates.filter((_, ri) => ri !== i) }));
+
   useEffect(() => {
     adminFetch('/api/pricing-settings')
-      .then((s) => setForm({ ...EMPTY, ...s, karatPurityPct: { ...EMPTY.karatPurityPct, ...s.karatPurityPct } }))
+      .then((s) => setForm({
+        ...EMPTY,
+        ...s,
+        karatPurityPct: { ...EMPTY.karatPurityPct, ...s.karatPurityPct },
+        fancyDiamondRates: Array.isArray(s.fancyDiamondRates) ? s.fancyDiamondRates : [],
+      }))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -59,6 +69,19 @@ export default function Pricing() {
     e.preventDefault();
     setError('');
     setResult(null);
+    const fancyDiamondRates = form.fancyDiamondRates.map((r) => ({
+      shape: r.shape.trim(),
+      color: r.color.trim(),
+      ratePerCaratInr: Number(r.ratePerCaratInr) || 0,
+    }));
+    if (fancyDiamondRates.some((r) => !r.shape || !r.color))
+      return setError('Every fancy diamond rate needs both a shape and a color.');
+    const seen = new Set();
+    for (const r of fancyDiamondRates) {
+      const key = `${r.shape.toLowerCase()}|${r.color.toLowerCase()}`;
+      if (seen.has(key)) return setError(`Duplicate fancy diamond rate: '${r.shape}' / '${r.color}' is listed more than once.`);
+      seen.add(key);
+    }
     setSaving(true);
     try {
       const body = {
@@ -77,9 +100,15 @@ export default function Pricing() {
           '14KT': Number(form.karatPurityPct['14KT']) || 0,
           '18KT': Number(form.karatPurityPct['18KT']) || 0,
         },
+        fancyDiamondRates,
       };
       const data = await adminFetch('/api/pricing-settings', { method: 'PUT', body });
-      setForm({ ...EMPTY, ...data.settings, karatPurityPct: { ...EMPTY.karatPurityPct, ...data.settings.karatPurityPct } });
+      setForm({
+        ...EMPTY,
+        ...data.settings,
+        karatPurityPct: { ...EMPTY.karatPurityPct, ...data.settings.karatPurityPct },
+        fancyDiamondRates: Array.isArray(data.settings.fancyDiamondRates) ? data.settings.fancyDiamondRates : [],
+      });
       setResult({ updated: data.updated, failed: data.failed });
     } catch (err) {
       setError(err.message);
@@ -132,6 +161,29 @@ export default function Pricing() {
             {recomputing ? 'Recomputing…' : 'Recompute now (no rate change)'}
           </button>
           <RecomputeResult result={result} />
+        </Card>
+
+        <div style={{ height: '16px' }} />
+        <Card>
+          <h2 className="font-medium text-sm mb-3">FANCY DIAMOND RATES</h2>
+          <p className="text-xs text-gray-400 mb-3">
+            Rare cuts (Baguette, Trillion, Kite, etc.) paired with a natural fancy color (Fancy Yellow, Fancy Pink, etc.) each price differently per carat than standard diamonds. Products pick a shape/color pair from this list.
+          </p>
+          {form.fancyDiamondRates.map((r, i) => (
+            <div key={i} className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end" style={{ marginBottom: '10px' }}>
+              <Field label="Shape">
+                <input value={r.shape} onChange={(e) => setFancyRate(i, 'shape', e.target.value)} placeholder="Baguette" className={inputCls} style={inputStyle} />
+              </Field>
+              <Field label="Color">
+                <input value={r.color} onChange={(e) => setFancyRate(i, 'color', e.target.value)} placeholder="Fancy Yellow" className={inputCls} style={inputStyle} />
+              </Field>
+              <Field label="Rate (₹ per carat)">
+                <input type="number" min="0" step="0.01" value={r.ratePerCaratInr} onChange={(e) => setFancyRate(i, 'ratePerCaratInr', e.target.value)} className={inputCls} style={inputStyle} />
+              </Field>
+              <button type="button" onClick={() => removeFancyRate(i)} className="underline text-sm text-red-700" style={{ paddingBottom: '10px' }}>Remove</button>
+            </div>
+          ))}
+          <button type="button" onClick={addFancyRate} className="underline text-sm">+ Add fancy diamond rate</button>
         </Card>
 
         <div style={{ height: '16px' }} />
