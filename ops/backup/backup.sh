@@ -2,7 +2,7 @@
 # Nightly backup: MongoDB (gzipped archive) + product uploads (tarball).
 # Runs ON the VPS as site user `etherstar` via cron (see install note below).
 # Nothing secret in this file — the DB credential lives in
-# /home/etherstar/ops/.mongo-backup-env (mode 600, created once, never committed):
+# /var/backups/etherstar-jewels/.mongo-backup-env (mode 600, created once, never committed):
 #   MONGO_BACKUP_URI='mongodb://etherapp:<ROOT_PW_URLENCODED>@127.0.0.1:27017/etherstar-jewels?authSource=admin'
 # Docker edition: MongoDB now runs in the `mongo` container from
 # docker-compose.prod.yml, root creds in the app dir's `.env`
@@ -10,24 +10,32 @@
 # 127.0.0.1:27017 (loopback-only port published by that service), so
 # mongodump below is unchanged.
 #
-# Install (VPS, as etherstar):
-#   mkdir -p /home/etherstar/ops /home/etherstar/backups
-#   printf '%s\n' "MONGO_BACKUP_URI='...'" > /home/etherstar/ops/.mongo-backup-env
-#   chmod 600 /home/etherstar/ops/.mongo-backup-env
-#   (crontab -l 2>/dev/null; echo '0 3 * * * /home/etherstar/ops/backup.sh >> /home/etherstar/ops/backup.log 2>&1') | crontab -
+# BACKUP_DIR and ENV_FILE live under /var/backups, NOT /home/etherstar,
+# deliberately: on 2026-09-16 the CloudPanel site (and its whole home
+# directory, backups included) got deleted while the app kept running in
+# Docker underneath — the site came back, but everything under
+# /home/etherstar, including anything this script had written there, did
+# not. Keeping the backups outside the site's home directory means a
+# repeat of that incident can't take the backups down with it.
+#
+# Install (VPS, as root once, then etherstar):
+#   mkdir -p /var/backups/etherstar-jewels && chown etherstar:etherstar /var/backups/etherstar-jewels && chmod 700 /var/backups/etherstar-jewels
+#   printf '%s\n' "MONGO_BACKUP_URI='...'" > /var/backups/etherstar-jewels/.mongo-backup-env
+#   chmod 600 /var/backups/etherstar-jewels/.mongo-backup-env
+#   (crontab -l 2>/dev/null; echo '0 3 * * * /home/etherstar/htdocs/etherstarjewels.cloud/ops/backup/backup.sh >> /var/backups/etherstar-jewels/backup.log 2>&1') | crontab -
 #
 # Retention: 7 daily copies of each. Restore drill:
-#   mongorestore --uri="$MONGO_BACKUP_URI" --gzip --archive=/home/etherstar/backups/mongo-YYYY-MM-DD.gz
-#   tar -xzf /home/etherstar/backups/uploads-YYYY-MM-DD.tar.gz -C "$(dirname "$UPLOADS_DIR")"
+#   mongorestore --uri="$MONGO_BACKUP_URI" --gzip --archive=/var/backups/etherstar-jewels/mongo-YYYY-MM-DD.gz
+#   tar -xzf /var/backups/etherstar-jewels/uploads-YYYY-MM-DD.tar.gz -C "$(dirname "$UPLOADS_DIR")"
 #   # (the tarball's top-level entry is the uploads/ dir itself, relative to UPLOADS_DIR's parent)
 set -euo pipefail
 
-BACKUP_DIR="${BACKUP_DIR:-/home/etherstar/backups}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/etherstar-jewels}"
 # Must match server/.env's UPLOADS_DIR on this box — cron runs without
 # server/.env sourced, so this default has to be kept in sync by hand.
 UPLOADS_DIR="${UPLOADS_DIR:-/home/etherstar/htdocs/etherstarjewels.cloud/server/public/uploads}"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
-ENV_FILE="${ENV_FILE:-/home/etherstar/ops/.mongo-backup-env}"
+ENV_FILE="${ENV_FILE:-/var/backups/etherstar-jewels/.mongo-backup-env}"
 
 log() { printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }
 
