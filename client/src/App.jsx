@@ -23,6 +23,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import ReturnPolicy from './pages/ReturnPolicy';
 import ShippingPolicy from './pages/ShippingPolicy';
 import Faqs from './pages/Faqs';
+import RingSizeGuide from './pages/RingSizeGuide';
 import NotFound from './pages/NotFound';
 import RequireAdmin from './components/admin/RequireAdmin';
 import AdminLayout from './components/admin/AdminLayout';
@@ -104,6 +105,7 @@ function App() {
       '/cart': 'Your Cart — EtherStar Jewels',
       '/account/wishlist': 'Your Wishlist — EtherStar Jewels',
       '/account': 'My Account — EtherStar Jewels',
+      '/pages/ring-size-guide': 'Ring Size Guide — EtherStar Jewels',
       '/admin': 'Admin — EtherStar Jewels',
     };
     document.title = titles[location.pathname] || 'EtherStar Jewels';
@@ -139,6 +141,7 @@ function App() {
             <Route path="/pages/return-policy" element={<ReturnPolicy />} />
             <Route path="/pages/shipping-and-deliveries" element={<ShippingPolicy />} />
             <Route path="/pages/faqs" element={<Faqs />} />
+            <Route path="/pages/ring-size-guide" element={<RingSizeGuide />} />
             <Route path="/policies/terms-of-service" element={<TermsOfService />} />
             <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/search" element={<Search />} />
