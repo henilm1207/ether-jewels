@@ -335,10 +335,20 @@ export default function ProductDetail() {
               {/* Ring size — required for ring categories (server rejects without) */}
               {needsSize && (
                 <div style={{ marginBottom: '24px' }}>
-                  <p className="text-[15px]" style={{ lineHeight: '24px', marginBottom: '12px' }}>
-                    <span className="font-medium">Ring size:</span>{' '}
-                    <span className="text-gray-600">{selectedSize || 'Select a size'}</span>
-                  </p>
+                  <div className="flex items-center justify-between flex-wrap" style={{ marginBottom: '12px', gap: '8px 16px' }}>
+                    <p className="text-[15px]" style={{ lineHeight: '24px' }}>
+                      <span className="font-medium">Ring size:</span>{' '}
+                      <span className="text-gray-600">{selectedSize || 'Select a size'}</span>
+                    </p>
+                    <Link
+                      to="/pages/ring-size-guide"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[13px] underline underline-offset-4 hover:text-[color:var(--color-highlight)]"
+                    >
+                      Ring size guide
+                    </Link>
+                  </div>
                   <div className="flex flex-wrap" style={{ gap: '12px' }} role="group" aria-label="Ring size">
                     {[...(product.sizes || [])].sort((a, b) => parseFloat(a) - parseFloat(b)).map((s) => (
                       <button
