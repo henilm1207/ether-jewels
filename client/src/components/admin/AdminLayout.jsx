@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import RouteFallback from '../ui/RouteFallback';
 
 const LINKS = [
   { to: '/admin', label: 'Dashboard', end: true },
@@ -66,7 +68,9 @@ export default function AdminLayout() {
           ))}
         </nav>
         <main className="flex-1" style={{ padding: '24px' }}>
-          <Outlet />
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

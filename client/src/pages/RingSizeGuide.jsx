@@ -2,11 +2,18 @@ import { Link } from 'react-router-dom';
 import InfoShell, { InfoH, InfoP } from './InfoShell';
 import { CONTACT } from '../config';
 
-// US 3.00 – 13.00 in quarter-size steps. Diameter is linear in the US size;
-// circumference is π × diameter and the EU size is that circumference rounded.
-const SIZE_ROWS = Array.from({ length: 41 }, (_, i) => {
-  const us = 3 + i * 0.25;
-  const diameter = 14.07 + (us - 3) * 0.812;
+// US 3.00 – 13.00 in quarter-size steps. Diameter is linear in the US size
+// (standard US ring-sizing chart derivation); circumference is π × diameter
+// and the EU size is that circumference rounded.
+const BASE_US_SIZE = 3;
+const BASE_DIAMETER_MM = 14.07; // inside diameter at US size 3.00
+const DIAMETER_MM_PER_US_SIZE = 0.812; // diameter increase per whole US size
+const QUARTER_SIZE_STEP = 0.25;
+const SIZE_ROW_COUNT = 41; // (13.00 - 3.00) / 0.25 + 1
+
+const SIZE_ROWS = Array.from({ length: SIZE_ROW_COUNT }, (_, i) => {
+  const us = BASE_US_SIZE + i * QUARTER_SIZE_STEP;
+  const diameter = BASE_DIAMETER_MM + (us - BASE_US_SIZE) * DIAMETER_MM_PER_US_SIZE;
   const circumference = Math.PI * diameter;
   return {
     us: us.toFixed(2),

@@ -39,6 +39,9 @@ services:
       MONGO_URI: mongodb://${MONGO_ROOT_USER:-etherapp}:${MONGO_ROOT_PASSWORD}@mongo:27017/etherstar-jewels?authSource=admin
       UPLOADS_DIR: /app/uploads
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5001}
+      # Local stack is plain HTTP (reachable on the LAN by IP); drops the CSP
+      # upgrade-insecure-requests directive so other devices can load assets.
+      ALLOW_INSECURE_HTTP: "true"
     ports:
       - "${APP_PORT:-5001}:5001"
     volumes:
