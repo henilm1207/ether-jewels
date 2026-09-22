@@ -56,6 +56,7 @@ const frontendOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
 // object-src 'none' + base-uri 'self' keep the CSP effective against XSS;
 // HSTS is pinned to 1yr + subdomains (deliberately no `preload`: that flag
 // is a near-irreversible commitment via hstspreload.org).
+const allowInsecureHttp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_INSECURE_HTTP === 'true';
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -73,10 +74,17 @@ app.use(helmet({
       // 3-D Secure + PayPal approval windows render provider iframes.
       frameSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
       frameAncestors: ["'self'"],
-      upgradeInsecureRequests: [],
+      // Opt-out only for the local docker stack served over plain HTTP on a
+      // LAN IP (ALLOW_INSECURE_HTTP=true, non-production only): with the
+      // directive on, browsers rewrite same-origin asset requests to
+      // https:// and the page never loads.
+      upgradeInsecureRequests: allowInsecureHttp ? null : [],
     },
   },
-  hsts: { maxAge: 31536000, includeSubDomains: true },
+  // HSTS is skipped along with the CSP opt-out above — a browser that has
+  // ever seen this host over HTTPS would otherwise force-upgrade to https://
+  // for up to a year, breaking the plain-HTTP LAN escape hatch it's paired with.
+  hsts: allowInsecureHttp ? false : { maxAge: 31536000, includeSubDomains: true },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));

@@ -1,45 +1,58 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import CartDrawer from './components/layout/CartDrawer';
 import MobileNav from './components/layout/MobileNav';
 import Home from './pages/Home';
-import Collection from './pages/Collection';
-import Collections from './pages/Collections';
-import ProductDetail from './pages/ProductDetail';
-import Diamond from './pages/Diamond';
-import Contact from './pages/Contact';
-import About from './pages/About';
-import Search from './pages/Search';
-import Cart from './pages/Cart';
-import Wishlist from './pages/Wishlist';
-import Profile from './pages/Profile';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import TermsOfService from './pages/TermsOfService';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import ReturnPolicy from './pages/ReturnPolicy';
-import ShippingPolicy from './pages/ShippingPolicy';
-import Faqs from './pages/Faqs';
-import RingSizeGuide from './pages/RingSizeGuide';
-import NotFound from './pages/NotFound';
-import RequireAdmin from './components/admin/RequireAdmin';
-import AdminLayout from './components/admin/AdminLayout';
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminProducts from './pages/admin/Products';
-import AdminProductForm from './pages/admin/ProductForm';
-import AdminOrders from './pages/admin/Orders';
-import AdminCustomers from './pages/admin/Customers';
-import AdminCoupons from './pages/admin/Coupons';
-import AdminReviews from './pages/admin/Reviews';
-import AdminInquiries from './pages/admin/Inquiries';
-import AdminCategories from './pages/admin/Categories';
-import AdminPricing from './pages/admin/Pricing';
 import NewsletterPopup from './components/ui/NewsletterPopup';
 import CookieConsent from './components/ui/CookieConsent';
 import ErrorBoundary from './components/ui/ErrorBoundary';
+import RouteFallback from './components/ui/RouteFallback';
+import RequireAdmin from './components/admin/RequireAdmin';
+
+// Route-level code splitting: '/' is the only page most first-time visitors
+// hit, so it's the only page component bundled eagerly. Everything else
+// (storefront pages + the whole admin panel) used to be imported statically
+// here, which meant a first-time visit to the homepage downloaded the admin
+// dashboard, product form, etc. before rendering anything. Each of these now
+// ships as its own chunk, fetched only when its route is actually visited.
+const Collection = lazy(() => import('./pages/Collection'));
+const Collections = lazy(() => import('./pages/Collections'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Diamond = lazy(() => import('./pages/Diamond'));
+const Contact = lazy(() => import('./pages/Contact'));
+const About = lazy(() => import('./pages/About'));
+const Search = lazy(() => import('./pages/Search'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const ReturnPolicy = lazy(() => import('./pages/ReturnPolicy'));
+const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy'));
+const Faqs = lazy(() => import('./pages/Faqs'));
+const RingSizeGuide = lazy(() => import('./pages/RingSizeGuide'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+// RequireAdmin is imported statically above (not lazy): it's a thin guard
+// that's always needed on /admin/*, and nesting it as a *second* lazy
+// component around the lazy AdminLayout would serialize their chunk
+// fetches (a lazy parent must resolve before React starts loading a lazy
+// child) instead of AdminLayout's chunk loading as soon as /admin renders.
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const AdminProducts = lazy(() => import('./pages/admin/Products'));
+const AdminProductForm = lazy(() => import('./pages/admin/ProductForm'));
+const AdminOrders = lazy(() => import('./pages/admin/Orders'));
+const AdminCustomers = lazy(() => import('./pages/admin/Customers'));
+const AdminCoupons = lazy(() => import('./pages/admin/Coupons'));
+const AdminReviews = lazy(() => import('./pages/admin/Reviews'));
+const AdminInquiries = lazy(() => import('./pages/admin/Inquiries'));
+const AdminCategories = lazy(() => import('./pages/admin/Categories'));
+const AdminPricing = lazy(() => import('./pages/admin/Pricing'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -81,7 +94,9 @@ function StorefrontLayout() {
       />
 
       <main className={`flex-1${isHome ? '' : ' page-offset'}`}>
-        <Outlet />
+        <Suspense fallback={<RouteFallback />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {!hideFooter && <Footer />}
@@ -115,45 +130,47 @@ function App() {
     <>
       <ScrollToTop />
       <ErrorBoundary>
-        <Routes>
-          <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="products/new" element={<AdminProductForm />} />
-            <Route path="products/:id" element={<AdminProductForm />} />
-            <Route path="orders" element={<AdminOrders />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="coupons" element={<AdminCoupons />} />
-            <Route path="reviews" element={<AdminReviews />} />
-            <Route path="inquiries" element={<AdminInquiries />} />
-            <Route path="categories" element={<AdminCategories />} />
-            <Route path="pricing" element={<AdminPricing />} />
-          </Route>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="products/new" element={<AdminProductForm />} />
+              <Route path="products/:id" element={<AdminProductForm />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="coupons" element={<AdminCoupons />} />
+              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="inquiries" element={<AdminInquiries />} />
+              <Route path="categories" element={<AdminCategories />} />
+              <Route path="pricing" element={<AdminPricing />} />
+            </Route>
 
-          <Route element={<StorefrontLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/collections" element={<Collections />} />
-            <Route path="/collections/:category" element={<Collection />} />
-            <Route path="/products/:slug" element={<ProductDetail />} />
-            <Route path="/pages/diamond" element={<Diamond />} />
-            <Route path="/pages/contact" element={<Contact />} />
-            <Route path="/pages/about-us" element={<About />} />
-            <Route path="/pages/return-policy" element={<ReturnPolicy />} />
-            <Route path="/pages/shipping-and-deliveries" element={<ShippingPolicy />} />
-            <Route path="/pages/faqs" element={<Faqs />} />
-            <Route path="/pages/ring-size-guide" element={<RingSizeGuide />} />
-            <Route path="/policies/terms-of-service" element={<TermsOfService />} />
-            <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/account/wishlist" element={<Wishlist />} />
-            <Route path="/account" element={<Profile />} />
-            <Route path="/account/login" element={<Login />} />
-            <Route path="/account/register" element={<Register />} />
-            <Route path="/account/forgot-password" element={<ForgotPassword />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
+            <Route element={<StorefrontLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/collections" element={<Collections />} />
+              <Route path="/collections/:category" element={<Collection />} />
+              <Route path="/products/:slug" element={<ProductDetail />} />
+              <Route path="/pages/diamond" element={<Diamond />} />
+              <Route path="/pages/contact" element={<Contact />} />
+              <Route path="/pages/about-us" element={<About />} />
+              <Route path="/pages/return-policy" element={<ReturnPolicy />} />
+              <Route path="/pages/shipping-and-deliveries" element={<ShippingPolicy />} />
+              <Route path="/pages/faqs" element={<Faqs />} />
+              <Route path="/pages/ring-size-guide" element={<RingSizeGuide />} />
+              <Route path="/policies/terms-of-service" element={<TermsOfService />} />
+              <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/account/wishlist" element={<Wishlist />} />
+              <Route path="/account" element={<Profile />} />
+              <Route path="/account/login" element={<Login />} />
+              <Route path="/account/register" element={<Register />} />
+              <Route path="/account/forgot-password" element={<ForgotPassword />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </Suspense>
       </ErrorBoundary>
     </>
   );
