@@ -5,19 +5,19 @@ const tabs = [
     id: '01',
     title: 'Crafted In-House',
     description: 'Every piece is developed and finished under one roof, ensuring precision at every stage.',
-    image: '/images/experience-1.png',
+    image: '/images/experience-1.webp',
   },
   {
     id: '02',
     title: 'Designed To Last',
     description: 'Balanced proportions, secure settings, and refined detailing for everyday confidence.',
-    image: '/images/experience-2.png',
+    image: '/images/experience-2.webp',
   },
   {
     id: '03',
     title: 'Modern Brilliance',
     description: 'From fine gold jewellery to luminous diamonds, created for timeless presence.',
-    image: '/images/experience-3.png',
+    image: '/images/experience-3.webp',
   },
 ];
 

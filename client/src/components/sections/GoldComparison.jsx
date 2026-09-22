@@ -59,7 +59,7 @@ export default function GoldComparison() {
             onKeyDown={onKeyDown}
           >
             <img
-              src="/images/gold-white.jpg"
+              src="/images/gold-white.webp"
               alt="White Gold"
               loading="lazy"
               className="absolute inset-0 w-full h-full object-cover"
@@ -72,7 +72,7 @@ export default function GoldComparison() {
               style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
             >
               <img
-                src="/images/gold-yellow.jpg"
+                src="/images/gold-yellow.webp"
                 alt="Yellow Gold"
                 loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover"

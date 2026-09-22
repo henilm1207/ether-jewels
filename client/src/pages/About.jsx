@@ -22,17 +22,17 @@ const MARQUEE = [
 
 const TEAM = [
   {
-    image: '/images/about/team-diamond.png',
+    image: '/images/about/team-diamond.webp',
     title: 'Diamond Experts',
     text: 'Carefully selected diamonds that meet the highest standards of quality.',
   },
   {
-    image: '/images/about/team-craftsmen.png',
+    image: '/images/about/team-craftsmen.webp',
     title: 'Master Craftsmen',
     text: 'Each piece is handcrafted by skilled artisans who bring years of experience and precision to every detail.',
   },
   {
-    image: '/images/about/team-design.png',
+    image: '/images/about/team-design.webp',
     title: 'Design & Innovation',
     text: 'Our designers blend timeless elegance with modern style to create jewelry that feels both sophisticated and unique.',
   },
@@ -46,7 +46,7 @@ export default function About() {
       {/* 1 — Hero */}
       <section className="relative overflow-hidden flex items-center">
         <img
-          src="/images/about/hero.png"
+          src="/images/about/hero.webp"
           alt="EtherStar Jewels"
           loading="eager"
           fetchPriority="high"
@@ -113,7 +113,7 @@ export default function About() {
           </div>
           <div className="order-1 md:order-2">
             <img
-              src="/images/about/story.png"
+              src="/images/about/story.webp"
               alt="The Beginning of Etherstar Jewels"
               loading="lazy"
               className="w-full aspect-square object-cover"
@@ -147,7 +147,7 @@ export default function About() {
         <div className="grid grid-cols-1 md:grid-cols-2 items-center">
           <div>
             <img
-              src="/images/about/quality.png"
+              src="/images/about/quality.webp"
               alt="Exceptional Diamond Quality"
               loading="lazy"
               className="w-full aspect-square object-cover"
@@ -183,7 +183,7 @@ export default function About() {
           </div>
           <div className="order-1 md:order-2">
             <img
-              src="/images/about/network.png"
+              src="/images/about/network.webp"
               alt="A Network of Expertise"
               loading="lazy"
               className="w-full aspect-[0.8] object-cover"
