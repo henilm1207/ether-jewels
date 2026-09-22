@@ -7,7 +7,7 @@ export default function HeroSlideshow() {
       {/* Background Image - full width, no container */}
       <div className="absolute inset-0">
         <ProtectedImage
-          src="/images/hero-banner.png"
+          src="/images/hero-banner.webp"
           alt="EtherStar Jewels - Engagement Rings"
           className="w-full h-full object-cover"
           loading="eager"

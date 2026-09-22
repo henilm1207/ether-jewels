@@ -8,7 +8,7 @@ export default function LifestyleGrid() {
         <div className="grid grid-cols-1 md:grid-cols-2 bg-white" style={{ gap: '5px' }}>
           <div className="overflow-hidden aspect-square">
             <ProtectedImage
-              src="/images/lifestyle-1.png"
+              src="/images/lifestyle-1.webp"
               alt="Etherstar Lifestyle"
               loading="lazy"
               className="w-full h-full object-cover"
@@ -16,7 +16,7 @@ export default function LifestyleGrid() {
           </div>
           <div className="overflow-hidden aspect-square">
             <ProtectedImage
-              src="/images/lifestyle-2.png"
+              src="/images/lifestyle-2.webp"
               alt="Etherstar Lifestyle"
               loading="lazy"
               className="w-full h-full object-cover"

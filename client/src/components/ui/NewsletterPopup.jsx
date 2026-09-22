@@ -108,7 +108,7 @@ export default function NewsletterPopup() {
         {/* Image */}
         <div className="w-full md:w-[45%] aspect-square md:aspect-auto bg-[#f7f2ef] flex-shrink-0">
           <img
-            src="/images/newsletter-popup.png"
+            src="/images/newsletter-popup.webp"
             alt="Welcome to Ether"
             className="w-full h-full object-cover"
           />

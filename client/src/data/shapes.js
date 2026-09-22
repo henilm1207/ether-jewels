@@ -9,6 +9,6 @@ export const shapes = [
   { name: 'Pear', image: '/images/shape-pear.webp', slug: 'pear' },
   { name: 'Marquise', image: '/images/shape-marquise.webp', slug: 'marquise' },
   { name: 'Asscher', image: '/images/shape-asscher.webp', slug: 'asscher' },
-  { name: 'Heart', image: '/images/shape-heart.png', slug: 'heart' },
-  { name: 'Radiant', image: '/images/shape-radient.jpeg', slug: 'radiant' },
+  { name: 'Heart', image: '/images/shape-heart.webp', slug: 'heart' },
+  { name: 'Radiant', image: '/images/shape-radient.webp', slug: 'radiant' },
 ];

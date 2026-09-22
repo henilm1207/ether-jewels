@@ -56,7 +56,11 @@ const frontendOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
 // object-src 'none' + base-uri 'self' keep the CSP effective against XSS;
 // HSTS is pinned to 1yr + subdomains (deliberately no `preload`: that flag
 // is a near-irreversible commitment via hstspreload.org).
-const allowInsecureHttp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_INSECURE_HTTP === 'true';
+// No NODE_ENV check: the local docker-compose stack hardcodes NODE_ENV=production
+// (that's what makes Express serve client/dist below), so gating this on
+// non-production would never fire there. Safe as an explicit opt-in alone —
+// docker-compose.prod.yml never sets ALLOW_INSECURE_HTTP.
+const allowInsecureHttp = process.env.ALLOW_INSECURE_HTTP === 'true';
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
