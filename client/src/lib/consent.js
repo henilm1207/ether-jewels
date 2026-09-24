@@ -1,7 +1,7 @@
 // Tracking consent (cookie banner) — single source of truth.
-// Payment SDKs (Stripe/PayPal) touch third-party storage, so they must only
-// load after an explicit 'accepted' choice. Choice lives in localStorage;
-// every change broadcasts CONSENT_EVENT so open pages react immediately.
+// Third-party scripts (analytics, payment gateway SDKs) must only load after
+// an explicit 'accepted' choice. Choice lives in localStorage; every change
+// broadcasts CONSENT_EVENT so open pages react immediately.
 export const CONSENT_KEY = 'etherstar-cookie-consent';
 export const CONSENT_EVENT = 'etherstar-consent';
 const CONSENT_TTL_MS = 180 * 24 * 3600 * 1000; // re-prompt after 180 days

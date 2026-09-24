@@ -36,7 +36,7 @@ services:
       mongo:
         condition: service_healthy
     # Reuses the VPS's existing server/.env (already holds the production
-    # JWT_SECRET, Stripe/PayPal/Resend/WhatsApp/Gemini keys, admin bootstrap,
+    # JWT_SECRET, payment gateway/Resend/WhatsApp/Gemini keys, admin bootstrap,
     # FRONTEND_URL, etc. — same file the native PM2 deploy used, so no
     # secrets were duplicated for this migration). The overrides below wire
     # the app to the `mongo` service and the uploads bind mount, taking

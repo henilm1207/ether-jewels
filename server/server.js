@@ -19,7 +19,7 @@ const bagRoutes = require('./routes/bag');
 const wishlistRoutes = require('./routes/wishlist');
 const verifyRoutes = require('./routes/verify');
 const paymentRoutes = require('./routes/payments');
-const { webhookHandler } = require('./routes/payments/stripe');
+const { webhookHandler: razorpayWebhookHandler } = require('./routes/payments/razorpay');
 const couponRoutes = require('./routes/coupons');
 const reviewRoutes = require('./routes/reviews');
 const inquiryRoutes = require('./routes/inquiries');
@@ -67,16 +67,16 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       baseUri: ["'self'"],
       objectSrc: ["'none'"],
-      imgSrc: ["'self'", 'data:', 'https:', 'https://www.paypalobjects.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
       mediaSrc: ["'self'", 'data:'],
-      // Checkout SDKs: Stripe.js + PayPal Buttons (sandbox serves from both hosts).
+      // Razorpay Checkout: script + iframe (OTP/3DS) from api.razorpay.com.
       // Loaded only on /cart after cookie consent (see lib/consent.js).
-      scriptSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
+      // SkyDo needs no third-party script — it's static wire instructions.
+      scriptSrc: ["'self'", 'https://checkout.razorpay.com'],
       styleSrc: ["'self'", "'unsafe-inline'"], // React inline style={} needs this
       fontSrc: ["'self'", 'data:'],
-      connectSrc: ["'self'", 'https://api.stripe.com', ...frontendOrigins],
-      // 3-D Secure + PayPal approval windows render provider iframes.
-      frameSrc: ["'self'", 'https://js.stripe.com', 'https://www.paypal.com', 'https://www.sandbox.paypal.com'],
+      connectSrc: ["'self'", 'https://api.razorpay.com', 'https://lumberjack.razorpay.com', ...frontendOrigins],
+      frameSrc: ["'self'", 'https://api.razorpay.com', 'https://checkout.razorpay.com'],
       frameAncestors: ["'self'"],
       // Opt-out only for the local docker stack served over plain HTTP on a
       // LAN IP (ALLOW_INSECURE_HTTP=true, non-production only): with the
@@ -93,9 +93,9 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 app.use(cors({ origin: frontendOrigins }));
-// Stripe webhooks need the RAW body for signature verification — register
+// Razorpay webhooks need the RAW body for signature verification — register
 // before express.json() consumes the stream.
-app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), webhookHandler);
+app.post('/api/payments/razorpay/webhook', express.raw({ type: 'application/json' }), razorpayWebhookHandler);
 app.use(express.json({ limit: '50kb' }));
 app.use(mongoSanitize());
 
@@ -129,7 +129,7 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeade
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
 app.use(['/api/bag', '/api/wishlist'], bagWishlistLimiter);
-app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/stripe', '/api/payments/paypal', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
+app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/razorpay', '/api/payments/skydo', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 // pricing-settings GET fires on every admin product-form page load (fancy
 // diamond picker) — too frequent for strictLimiter's 20/min, which is meant
 // for rare heavy actions (uploads, AI copy) and would otherwise 429 those

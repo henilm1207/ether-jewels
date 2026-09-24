@@ -13,6 +13,10 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
     volumes:
       - mongo-data:/data/db
+    # Exposes Mongo to the host (127.0.0.1 only) so tools like MongoDB
+    # Compass can connect for local inspection — not reachable from the LAN.
+    ports:
+      - "127.0.0.1:27017:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s

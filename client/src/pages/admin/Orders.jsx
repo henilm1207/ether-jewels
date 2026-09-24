@@ -4,7 +4,7 @@ import { adminFetch } from '../../components/admin/api';
 import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
 
 const STATUSES = ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'];
-const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
+const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded', 'awaiting_transfer'];
 const NEXT = { pending: ['confirmed', 'cancelled'], confirmed: ['making', 'cancelled'], making: ['shipped', 'cancelled'], shipped: ['delivered'], delivered: [], cancelled: [] };
 // Orders at/above this total get a visual flag for extra care (signature on
 // delivery, insured shipping) — a plain constant, not a setting, for now.
@@ -199,9 +199,31 @@ export default function Orders() {
               <p>Subtotal: ${Number(sel.pricing?.subtotal || 0).toFixed(2)}</p>
               <p>Discount: −${Number(sel.pricing?.discount || 0).toFixed(2)}</p>
               <p className="font-medium">Total: ${Number(sel.pricing?.total || 0).toFixed(2)} USD</p>
+              {sel.payment?.method === 'razorpay' && sel.payment?.chargedAmount != null && (
+                <p className="text-gray-600">Charged: {Number(sel.payment.chargedAmount).toFixed(2)} {sel.payment.chargedCurrency} via Razorpay</p>
+              )}
+              {sel.payment?.method === 'skydo' && sel.payment?.wireReference && (
+                <p className="text-gray-600">Wire reference: <span className="font-mono">{sel.payment.wireReference}</span> ({sel.payment.wireCurrency})</p>
+              )}
               <p className="text-gray-600">{sel.shippingAddress?.fullName}, {sel.shippingAddress?.line1}, {sel.shippingAddress?.city} {sel.shippingAddress?.zip}, {sel.shippingAddress?.country} · {sel.shippingAddress?.phone}</p>
               {sel.orderNote && <p className="text-gray-600">Note: {sel.orderNote}</p>}
             </div>
+            {sel.payment?.method === 'skydo' && sel.payment?.status === 'awaiting_transfer' && (
+              <button
+                onClick={async () => {
+                  try {
+                    const { order: updated } = await adminFetch(`/api/payments/skydo/${sel._id}/confirm`, { method: 'PATCH' });
+                    setOrders((list) => list.map((x) => (x._id === updated._id ? updated : x)));
+                    setOpen(updated);
+                  } catch (e) {
+                    setError(e.message);
+                  }
+                }}
+                className="text-sm border border-[#222] rounded px-3 py-1.5 hover:bg-[#222] hover:text-white transition-colors mt-3"
+              >
+                Mark payment received
+              </button>
+            )}
             <TrackingForm
               key={sel._id}
               order={sel}
