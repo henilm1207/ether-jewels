@@ -1,5 +1,5 @@
 // Shared checkout pricing — single source of truth for order totals.
-// Used by POST /api/orders (manual pending orders) AND the Stripe/PayPal
+// Used by POST /api/orders (manual pending orders) AND future payment gateway
 // routes, so a gateway can never charge a different total than the DB order.
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
@@ -118,6 +118,33 @@ async function quoteCart(items, couponCode) {
   return { orderItems, subtotal, discount, coupon, shipping, total };
 }
 
+// Shared pending-order builder for gateway routes (razorpay.js, skydo.js) —
+// each creates the pending Order the same way, then does its own
+// gateway-specific step (create a charge, generate wire instructions, ...).
+function buildPendingOrderDoc({ userId, orderItems, subtotal, discount, shipping, total, coupon, addr, email, body, method }) {
+  return {
+    user: userId || null,
+    items: orderItems,
+    pricing: { subtotal, discount, shipping, tax: 0, total, currency: 'USD' },
+    couponCode: coupon ? coupon.code : null,
+    shippingAddress: {
+      fullName: String(addr.fullName).trim(),
+      line1: String(addr.line1).trim(),
+      city: String(addr.city).trim(),
+      country: String(addr.country).trim(),
+      zip: String(addr.zip).trim(),
+      phone: addr.phone ? String(addr.phone).slice(0, 30) : undefined,
+    },
+    orderNote: typeof body.orderNote === 'string' ? body.orderNote.slice(0, 1000) : '',
+    contact: {
+      name: body.contact && body.contact.name ? String(body.contact.name).slice(0, 100) : undefined,
+      email,
+      phone: body.contact && body.contact.phone ? String(body.contact.phone).slice(0, 30) : undefined,
+    },
+    payment: { method, status: 'pending' },
+  };
+}
+
 // Atomic coupon increment AFTER the order row exists.
 async function consumeCoupon(order, coupon, subtotal, shipping) {
   if (!coupon || order.couponConsumed) return;
@@ -229,4 +256,4 @@ function orderView(order, req) {
   return { order: publicOrderView(order) };
 }
 
-module.exports = { round2, MAX_ITEMS, validateContactAddress, quoteCart, consumeCoupon, releaseCoupon, onPaymentSuccess, onPaymentFailed, publicOrderView, orderView };
+module.exports = { round2, MAX_ITEMS, validateContactAddress, quoteCart, buildPendingOrderDoc, consumeCoupon, releaseCoupon, onPaymentSuccess, onPaymentFailed, publicOrderView, orderView };

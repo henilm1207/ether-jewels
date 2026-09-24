@@ -55,13 +55,22 @@ const orderSchema = new mongoose.Schema(
       default: 'pending',
     },
     payment: {
-      method: { type: String, enum: ['card', 'cod', 'stripe', 'paypal'], default: 'card' },
+      method: { type: String, enum: ['card', 'cod', 'razorpay', 'skydo'], default: 'card' },
       status: {
         type: String,
-        enum: ['pending', 'paid', 'failed', 'refunded'],
+        // awaiting_transfer: SkyDo bank-wire orders — customer has the wire
+        // instructions but funds haven't landed yet (see routes/payments/skydo.js).
+        enum: ['pending', 'paid', 'failed', 'refunded', 'awaiting_transfer'],
         default: 'pending',
       },
       txnId: { type: String, trim: true, maxlength: 100 },
+      // Razorpay: the amount actually charged (INR), converted from the
+      // canonical USD pricing.total at checkout time — audit trail only.
+      chargedAmount: { type: Number, min: 0 },
+      chargedCurrency: { type: String, trim: true, maxlength: 10 },
+      // SkyDo: which virtual account currency the customer was shown to wire from.
+      wireCurrency: { type: String, enum: ['USD', 'GBP', 'EUR'] },
+      wireReference: { type: String, trim: true, maxlength: 40 },
     },
     shippingAddress: {
       fullName: { type: String, required: true, trim: true, maxlength: 100 },

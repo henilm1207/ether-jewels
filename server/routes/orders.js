@@ -7,9 +7,9 @@ const router = express.Router();
 const ORDER_TTL_MS = 24 * 60 * 60 * 1000; // unpaid orders auto-cancel after 24h
 const escapeRegExp = (s) => String(s).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// True once any online gateway is keyed — manual pending orders then stop
+// True once a real gateway is keyed — manual pending orders then stop
 // (staff phone orders go through the admin account instead).
-const gatewaysLive = () => !!(process.env.STRIPE_SECRET_KEY || process.env.PAYPAL_CLIENT_ID);
+const gatewaysLive = () => !!process.env.RAZORPAY_KEY_ID || require('./payments/skydo').availableCurrencies().length > 0;
 const ALLOWED_TRANSITIONS = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['making', 'cancelled'],

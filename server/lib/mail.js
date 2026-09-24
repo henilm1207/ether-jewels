@@ -61,6 +61,47 @@ function sendOrderConfirmation(order) {
   });
 }
 
+// SkyDo bank-wire instructions — fired from POST /api/payments/skydo/create
+// (fire-and-forget). Distinct from orderConfirmationHtml: the order is NOT
+// paid yet, just awaiting the customer's wire transfer.
+function wireInstructionsHtml(order, instructions) {
+  const id = String(order._id).slice(-8).toUpperCase();
+  const acctRows = [
+    ['Bank', instructions.bankName],
+    ['Account holder', instructions.accountHolder],
+    ['Routing number', instructions.routingNumber],
+    ['Sort code', instructions.sortCode],
+    ['Account number', instructions.accountNumber],
+    ['IBAN', instructions.iban],
+    ['BIC/SWIFT', instructions.bic],
+  ]
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<tr><td style="padding:6px 0;color:#666;">${esc(k)}</td><td align="right" style="padding:6px 0;font-family:monospace;">${esc(v)}</td></tr>`)
+    .join('');
+  return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#222;">
+    <h2 style="letter-spacing:1px;">ETHERSTAR JEWELS</h2>
+    <p>Thanks — order <strong>#${id}</strong> is reserved. Complete payment via bank wire to confirm it.</p>
+    <p style="font-size:16px;"><strong>Amount due: $${Number(instructions.amountUsd).toFixed(2)} USD</strong> (equivalent in ${esc(instructions.currency)})</p>
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;">${acctRows}</table>
+    <p style="font-size:15px;"><strong>Reference: ${esc(instructions.reference)}</strong> — include this with your transfer so we can match it to your order.</p>
+    <p style="font-size:13px;color:#555;">We'll confirm your order by email once the transfer is received — this usually takes 1-2 business days.</p>
+    <p style="font-size:12px;color:#888;">Questions? WhatsApp +91 9725756046 · etherstarjewels@gmail.com</p>
+  </div>`;
+}
+
+function sendWireInstructions(order, instructions) {
+  const to = order && order.contact && order.contact.email;
+  if (!to) return Promise.resolve({ skipped: true });
+  return sendMail({
+    to,
+    subject: `Order #${String(order._id).slice(-8).toUpperCase()} — bank transfer instructions — EtherStar Jewels`,
+    html: wireInstructionsHtml(order, instructions),
+  }).catch((e) => {
+    console.error(`wire instructions mail failed for ${order._id}:`, e.message);
+    return { failed: true };
+  });
+}
+
 // Welcome coupon mail — fired from POST /api/newsletter/subscribe (fire-and-forget;
 // the code is also returned in the API response so the popup shows it immediately).
 function welcomeCouponHtml(code) {
@@ -84,4 +125,4 @@ function sendWelcomeCoupon(email, code) {
   });
 }
 
-module.exports = { sendMail, sendOrderConfirmation, orderConfirmationHtml, sendWelcomeCoupon, isMailConfigured };
+module.exports = { sendMail, sendOrderConfirmation, orderConfirmationHtml, sendWireInstructions, sendWelcomeCoupon, isMailConfigured };

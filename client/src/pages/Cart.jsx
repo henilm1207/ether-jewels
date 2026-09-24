@@ -1,15 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { useBag } from '../context/BagContext';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../config';
 import { CONSENT_EVENT, CONSENT_KEY, hasTrackingConsent, setTrackingConsent } from '../lib/consent';
 import ProtectedImage from '../components/ui/ProtectedImage';
 import QtyStepper from '../components/cart/QtyStepper';
+
+// Free-text country field, not a dropdown — best-effort default only, the
+// customer can still switch the payment tab manually.
+const isIndianAddress = (c) => /^(india|bharat|in)$/i.test(String(c || '').trim());
+
+const RAZORPAY_SCRIPT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+let razorpayScriptPromise = null;
+function loadRazorpayScript() {
+  if (window.Razorpay) return Promise.resolve();
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = RAZORPAY_SCRIPT_SRC;
+      el.onload = () => resolve();
+      el.onerror = () => {
+        razorpayScriptPromise = null;
+        reject(new Error('Could not load Razorpay checkout'));
+      };
+      document.body.appendChild(el);
+    });
+  }
+  return razorpayScriptPromise;
+}
 
 // Checkout draft (coupon + contact/address/note) survives the login
 // round-trip: guests are sent to /account/login at checkout and return here.
@@ -28,49 +48,6 @@ const clearDraft = () => {
     // private mode — nothing persisted
   }
 };
-
-// Stripe card form — rendered inside <Elements> once the PaymentIntent exists.
-function StripeCardInner({ email, orderId, onPaid, onError }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [confirming, setConfirming] = useState(false);
-  return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!stripe || !elements || confirming) return;
-        setConfirming(true);
-        try {
-          const { error, paymentIntent } = await stripe.confirmPayment({
-            elements,
-            confirmParams: { receipt_email: email },
-            redirect: 'if_required',
-          });
-          if (error) throw new Error(error.message || 'Card payment failed');
-          if (!paymentIntent || paymentIntent.status !== 'succeeded')
-            throw new Error(`Payment not completed (status: ${paymentIntent ? paymentIntent.status : 'unknown'})`);
-          // Deterministic reconcile (the webhook fires too — both idempotent).
-          const res = await fetch(apiUrl('/api/payments/stripe/confirm'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId, paymentIntentId: paymentIntent.id }),
-          });
-          const data = await res.json().catch(() => ({}));
-          onPaid(data.order || { _id: orderId, payment: { status: 'paid' } });
-        } catch (err) {
-          onError(err.message || 'Card payment failed');
-        } finally {
-          setConfirming(false);
-        }
-      }}
-    >
-      <PaymentElement />
-      <button type="submit" disabled={!stripe || confirming} className="btn btn--primary w-full disabled:opacity-50" style={{ marginTop: '16px' }}>
-        {confirming ? 'Processing…' : 'Pay now'}
-      </button>
-    </form>
-  );
-}
 
 export default function Cart() {
   const { items, hydrating, removeItem, updateQuantity, subtotal, clearBag, limitExceeded } = useBag();
@@ -96,11 +73,20 @@ export default function Cart() {
   const [city, setCity] = useState(() => readDraft().city || '');
   const [country, setCountry] = useState(() => readDraft().country || '');
   const [zip, setZip] = useState(() => readDraft().zip || '');
-  const [method, setMethod] = useState('stripe'); // stripe | paypal
-  const [payConfig, setPayConfig] = useState(null); // {stripePublishableKey, paypalClientId, ...}
-  // Payment SDKs (Stripe/PayPal) touch third-party storage: only load them
-  // after the visitor accepts the cookie banner. Stays in sync when the
-  // banner is answered on this tab or another one.
+  // One key per checkout attempt: double-clicks/replays reuse the pending
+  // order server-side instead of minting duplicates. Rotated after each pay.
+  const [checkoutKey, setCheckoutKey] = useState(() =>
+    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
+  );
+
+  // ---- Payment gateway config: Razorpay (India) / SkyDo bank wire (international) ----
+  const [payConfig, setPayConfig] = useState(null); // {razorpayKeyId, skydoCurrencies}
+  const [method, setMethod] = useState('razorpay'); // razorpay | skydo
+  const [methodTouched, setMethodTouched] = useState(false);
+  const [wireCurrency, setWireCurrency] = useState('');
+  const [razorpayBusy, setRazorpayBusy] = useState(false);
+  const [wireBusy, setWireBusy] = useState(false);
+  // Third-party checkout script (Razorpay): only load after cookie consent.
   const [consented, setConsented] = useState(() => hasTrackingConsent());
   useEffect(() => {
     const sync = () => setConsented(hasTrackingConsent());
@@ -114,26 +100,6 @@ export default function Cart() {
       window.removeEventListener('storage', onStorage);
     };
   }, []);
-  const [stripeStep, setStripeStep] = useState(null); // {clientSecret, orderId} after intent
-  // One key per checkout attempt: double-clicks/replays reuse the pending
-  // order server-side instead of minting duplicates. Rotated after each pay.
-  const [checkoutKey, setCheckoutKey] = useState(() =>
-    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
-  );
-
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-
-  // Live preview from the last server validation, clamped to the subtotal
-  // so a stale frame can never show a discount bigger than the cart.
-  const previewDiscount =
-    couponInfo && appliedCode ? Math.min(Number(couponInfo.discount) || 0, Number(subtotal) || 0) : 0;
-
-  // Buy It Now lands here with {checkout:true} — bring payment into view.
-  useEffect(() => {
-    if (location.state && location.state.checkout && payRef.current) {
-      payRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [location.state]);
 
   useEffect(() => {
     let live = true;
@@ -151,24 +117,39 @@ export default function Cart() {
     };
   }, []);
 
-  // loadStripe() injects the Stripe.js <script>: never run it pre-consent.
-  const stripePromise = useMemo(
-    () => (consented && payConfig && payConfig.stripePublishableKey ? loadStripe(payConfig.stripePublishableKey) : null),
-    [consented, payConfig]
-  );
+  // Default the tab off the shipping country, unless the customer already
+  // picked one manually.
+  useEffect(() => {
+    if (methodTouched) return;
+    setMethod(isIndianAddress(country) ? 'razorpay' : 'skydo');
+  }, [country, methodTouched]);
 
-  // Shown in place of a payment gateway until tracking is accepted — one
-  // click accepts and loads the gateway immediately (no reload needed).
+  useEffect(() => {
+    if (payConfig?.skydoCurrencies?.length && !wireCurrency) setWireCurrency(payConfig.skydoCurrencies[0]);
+  }, [payConfig, wireCurrency]);
+
   const consentNotice = (
     <div className="text-sm bg-[#f7f2ef] border border-[#ededed] rounded" style={{ padding: '14px' }}>
-      <p style={{ marginBottom: '10px' }}>
-        Card and PayPal checkout load secure third-party payment tools. Accept cookies to enable them.
-      </p>
+      <p style={{ marginBottom: '10px' }}>Card checkout loads a secure third-party payment tool. Accept cookies to enable it.</p>
       <button type="button" onClick={() => setTrackingConsent('accepted')} className="btn btn--primary">
         Accept cookies &amp; enable payment
       </button>
     </div>
   );
+
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  // Live preview from the last server validation, clamped to the subtotal
+  // so a stale frame can never show a discount bigger than the cart.
+  const previewDiscount =
+    couponInfo && appliedCode ? Math.min(Number(couponInfo.discount) || 0, Number(subtotal) || 0) : 0;
+
+  // Buy It Now lands here with {checkout:true} — bring payment into view.
+  useEffect(() => {
+    if (location.state && location.state.checkout && payRef.current) {
+      payRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location.state]);
 
   const cartItems = () =>
     items.map((it) => ({
@@ -257,19 +238,23 @@ export default function Cart() {
     setCouponError('');
   };
 
-  const onPaid = (order) => {
-    setDone(order);
+  const finishCheckout = (doneState) => {
+    setDone(doneState);
     clearBag();
     setAppliedCode('');
     setCouponInfo(null);
     setCouponError('');
     clearDraft();
-    setStripeStep(null);
     setVToken('');
     setEmailOk(false);
     setPhoneOk(false);
     setCheckoutKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   };
+  const onPaid = (order) => finishCheckout(order);
+  // SkyDo: no live confirmation — order is reserved, not paid. Keep the
+  // wire instructions around so the confirmation panel can render them.
+  const onWirePending = (orderId, instructions) =>
+    finishCheckout({ _id: orderId, payment: { status: 'awaiting_transfer' }, wireInstructions: instructions });
 
   // ---- Contact verification (OTP): token required before any payment ----
   // waEnabled null = mode still loading (fail-open to dual); false hides the
@@ -569,10 +554,32 @@ export default function Cart() {
                 {error && <p role="alert" className="text-sm text-red-700" style={{ marginBottom: '12px' }}>{error}</p>}
                 {done ? (
                   <div role="status" className="bg-[#f7f2ef] p-4 text-sm">
-                    <p className="font-medium">
-                      {done.payment?.status === 'paid' ? 'Payment successful — ' : ''}Order {done._id} placed — ${Number(done.pricing?.total || 0).toFixed(2)} USD.
-                    </p>
-                    <p className="text-gray-600 mt-1">We emailed your confirmation. <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
+                    {done.payment?.status === 'awaiting_transfer' ? (
+                      <>
+                        <p className="font-medium">Order {done._id} reserved — pay by bank wire to confirm it.</p>
+                        <p style={{ marginTop: '8px' }}>
+                          <span className="font-medium">Amount due:</span> ${Number(done.wireInstructions?.amountUsd || 0).toFixed(2)} USD (equivalent in {done.wireInstructions?.currency})
+                        </p>
+                        <div className="bg-white border border-[#ededed] rounded" style={{ padding: '12px', marginTop: '10px' }}>
+                          {done.wireInstructions?.bankName && <p>Bank: <span className="font-mono">{done.wireInstructions.bankName}</span></p>}
+                          {done.wireInstructions?.accountHolder && <p>Account holder: <span className="font-mono">{done.wireInstructions.accountHolder}</span></p>}
+                          {done.wireInstructions?.routingNumber && <p>Routing number: <span className="font-mono">{done.wireInstructions.routingNumber}</span></p>}
+                          {done.wireInstructions?.sortCode && <p>Sort code: <span className="font-mono">{done.wireInstructions.sortCode}</span></p>}
+                          {done.wireInstructions?.accountNumber && <p>Account number: <span className="font-mono">{done.wireInstructions.accountNumber}</span></p>}
+                          {done.wireInstructions?.iban && <p>IBAN: <span className="font-mono">{done.wireInstructions.iban}</span></p>}
+                          {done.wireInstructions?.bic && <p>BIC/SWIFT: <span className="font-mono">{done.wireInstructions.bic}</span></p>}
+                          <p style={{ marginTop: '8px' }} className="font-medium">Reference: <span className="font-mono">{done.wireInstructions?.reference}</span></p>
+                        </div>
+                        <p className="text-gray-600" style={{ marginTop: '8px' }}>Include the reference with your transfer. We've emailed these details too, and will confirm your order once the transfer is received (usually 1-2 business days). <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium">
+                          {done.payment?.status === 'paid' ? 'Payment successful — ' : ''}Order {done._id} placed — ${Number(done.pricing?.total || 0).toFixed(2)} USD.
+                        </p>
+                        <p className="text-gray-600 mt-1">We emailed your confirmation. <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
+                      </>
+                    )}
                   </div>
                 ) : (
                 <div ref={payRef} style={{ scrollMarginTop: '100px' }}>
@@ -651,30 +658,154 @@ export default function Cart() {
                   {/* 2 — Pay (locked until verified) */}
                   <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>2 · Pay</h3>
                   <div style={!vToken ? { opacity: 0.45, pointerEvents: 'none' } : undefined} aria-disabled={!vToken}>
-                  {/* Method tabs */}
-                  <div className="flex" style={{ gap: '12px', marginBottom: '16px' }} role="group" aria-label="Payment method">
-                    {['stripe', 'paypal'].map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => { setMethod(m); setStripeStep(null); setError(''); }}
-                        aria-pressed={method === m}
-                        className={`flex-1 transition-all text-[13px] font-medium uppercase ${method === m ? 'bg-[#222] text-white border border-[#222]' : 'bg-white text-[#222] border hover:border-[#222]'}`}
-                        style={{ minHeight: '46px', padding: '8px 14px', borderColor: method === m ? '#222' : '#ededed', letterSpacing: '1px' }}
-                      >
-                        {m === 'stripe' ? 'Card' : 'PayPal'}
-                      </button>
-                    ))}
-                  </div>
+                  {payConfig?.razorpayKeyId || payConfig?.skydoCurrencies?.length ? (
+                    <>
+                      {/* Method tabs — only the configured ones render */}
+                      <div className="flex" style={{ gap: '12px', marginBottom: '16px' }} role="group" aria-label="Payment method">
+                        {payConfig?.razorpayKeyId && (
+                          <button
+                            type="button"
+                            onClick={() => { setMethod('razorpay'); setMethodTouched(true); setError(''); }}
+                            aria-pressed={method === 'razorpay'}
+                            className={`flex-1 transition-all text-[13px] font-medium uppercase ${method === 'razorpay' ? 'bg-[#222] text-white border border-[#222]' : 'bg-white text-[#222] border hover:border-[#222]'}`}
+                            style={{ minHeight: '46px', padding: '8px 14px', borderColor: method === 'razorpay' ? '#222' : '#ededed', letterSpacing: '1px' }}
+                          >
+                            Pay Online (India)
+                          </button>
+                        )}
+                        {payConfig?.skydoCurrencies?.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => { setMethod('skydo'); setMethodTouched(true); setError(''); }}
+                            aria-pressed={method === 'skydo'}
+                            className={`flex-1 transition-all text-[13px] font-medium uppercase ${method === 'skydo' ? 'bg-[#222] text-white border border-[#222]' : 'bg-white text-[#222] border hover:border-[#222]'}`}
+                            style={{ minHeight: '46px', padding: '8px 14px', borderColor: method === 'skydo' ? '#222' : '#ededed', letterSpacing: '1px' }}
+                          >
+                            International Bank Transfer
+                          </button>
+                        )}
+                      </div>
 
-                  {method === 'stripe' ? (
-                    !consented ? (
-                      consentNotice
-                    ) : !payConfig?.stripePublishableKey ? (
-                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px' }}>
-                        Card payments are not configured yet — use PayPal or place a manual order below.
-                      </p>
-                    ) : !stripeStep ? (
+                      {method === 'razorpay' && payConfig?.razorpayKeyId ? (
+                        !consented ? (
+                          consentNotice
+                        ) : (
+                          <button
+                            disabled={razorpayBusy}
+                            onClick={async () => {
+                              if (requireLogin()) return;
+                              if (requireWithinLimit()) return;
+                              const v = validateForm();
+                              if (v) return setError(v);
+                              setRazorpayBusy(true);
+                              setError('');
+                              try {
+                                await loadRazorpayScript();
+                                const res = await fetch(apiUrl('/api/payments/razorpay/create-order'), {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
+                                  body: JSON.stringify(checkoutBody()),
+                                });
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok) throw new Error(data.message || 'Could not start payment');
+                                const rzp = new window.Razorpay({
+                                  key: payConfig.razorpayKeyId,
+                                  amount: Math.round(data.amountInr * 100),
+                                  currency: 'INR',
+                                  name: 'EtherStar Jewels',
+                                  order_id: data.razorpayOrderId,
+                                  prefill: { name: fullName.trim(), email: email.trim(), contact: phone.trim() },
+                                  // No EMI — UPI/cards/netbanking only.
+                                  config: { display: { hide: [{ method: 'emi' }] } },
+                                  theme: { color: '#222222' },
+                                  handler: async (resp) => {
+                                    try {
+                                      const vr = await fetch(apiUrl('/api/payments/razorpay/verify'), {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', ...authHeaders },
+                                        body: JSON.stringify({
+                                          orderId: data.orderId,
+                                          razorpayOrderId: resp.razorpay_order_id,
+                                          razorpayPaymentId: resp.razorpay_payment_id,
+                                          razorpaySignature: resp.razorpay_signature,
+                                        }),
+                                      });
+                                      const vd = await vr.json().catch(() => ({}));
+                                      if (!vr.ok) throw new Error(vd.message || 'Payment verification failed');
+                                      onPaid(vd.order);
+                                    } catch (e) {
+                                      setError(e.message);
+                                    } finally {
+                                      setRazorpayBusy(false);
+                                    }
+                                  },
+                                  modal: {
+                                    ondismiss: () => {
+                                      setRazorpayBusy(false);
+                                      setError('Payment cancelled — your order is saved as pending, you can retry.');
+                                    },
+                                  },
+                                });
+                                rzp.open();
+                              } catch (e) {
+                                setError(e.message);
+                                setRazorpayBusy(false);
+                              }
+                            }}
+                            className="btn btn--primary w-full disabled:opacity-50"
+                          >
+                            {razorpayBusy ? 'Opening payment…' : 'Pay with Razorpay'}
+                          </button>
+                        )
+                      ) : method === 'skydo' && payConfig?.skydoCurrencies?.length > 0 ? (
+                        <div>
+                          <label htmlFor="wire-currency" className="block text-[13px] text-gray-600" style={{ marginBottom: '8px' }}>
+                            Wire from a
+                          </label>
+                          <select
+                            id="wire-currency"
+                            value={wireCurrency}
+                            onChange={(e) => setWireCurrency(e.target.value)}
+                            className="form-control"
+                            style={{ marginBottom: '12px' }}
+                          >
+                            {payConfig.skydoCurrencies.map((c) => (
+                              <option key={c} value={c}>{c} account</option>
+                            ))}
+                          </select>
+                          <button
+                            disabled={wireBusy}
+                            onClick={async () => {
+                              if (requireLogin()) return;
+                              if (requireWithinLimit()) return;
+                              const v = validateForm();
+                              if (v) return setError(v);
+                              setWireBusy(true);
+                              setError('');
+                              try {
+                                const res = await fetch(apiUrl('/api/payments/skydo/create'), {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
+                                  body: JSON.stringify({ ...checkoutBody(), wireCurrency }),
+                                });
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok) throw new Error(data.message || 'Could not reserve order');
+                                onWirePending(data.orderId, data.instructions);
+                              } catch (e) {
+                                setError(e.message);
+                              } finally {
+                                setWireBusy(false);
+                              }
+                            }}
+                            className="btn btn--primary w-full disabled:opacity-50"
+                          >
+                            {wireBusy ? 'Reserving order…' : 'Get bank transfer details'}
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="text-center">
                       <button
                         disabled={placing}
                         onClick={async () => {
@@ -685,14 +816,14 @@ export default function Cart() {
                           setPlacing(true);
                           setError('');
                           try {
-                            const res = await fetch(apiUrl('/api/payments/stripe/create-intent'), {
+                            const res = await fetch(apiUrl('/api/orders'), {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
-                              body: JSON.stringify(checkoutBody()),
+                              body: JSON.stringify({ ...checkoutBody(), payment: { method: 'card' } }),
                             });
                             const data = await res.json().catch(() => ({}));
-                            if (!res.ok) throw new Error(data.message || 'Could not start card payment');
-                            setStripeStep({ clientSecret: data.clientSecret, orderId: data.orderId });
+                            if (!res.ok) throw new Error(data.message || 'Checkout failed');
+                            onPaid(data);
                           } catch (e) {
                             setError(e.message);
                           } finally {
@@ -701,105 +832,11 @@ export default function Cart() {
                         }}
                         className="btn btn--primary w-full disabled:opacity-50"
                       >
-                        {placing ? 'Preparing…' : 'Continue to card payment'}
+                        {placing ? 'Placing order…' : 'Place order'}
                       </button>
-                    ) : (
-                      <>
-                        <Elements stripe={stripePromise} options={{ clientSecret: stripeStep.clientSecret }}>
-                          <StripeCardInner
-                            email={email.trim()}
-                            orderId={stripeStep.orderId}
-                            onPaid={onPaid}
-                            onError={setError}
-                          />
-                        </Elements>
-                        <button onClick={() => setStripeStep(null)} className="underline text-sm text-gray-500 mt-3">← Back to details</button>
-                      </>
-                    )
-                  ) : !consented ? (
-                    consentNotice
-                  ) : !payConfig?.paypalClientId ? (
-                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded" style={{ padding: '10px 12px' }}>
-                      PayPal is not configured yet — use Card or place a manual order below.
-                    </p>
-                  ) : (
-                    <PayPalScriptProvider options={{ clientId: payConfig.paypalClientId, currency: 'USD', intent: 'capture' }}>
-                      <PayPalButtons
-                        style={{ layout: 'vertical', shape: 'rect', label: 'paypal' }}
-                        forceReRender={[fullName, email, phone, line1, city, country, zip, appliedCode, items]}
-                        createOrder={async () => {
-                          if (requireLogin()) throw new Error('Please log in to check out');
-                          if (requireWithinLimit()) throw new Error('Cart exceeds the 5-item limit — please contact our seller');
-                          const v = validateForm();
-                          if (v) {
-                            setError(v);
-                            throw new Error(v);
-                          }
-                          setError('');
-                          const res = await fetch(apiUrl('/api/payments/paypal/create-order'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
-                            body: JSON.stringify(checkoutBody()),
-                          });
-                          const data = await res.json().catch(() => ({}));
-                          if (!res.ok) throw new Error(data.message || 'Could not start PayPal payment');
-                          return data.paypalOrderId;
-                        }}
-                        onApprove={async (paypalData) => {
-                          try {
-                            const res = await fetch(apiUrl('/api/payments/paypal/capture'), {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json', ...authHeaders },
-                              body: JSON.stringify({ paypalOrderId: paypalData.orderID }),
-                            });
-                            const data = await res.json().catch(() => ({}));
-                            if (!res.ok) throw new Error(data.message || 'PayPal capture failed');
-                            onPaid(data.order);
-                          } catch (e) {
-                            setError(e.message);
-                          }
-                        }}
-                        onCancel={() => setError('PayPal payment cancelled — your order is saved as pending, you can retry.')}
-                        onError={() => setError('PayPal could not load — check connection or try Card.')}
-                      />
-                    </PayPalScriptProvider>
+                    </div>
                   )}
-
-                  {/* Manual fallback — only while NO gateway is configured.
-                      Vanishes automatically once Stripe/PayPal keys land. */}
-                  {!payConfig?.stripePublishableKey && !payConfig?.paypalClientId && (
-                  <div className="text-center" style={{ marginTop: '16px' }}>
-                    <button
-                      disabled={placing}
-                      onClick={async () => {
-                        if (requireLogin()) return;
-                        if (requireWithinLimit()) return;
-                        const v = validateForm();
-                        if (v) return setError(v);
-                        setPlacing(true);
-                        setError('');
-                        try {
-                          const res = await fetch(apiUrl('/api/orders'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
-                            body: JSON.stringify({ ...checkoutBody(), payment: { method: 'card' } }),
-                          });
-                          const data = await res.json().catch(() => ({}));
-                          if (!res.ok) throw new Error(data.message || 'Checkout failed');
-                          onPaid(data);
-                        } catch (e) {
-                          setError(e.message);
-                        } finally {
-                          setPlacing(false);
-                        }
-                      }}
-                      className="underline text-sm text-gray-500 disabled:opacity-50"
-                    >
-                      {placing ? 'Placing order…' : 'or place order without online payment'}
-                    </button>
-                  </div>
-                  )}
-                  </div>{/* /pay gate — methods + manual all need the OTP token */}
+                  </div>{/* /pay gate — needs the OTP token */}
                 </div>
                 )}
               </div>
