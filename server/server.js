@@ -28,6 +28,8 @@ const pricingSettingsRoutes = require('./routes/pricingSettings');
 const aiRoutes = require('./routes/ai');
 const dbViewerRoutes = require('./routes/dbViewer');
 const userRoutes = require('./routes/users');
+const addressRoutes = require('./routes/addresses');
+const geoRoutes = require('./routes/geo');
 const { authRequired, requireAdmin } = require('./middleware/auth');
 
 function validateEnv() {
@@ -128,7 +130,11 @@ const catalogLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', globalLimiter);
 app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
-app.use(['/api/bag', '/api/wishlist'], bagWishlistLimiter);
+app.use(['/api/bag', '/api/wishlist', '/api/account/addresses'], bagWishlistLimiter);
+// Pincode lookups proxy third-party APIs — capped so the site can't be
+// used as a free relay (form lookups are debounced, a few per address).
+const geoLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+app.use('/api/geo', geoLimiter);
 app.use(['/api/auth/profile', '/api/auth/password', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/verify', '/api/payments/razorpay', '/api/payments/skydo', '/api/coupons/validate', '/api/newsletter/subscribe', '/api/inquiries', '/api/reviews', '/api/uploads', '/api/ai/describe'], strictLimiter);
 // pricing-settings GET fires on every admin product-form page load (fancy
 // diamond picker) — too frequent for strictLimiter's 20/min, which is meant
@@ -152,6 +158,8 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/pricing-settings', pricingSettingsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/account/addresses', addressRoutes);
+app.use('/api/geo', geoRoutes);
 
 // Read-only browser DB viewer — dev only, explicitly enabled, admin only
 if (

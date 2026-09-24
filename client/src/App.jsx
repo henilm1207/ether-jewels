@@ -26,7 +26,14 @@ const About = lazy(() => import('./pages/About'));
 const Search = lazy(() => import('./pages/Search'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
-const Profile = lazy(() => import('./pages/Profile'));
+const AccountLayout = lazy(() => import('./pages/account/AccountLayout'));
+const AccountOverview = lazy(() => import('./pages/account/Overview'));
+const AccountOrders = lazy(() => import('./pages/account/Orders'));
+const AccountOrderDetail = lazy(() => import('./pages/account/OrderDetail'));
+const AccountAddresses = lazy(() => import('./pages/account/Addresses'));
+const AccountProfile = lazy(() => import('./pages/account/ProfileDetails'));
+const AccountPreferences = lazy(() => import('./pages/account/Preferences'));
+const AccountSecurity = lazy(() => import('./pages/account/Security'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
@@ -120,6 +127,11 @@ function App() {
       '/cart': 'Your Cart — EtherStar Jewels',
       '/account/wishlist': 'Your Wishlist — EtherStar Jewels',
       '/account': 'My Account — EtherStar Jewels',
+      '/account/orders': 'My Orders — EtherStar Jewels',
+      '/account/addresses': 'Saved Addresses — EtherStar Jewels',
+      '/account/profile': 'Personal Details — EtherStar Jewels',
+      '/account/preferences': 'Preferences — EtherStar Jewels',
+      '/account/security': 'Login & Security — EtherStar Jewels',
       '/pages/ring-size-guide': 'Ring Size Guide — EtherStar Jewels',
       '/admin': 'Admin — EtherStar Jewels',
     };
@@ -162,8 +174,16 @@ function App() {
               <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/search" element={<Search />} />
               <Route path="/cart" element={<Cart />} />
-              <Route path="/account/wishlist" element={<Wishlist />} />
-              <Route path="/account" element={<Profile />} />
+              <Route path="/account" element={<AccountLayout />}>
+                <Route index element={<AccountOverview />} />
+                <Route path="orders" element={<AccountOrders />} />
+                <Route path="orders/:id" element={<AccountOrderDetail />} />
+                <Route path="addresses" element={<AccountAddresses />} />
+                <Route path="profile" element={<AccountProfile />} />
+                <Route path="preferences" element={<AccountPreferences />} />
+                <Route path="security" element={<AccountSecurity />} />
+                <Route path="wishlist" element={<Wishlist />} />
+              </Route>
               <Route path="/account/login" element={<Login />} />
               <Route path="/account/register" element={<Register />} />
               <Route path="/account/forgot-password" element={<ForgotPassword />} />

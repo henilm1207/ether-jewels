@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 /* Site-matched underline fields (same language as Contact page) */
@@ -18,6 +18,9 @@ const inputClass =
 export default function Register() {
   const { register, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Cart sends guests here with {from:'/cart'} so they land back at checkout.
+  const from = location.state && location.state.from && !location.state.from.startsWith('/admin') ? location.state.from : '/';
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -31,7 +34,7 @@ export default function Register() {
   const [error, setError] = useState('');
 
   if (user) {
-    navigate('/', { replace: true });
+    navigate(from, { replace: true });
     return null;
   }
 
@@ -55,7 +58,7 @@ export default function Register() {
         email: form.email.trim(),
         password: form.password,
       });
-      navigate('/', { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Could not create your account. Please try again.');
     } finally {

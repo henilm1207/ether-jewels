@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { Heart } from 'lucide-react';
 import { apiUrl } from '../config';
 import { useWishlist } from '../context/WishlistContext';
@@ -15,6 +15,8 @@ export default function Wishlist() {
   const { addItem } = useBag();
   const { token } = useAuth();
   const navigate = useNavigate();
+  // Inside the signed-in account shell: drop the page chrome + big heading.
+  const embedded = !!(useOutletContext() || {}).embedded;
   const [guestProducts, setGuestProducts] = useState([]);
   const [guestLoading, setGuestLoading] = useState(false);
   const [movingKey, setMovingKey] = useState('');
@@ -92,14 +94,18 @@ export default function Wishlist() {
   const gridCols = 'grid-cols-2 md:grid-cols-2 lg:grid-cols-3';
 
   return (
-    <section className="py-10 md:py-14">
-      <div className="container">
-        <div className="text-center" style={{ paddingBottom: '40px' }}>
-          <p className="text-subheading" style={{ marginBottom: '12px' }}>Saved items</p>
-          <h1 className="font-heading" style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', marginBottom: 0 }}>
-            Your wishlist
-          </h1>
-        </div>
+    <section className={embedded ? '' : 'py-10 md:py-14'}>
+      <div className={embedded ? '' : 'container'}>
+        {embedded ? (
+          <h1 className="font-heading" style={{ fontSize: 'clamp(1.35rem, 3vw, 1.9rem)', marginBottom: '24px' }}>Wishlist</h1>
+        ) : (
+          <div className="text-center" style={{ paddingBottom: '40px' }}>
+            <p className="text-subheading" style={{ marginBottom: '12px' }}>Saved items</p>
+            <h1 className="font-heading" style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', marginBottom: 0 }}>
+              Your wishlist
+            </h1>
+          </div>
+        )}
 
         {moveError ? (
           <p className="text-center text-[15px] text-red-700" role="alert" style={{ marginBottom: '24px' }}>
@@ -125,7 +131,7 @@ export default function Wishlist() {
             </Link>
           </div>
         ) : (
-          <div className={`grid ${gridCols} gap-x-6 gap-y-[51px] lg:gap-x-20 lg:gap-y-20 animate-fade-in-up`}>
+          <div className={`grid ${gridCols} gap-x-6 gap-y-[51px] ${embedded ? 'lg:gap-x-10 lg:gap-y-14' : 'lg:gap-x-20 lg:gap-y-20'} animate-fade-in-up`}>
             {products.map((product) => {
               const pid = String(product._id || product.id);
               const sized = needsSize(product) && !product.defaultSize;

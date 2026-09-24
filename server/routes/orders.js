@@ -1,7 +1,7 @@
 const express = require('express');
 const Order = require('../models/Order');
 const { validateContactAddress, quoteCart, consumeCoupon, releaseCoupon } = require('../lib/quote');
-const { authOptional, authRequired, requireAdmin } = require('../middleware/auth');
+const { authRequired, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const ORDER_TTL_MS = 24 * 60 * 60 * 1000; // unpaid orders auto-cancel after 24h
@@ -19,8 +19,8 @@ const ALLOWED_TRANSITIONS = {
   cancelled: [],
 };
 
-// Create order — guest or logged-in. Validates ring sizes + USD-only.
-router.post('/', authOptional, async (req, res, next) => {
+// Create order — login required (no guest checkout). Validates ring sizes + USD-only.
+router.post('/', authRequired, async (req, res, next) => {
   try {
     const { items, couponCode, shippingAddress, orderNote, contact, payment } = req.body;
     const { addr, email } = validateContactAddress(shippingAddress, contact);
@@ -41,18 +41,11 @@ router.post('/', authOptional, async (req, res, next) => {
     const { orderItems, subtotal, discount, coupon, shipping, total } = await quoteCart(items, couponCode);
 
     const order = await Order.create({
-      user: req.user ? req.user._id : null,
+      user: req.user._id,
       items: orderItems,
       pricing: { subtotal, discount, shipping, tax: 0, total, currency: 'USD' },
       couponCode: coupon ? coupon.code : null,
-      shippingAddress: {
-        fullName: String(addr.fullName).trim(),
-        line1: String(addr.line1).trim(),
-        city: String(addr.city).trim(),
-        country: String(addr.country).trim(),
-        zip: String(addr.zip).trim(),
-        phone: addr.phone ? String(addr.phone).slice(0, 30) : undefined,
-      },
+      shippingAddress: { ...addr },
       orderNote: typeof orderNote === 'string' ? orderNote.slice(0, 1000) : '',
       contact: {
         name: contact && contact.name ? String(contact.name).slice(0, 100) : undefined,
@@ -78,6 +71,19 @@ router.get('/mine', authRequired, async (req, res, next) => {
   try {
     const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.json(orders);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /api/orders/mine/:id — one of the caller's own orders (account detail page).
+router.get('/mine/:id', authRequired, async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(404).json({ message: 'Order not found' });
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json(order);
   } catch (e) {
     next(e);
   }

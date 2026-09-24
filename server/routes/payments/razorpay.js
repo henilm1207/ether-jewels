@@ -11,7 +11,8 @@ const crypto = require('crypto');
 const Order = require('../../models/Order');
 const PricingSettings = require('../../models/PricingSettings');
 const { validateContactAddress, quoteCart, buildPendingOrderDoc, onPaymentSuccess, onPaymentFailed, orderView } = require('../../lib/quote');
-const { authOptional } = require('../../middleware/auth');
+const { saveAddressForUser } = require('../../lib/address');
+const { authOptional, authRequired } = require('../../middleware/auth');
 
 const router = express.Router();
 const ORDER_TTL_MS = 24 * 60 * 60 * 1000; // unpaid orders auto-cancel after 24h
@@ -40,7 +41,7 @@ function verifySignature(orderId, paymentId, signature, secret) {
 // POST /api/payments/razorpay/create-order — cart + contact -> {razorpayOrderId, orderId, amountInr, exchangeRate, totalUsd}
 // Idempotent: same idempotencyKey reuses the pending order. Coupon consumed
 // only when the payment is verified as captured.
-router.post('/create-order', authOptional, async (req, res, next) => {
+router.post('/create-order', authRequired, async (req, res, next) => {
   try {
     const rzp = razorpayClient();
     if (!rzp) return res.status(503).json({ message: 'Razorpay not configured yet' });
@@ -51,7 +52,7 @@ router.post('/create-order', authOptional, async (req, res, next) => {
     if (!String(orderPhone).trim()) return res.status(400).json({ message: 'Contact phone required' });
     requireVerifiedCheckout(req, email, orderPhone);
     const key = typeof idempotencyKey === 'string' ? idempotencyKey.trim().slice(0, 100) : '';
-    const ownerFilter = req.user ? { user: req.user._id } : { user: null, 'contact.email': email };
+    const ownerFilter = { user: req.user._id };
     let order = null;
     if (key) {
       order = await Order.findOne({ idempotencyKey: key, status: 'pending', 'payment.status': { $ne: 'paid' }, ...ownerFilter });
@@ -59,10 +60,11 @@ router.post('/create-order', authOptional, async (req, res, next) => {
     if (!order) {
       const q = await quoteCart(items, couponCode);
       order = await Order.create({
-        ...buildPendingOrderDoc({ userId: req.user && req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon: q.coupon, addr, email, body: req.body, method: 'razorpay' }),
+        ...buildPendingOrderDoc({ userId: req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon: q.coupon, addr, email, body: req.body, method: 'razorpay' }),
         idempotencyKey: key || null,
         expiresAt: new Date(Date.now() + ORDER_TTL_MS),
       });
+      if (req.body.saveAddress === true) await saveAddressForUser(req.user._id, addr);
     }
     const totalUsd = order.pricing.total;
     if (!(totalUsd > 0)) return res.status(400).json({ message: 'Order total must be above zero' });

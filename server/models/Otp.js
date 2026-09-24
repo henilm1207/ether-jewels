@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 // peppered sha256 hash. Expired docs vanish via TTL; attempts cap at 5.
 const otpSchema = new mongoose.Schema(
   {
-    channel: { type: String, enum: ['email', 'whatsapp'], required: true },
+    channel: { type: String, enum: ['email'], required: true },
     target: { type: String, required: true, trim: true, maxlength: 100 }, // normalized email / digits
     codeHash: { type: String, required: true },
     attempts: { type: Number, default: 0, min: 0 },

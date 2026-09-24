@@ -11,8 +11,9 @@
 const express = require('express');
 const Order = require('../../models/Order');
 const { validateContactAddress, quoteCart, buildPendingOrderDoc, onPaymentSuccess } = require('../../lib/quote');
-const { authOptional, authRequired, requireAdmin } = require('../../middleware/auth');
+const { authRequired, requireAdmin } = require('../../middleware/auth');
 const { sendWireInstructions } = require('../../lib/mail');
+const { saveAddressForUser } = require('../../lib/address');
 
 const router = express.Router();
 // Bank wires legitimately take a few business days — much longer than the
@@ -58,7 +59,7 @@ function availableCurrencies() {
 
 // POST /api/payments/skydo/create — cart + contact + wireCurrency ->
 // {orderId, instructions}. No payment confirmation happens here.
-router.post('/create', authOptional, async (req, res, next) => {
+router.post('/create', authRequired, async (req, res, next) => {
   try {
     const { items, couponCode, shippingAddress, contact, idempotencyKey, wireCurrency } = req.body || {};
     const currency = ['USD', 'GBP', 'EUR'].includes(wireCurrency) ? wireCurrency : null;
@@ -71,7 +72,7 @@ router.post('/create', authOptional, async (req, res, next) => {
     if (!String(orderPhone).trim()) return res.status(400).json({ message: 'Contact phone required' });
     requireVerifiedCheckout(req, email, orderPhone);
     const key = typeof idempotencyKey === 'string' ? idempotencyKey.trim().slice(0, 100) : '';
-    const ownerFilter = req.user ? { user: req.user._id } : { user: null, 'contact.email': email };
+    const ownerFilter = { user: req.user._id };
     let order = null;
     if (key) {
       order = await Order.findOne({ idempotencyKey: key, status: 'pending', 'payment.status': { $ne: 'paid' }, ...ownerFilter });
@@ -79,10 +80,11 @@ router.post('/create', authOptional, async (req, res, next) => {
     if (!order) {
       const q = await quoteCart(items, couponCode);
       order = await Order.create({
-        ...buildPendingOrderDoc({ userId: req.user && req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon: q.coupon, addr, email, body: req.body, method: 'skydo' }),
+        ...buildPendingOrderDoc({ userId: req.user._id, orderItems: q.orderItems, subtotal: q.subtotal, discount: q.discount, shipping: q.shipping, total: q.total, coupon: q.coupon, addr, email, body: req.body, method: 'skydo' }),
         idempotencyKey: key || null,
         expiresAt: new Date(Date.now() + WIRE_ORDER_TTL_MS),
       });
+      if (req.body.saveAddress === true) await saveAddressForUser(req.user._id, addr);
       order.payment.status = 'awaiting_transfer';
       order.payment.wireCurrency = currency;
       order.payment.wireReference = `EJ-${order._id.toString().slice(-8).toUpperCase()}`;

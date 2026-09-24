@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
 const { isRingCategory } = require('../config/catalog');
+const { normalizeAddress } = require('./address');
 
 const round2 = (n) => Math.round(n * 100) / 100;
 const MAX_ITEMS = 20;
@@ -14,11 +15,12 @@ function bad(status, message) {
   return Object.assign(new Error(message), { status });
 }
 
+// Returns the NORMALIZED address (trimmed, length-capped) — callers store it as-is.
 function validateContactAddress(shippingAddress, contact) {
-  const addr = shippingAddress || {};
-  for (const f of ['fullName', 'line1', 'city', 'country', 'zip']) {
-    if (!addr[f] || typeof addr[f] !== 'string' || !addr[f].trim())
-      throw bad(400, `shippingAddress.${f} required`);
+  const { ok, value: addr, errors } = normalizeAddress(shippingAddress);
+  if (!ok) {
+    const [field, msg] = Object.entries(errors)[0];
+    throw Object.assign(bad(400, `Shipping address: ${field} — ${msg}`), { fields: errors });
   }
   const email = (contact && contact.email ? String(contact.email) : '').trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw bad(400, 'contact.email invalid');
@@ -127,14 +129,7 @@ function buildPendingOrderDoc({ userId, orderItems, subtotal, discount, shipping
     items: orderItems,
     pricing: { subtotal, discount, shipping, tax: 0, total, currency: 'USD' },
     couponCode: coupon ? coupon.code : null,
-    shippingAddress: {
-      fullName: String(addr.fullName).trim(),
-      line1: String(addr.line1).trim(),
-      city: String(addr.city).trim(),
-      country: String(addr.country).trim(),
-      zip: String(addr.zip).trim(),
-      phone: addr.phone ? String(addr.phone).slice(0, 30) : undefined,
-    },
+    shippingAddress: { ...addr },
     orderNote: typeof body.orderNote === 'string' ? body.orderNote.slice(0, 1000) : '',
     contact: {
       name: body.contact && body.contact.name ? String(body.contact.name).slice(0, 100) : undefined,

@@ -75,9 +75,17 @@ const orderSchema = new mongoose.Schema(
     shippingAddress: {
       fullName: { type: String, required: true, trim: true, maxlength: 100 },
       line1: { type: String, required: true, trim: true, maxlength: 200 },
+      // line2/landmark/area/state/countryCode added with saved addresses —
+      // optional so pre-existing orders stay valid.
+      line2: { type: String, trim: true, maxlength: 200 },
+      landmark: { type: String, trim: true, maxlength: 120 },
+      area: { type: String, trim: true, maxlength: 100 },
       city: { type: String, required: true, trim: true, maxlength: 100 },
+      state: { type: String, trim: true, maxlength: 100 },
       country: { type: String, required: true, trim: true, maxlength: 100 },
-      zip: { type: String, required: true, trim: true, maxlength: 20 },
+      countryCode: { type: String, trim: true, uppercase: true, maxlength: 2 },
+      // Optional: countries without postal codes (lib/address.js NO_ZIP).
+      zip: { type: String, trim: true, maxlength: 20 },
       phone: { type: String, trim: true, maxlength: 30 },
     },
     orderNote: { type: String, default: '', maxlength: 1000 },

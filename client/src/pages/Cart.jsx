@@ -7,10 +7,20 @@ import { apiUrl } from '../config';
 import { CONSENT_EVENT, CONSENT_KEY, hasTrackingConsent, setTrackingConsent } from '../lib/consent';
 import ProtectedImage from '../components/ui/ProtectedImage';
 import QtyStepper from '../components/cart/QtyStepper';
+import AddressForm from '../components/account/AddressForm';
+import useAddresses from '../hooks/useAddresses';
+import { countryCodeFromName } from '../data/countries';
+import { emptyAddress, formatAddressLines, toShippingPayload, validateAddress } from '../lib/address';
 
-// Free-text country field, not a dropdown — best-effort default only, the
-// customer can still switch the payment tab manually.
-const isIndianAddress = (c) => /^(india|bharat|in)$/i.test(String(c || '').trim());
+// Old drafts stored a flat {line1, city, country, zip} — lift them into the
+// structured address shape (line2/state start empty).
+const draftAddress = (d) =>
+  d.addr || {
+    ...emptyAddress(countryCodeFromName(d.country) || 'IN'),
+    line1: d.line1 || '',
+    city: d.city || '',
+    zip: d.zip || '',
+  };
 
 const RAZORPAY_SCRIPT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
 let razorpayScriptPromise = null;
@@ -51,7 +61,7 @@ const clearDraft = () => {
 
 export default function Cart() {
   const { items, hydrating, removeItem, updateQuantity, subtotal, clearBag, limitExceeded } = useBag();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const payRef = useRef(null);
@@ -69,10 +79,34 @@ export default function Cart() {
   const [fullName, setFullName] = useState(() => readDraft().fullName || '');
   const [email, setEmail] = useState(() => readDraft().email || '');
   const [phone, setPhone] = useState(() => readDraft().phone || '');
-  const [line1, setLine1] = useState(() => readDraft().line1 || '');
-  const [city, setCity] = useState(() => readDraft().city || '');
-  const [country, setCountry] = useState(() => readDraft().country || '');
-  const [zip, setZip] = useState(() => readDraft().zip || '');
+  // Shipping address: a saved one (selectedAddrId) or a new one typed here.
+  const { addresses: savedAddresses, loading: savedLoading } = useAddresses();
+  const [selectedAddrId, setSelectedAddrId] = useState(() => readDraft().selectedAddrId || '');
+  const [addingNew, setAddingNew] = useState(false);
+  const [addr, setAddr] = useState(() => draftAddress(readDraft()));
+  const [addrErrors, setAddrErrors] = useState({});
+  const [saveAddr, setSaveAddr] = useState(true);
+  const selectedAddr = savedAddresses.find((a) => a._id === selectedAddrId) || null;
+  const usingSaved = !!selectedAddr && !addingNew;
+  const shipTo = usingSaved ? selectedAddr : addr;
+  const shipCountryCode = shipTo.countryCode || countryCodeFromName(shipTo.country);
+
+  // Pre-select the default saved address once the list arrives.
+  useEffect(() => {
+    if (savedLoading || addingNew) return;
+    if (selectedAddrId && savedAddresses.some((a) => a._id === selectedAddrId)) return;
+    const def = savedAddresses.find((a) => a.isDefault) || savedAddresses[0];
+    setSelectedAddrId(def ? def._id : '');
+  }, [savedLoading, savedAddresses, selectedAddrId, addingNew]);
+
+  // Contact defaults from the account (the customer can still edit them).
+  useEffect(() => {
+    if (!user) return;
+    if (!fullName) setFullName(`${user.firstName || ''} ${user.lastName || ''}`.trim());
+    if (!email && user.email) setEmail(user.email);
+    if (!phone && user.phone) setPhone(user.phone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
   // One key per checkout attempt: double-clicks/replays reuse the pending
   // order server-side instead of minting duplicates. Rotated after each pay.
   const [checkoutKey, setCheckoutKey] = useState(() =>
@@ -121,8 +155,8 @@ export default function Cart() {
   // picked one manually.
   useEffect(() => {
     if (methodTouched) return;
-    setMethod(isIndianAddress(country) ? 'razorpay' : 'skydo');
-  }, [country, methodTouched]);
+    setMethod(shipCountryCode === 'IN' ? 'razorpay' : 'skydo');
+  }, [shipCountryCode, methodTouched]);
 
   useEffect(() => {
     if (payConfig?.skydoCurrencies?.length && !wireCurrency) setWireCurrency(payConfig.skydoCurrencies[0]);
@@ -164,7 +198,9 @@ export default function Cart() {
     items: cartItems(),
     couponCode: appliedCode || undefined,
     idempotencyKey: checkoutKey,
-    shippingAddress: { fullName: fullName.trim(), line1: line1.trim(), city: city.trim(), country: country.trim(), zip: zip.trim(), phone: phone.trim() || undefined },
+    // Recipient name/phone: the saved address's own, else the contact above.
+    shippingAddress: toShippingPayload({ ...shipTo, fullName: shipTo.fullName || fullName, phone: shipTo.phone || phone }),
+    saveAddress: !usingSaved && saveAddr,
     contact: { name: fullName.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined },
     orderNote: note.slice(0, 1000),
   });
@@ -172,7 +208,12 @@ export default function Cart() {
   const validateForm = () => {
     if (!fullName.trim()) return 'Full name required';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Valid email required';
-    if (!line1.trim() || !city.trim() || !country.trim() || !zip.trim()) return 'Complete shipping address required';
+    const errs = validateAddress({ ...shipTo, countryCode: shipCountryCode }, { withContact: false });
+    if (!usingSaved) setAddrErrors(errs);
+    if (Object.keys(errs).length) {
+      if (usingSaved) return 'Your saved address is incomplete — please edit it under My Account → Addresses, or add a new one.';
+      return 'Please complete the highlighted address fields';
+    }
     return '';
   };
 
@@ -247,7 +288,6 @@ export default function Cart() {
     clearDraft();
     setVToken('');
     setEmailOk(false);
-    setPhoneOk(false);
     setCheckoutKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   };
   const onPaid = (order) => finishCheckout(order);
@@ -256,51 +296,43 @@ export default function Cart() {
   const onWirePending = (orderId, instructions) =>
     finishCheckout({ _id: orderId, payment: { status: 'awaiting_transfer' }, wireInstructions: instructions });
 
-  // ---- Contact verification (OTP): token required before any payment ----
-  // waEnabled null = mode still loading (fail-open to dual); false hides the
-  // WhatsApp row until the WHATSAPP_VERIFY_ENABLED update lands.
-  const [waEnabled, setWaEnabled] = useState(null);
+  // ---- Contact verification (email OTP): token required before any payment ----
   const [vToken, setVToken] = useState('');
   const [emailOk, setEmailOk] = useState(false);
-  const [phoneOk, setPhoneOk] = useState(false);
   const [emailCode, setEmailCode] = useState('');
-  const [phoneCode, setPhoneCode] = useState('');
   const [emailSent, setEmailSent] = useState(false);
-  const [phoneSent, setPhoneSent] = useState(false);
   const [vBusy, setVBusy] = useState('');
   const [vError, setVError] = useState('');
-  const [cooldown, setCooldown] = useState({ email: 0, whatsapp: 0 });
+  const [cooldown, setCooldown] = useState(0);
 
   const touchContact = (which, value) => {
-    // Editing a contact resets its verification and the checkout token.
+    // Editing the email resets its verification; either edit drops the
+    // token (it's bound to the exact email+phone pair) and it re-mints below.
     if (which === 'email') {
       setEmail(value);
       setEmailOk(false);
       setEmailCode('');
     } else {
       setPhone(value);
-      setPhoneOk(false);
-      setPhoneCode('');
     }
     setVToken('');
   };
 
-  const sendCode = async (channel) => {
-    const value = channel === 'email' ? email.trim() : phone.trim();
-    if (!value) return setVError(channel === 'email' ? 'Enter your email first' : 'Enter your phone with country code first');
-    setVBusy(channel);
+  const sendCode = async () => {
+    const value = email.trim();
+    if (!value) return setVError('Enter your email first');
+    setVBusy('email');
     setVError('');
     try {
       const res = await fetch(apiUrl('/api/verify/request'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, value }),
+        body: JSON.stringify({ channel: 'email', value }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Could not send code');
-      if (channel === 'email') setEmailSent(true);
-      else setPhoneSent(true);
-      setCooldown((c) => ({ ...c, [channel]: 30 }));
+      setEmailSent(true);
+      setCooldown(30);
     } catch (e) {
       setVError(e.message);
     } finally {
@@ -308,22 +340,20 @@ export default function Cart() {
     }
   };
 
-  const checkCode = async (channel) => {
-    const value = channel === 'email' ? email.trim() : phone.trim();
-    const code = channel === 'email' ? emailCode.trim() : phoneCode.trim();
+  const checkCode = async () => {
+    const code = emailCode.trim();
     if (code.length < 4) return setVError('Enter the 6-digit code');
-    setVBusy(`${channel}-check`);
+    setVBusy('email-check');
     setVError('');
     try {
       const res = await fetch(apiUrl('/api/verify/check'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, value, code }),
+        body: JSON.stringify({ channel: 'email', value: email.trim(), code }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Verification failed');
-      if (channel === 'email') setEmailOk(true);
-      else setPhoneOk(true);
+      setEmailOk(true);
     } catch (e) {
       setVError(e.message);
     } finally {
@@ -333,37 +363,21 @@ export default function Cart() {
 
   // Resend cooldown ticker.
   useEffect(() => {
-    if (cooldown.email <= 0 && cooldown.whatsapp <= 0) return;
-    const t = setTimeout(
-      () => setCooldown((c) => ({ email: Math.max(0, c.email - 1), whatsapp: Math.max(0, c.whatsapp - 1) })),
-      1000
-    );
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  // WhatsApp row applies only when the server has it enabled.
+  // Mint the checkout token once the email is verified — and again after a
+  // phone edit (debounced; waits until the number looks complete).
   useEffect(() => {
+    if (!emailOk || vToken) return;
+    if (phone.replace(/\D/g, '').length < 7) {
+      setVError('Enter your phone with country code to unlock payment');
+      return;
+    }
     let live = true;
-    (async () => {
-      try {
-        const res = await fetch(apiUrl('/api/verify/mode'));
-        const data = await res.json().catch(() => ({}));
-        if (live) setWaEnabled(data.whatsapp !== false);
-      } catch {
-        if (live) setWaEnabled(true); // fail-open to today's dual behavior
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  // Mint the checkout token once the required channels verify (email always;
-  // WhatsApp too unless the server disabled it for now).
-  useEffect(() => {
-    if (!emailOk || (waEnabled !== false && !phoneOk) || vToken) return;
-    let live = true;
-    (async () => {
+    const t = setTimeout(async () => {
       try {
         const res = await fetch(apiUrl('/api/verify/token'), {
           method: 'POST',
@@ -371,17 +385,21 @@ export default function Cart() {
           body: JSON.stringify({ email: email.trim(), phone: phone.trim() }),
         });
         const data = await res.json().catch(() => ({}));
-        if (live && res.ok && data.verificationToken) setVToken(data.verificationToken);
-        else if (live) setVError(data.message || 'Could not issue checkout token');
+        if (!live) return;
+        if (res.ok && data.verificationToken) {
+          setVToken(data.verificationToken);
+          setVError('');
+        } else setVError(data.message || 'Could not issue checkout token');
       } catch {
         if (live) setVError('Could not issue checkout token');
       }
-    })();
+    }, 500);
     return () => {
       live = false;
+      clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emailOk, phoneOk, waEnabled]);
+  }, [emailOk, vToken, phone]);
 
   const verifyHeaders = vToken ? { 'X-Verification-Token': vToken } : {};
 
@@ -390,12 +408,12 @@ export default function Cart() {
     try {
       sessionStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ appliedCode, note, fullName, email, phone, line1, city, country, zip })
+        JSON.stringify({ appliedCode, note, fullName, email, phone, addr, selectedAddrId })
       );
     } catch {
       // private mode — nothing persisted
     }
-  }, [appliedCode, note, fullName, email, phone, line1, city, country, zip]);
+  }, [appliedCode, note, fullName, email, phone, addr, selectedAddrId]);
 
   // Re-check the code whenever the cart total moves (e.g. item removed
   // below min order) — the server re-verifies at order time regardless.
@@ -581,75 +599,96 @@ export default function Cart() {
                       </>
                     )}
                   </div>
+                ) : !token ? (
+                  // No guest checkout: log in (or register) first, then return here.
+                  <div ref={payRef} className="bg-[#f7f2ef] text-sm text-center" style={{ padding: '20px', scrollMarginTop: '100px' }}>
+                    <p style={{ marginBottom: '12px' }}>Please log in to your account to check out.</p>
+                    <button type="button" onClick={requireLogin} className="btn btn--primary w-full" style={{ marginBottom: '10px' }}>
+                      Log in to checkout
+                    </button>
+                    <p className="text-gray-600">
+                      New customer? <Link to="/account/register" state={{ from: '/cart' }} className="underline">Create an account</Link>
+                    </p>
+                  </div>
                 ) : (
                 <div ref={payRef} style={{ scrollMarginTop: '100px' }}>
-                  {/* Contact + address — required for every order, guest checkout OK */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: '16px' }}>
-                    <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name *" aria-label="Full name" className="form-control" autoComplete="name" />
+                  {/* Contact — verified below, used for order updates */}
+                  <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>Contact</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: '24px' }}>
+                    <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name *" aria-label="Full name" className="form-control sm:col-span-2" autoComplete="name" />
                     <input value={email} onChange={(e) => touchContact('email', e.target.value)} placeholder="Email *" aria-label="Email" type="email" className="form-control" autoComplete="email" />
                     <input value={phone} onChange={(e) => touchContact('phone', e.target.value)} placeholder="Phone * (with country code)" aria-label="Phone" type="tel" className="form-control" autoComplete="tel" />
-                    <input value={line1} onChange={(e) => setLine1(e.target.value)} placeholder="Street address *" aria-label="Street address" className="form-control sm:col-span-2" autoComplete="street-address" />
-                    <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City *" aria-label="City" className="form-control" autoComplete="address-level2" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Country *" aria-label="Country" className="form-control" autoComplete="country-name" />
-                      <input value={zip} onChange={(e) => setZip(e.target.value)} placeholder="ZIP *" aria-label="ZIP" className="form-control" autoComplete="postal-code" />
-                    </div>
                   </div>
 
-                  {/* 1 — Verify contact: OTP on email (+ WhatsApp while enabled), token unlocks payment */}
+                  {/* Shipping address — pick a saved one or add a new one */}
+                  <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 500 }}>Shipping address</h3>
+                    {savedAddresses.length > 0 && (
+                      <button type="button" onClick={() => { setAddingNew(!addingNew); setAddrErrors({}); setError(''); }} className="underline text-sm">
+                        {addingNew ? 'Use a saved address' : '+ New address'}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ marginBottom: '24px' }}>
+                    {savedLoading ? (
+                      <div className="animate-pulse bg-[#f1ece8]" style={{ height: '90px' }} aria-hidden="true" />
+                    ) : savedAddresses.length > 0 && !addingNew ? (
+                      <div className="grid" style={{ gap: '10px' }} role="radiogroup" aria-label="Saved addresses">
+                        {savedAddresses.map((a) => {
+                          const on = a._id === selectedAddrId;
+                          return (
+                            <label key={a._id} className={`flex items-start cursor-pointer border transition-colors ${on ? 'border-[#222] bg-[#fafafa]' : 'border-[#ededed] hover:border-[#bbb]'}`} style={{ padding: '12px 14px', gap: '12px' }}>
+                              <input type="radio" name="ship-address" checked={on} onChange={() => { setSelectedAddrId(a._id); setError(''); }} style={{ marginTop: '4px' }} />
+                              <span className="text-sm min-w-0">
+                                <span className="font-medium">{a.fullName || fullName}</span>
+                                <span className="text-[11px] uppercase tracking-wider bg-[#f7f2ef]" style={{ padding: '1px 6px', marginLeft: '8px' }}>{a.label || 'home'}</span>
+                                {a.isDefault && <span className="text-[11px] text-gray-500" style={{ marginLeft: '6px' }}>Default</span>}
+                                {formatAddressLines(a).map((l) => (
+                                  <span key={l} className="block text-gray-600">{l}</span>
+                                ))}
+                              </span>
+                            </label>
+                          );
+                        })}
+                        <Link to="/account/addresses" className="text-xs text-gray-500 underline">Manage saved addresses</Link>
+                      </div>
+                    ) : (
+                      <>
+                        <AddressForm value={addr} onChange={(next) => { setAddr(next); setError(''); }} errors={addrErrors} showContact={false} showLabel={false} />
+                        <label className="flex items-center text-sm" style={{ gap: '8px', marginTop: '14px' }}>
+                          <input type="checkbox" checked={saveAddr} onChange={(e) => setSaveAddr(e.target.checked)} />
+                          Save this address to my account for next time
+                        </label>
+                      </>
+                    )}
+                  </div>
+
+                  {/* 1 — Verify email: OTP unlocks payment (token binds email + phone) */}
                   <div className="border border-[#ededed] bg-[#fafafa] rounded" style={{ padding: '16px', marginBottom: '16px' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '4px' }}>1 · Verify contact</h3>
+                    <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '4px' }}>1 · Verify email</h3>
                     <p className="text-[13px] text-gray-500" style={{ marginBottom: '12px' }}>
-                      {waEnabled !== false
-                        ? 'High-value orders need a verified email and phone before payment unlocks.'
-                        : 'High-value orders need a verified email before payment unlocks.'}
+                      High-value orders need a verified email before payment unlocks.
                     </p>
                     {vError && <p role="alert" className="text-sm text-red-700" style={{ marginBottom: '12px' }}>{vError}</p>}
                     {vToken ? (
-                      <p role="status" className="text-sm text-green-700 font-medium">
-                        {waEnabled !== false ? '✓ Email & phone verified — payment unlocked.' : '✓ Email verified — payment unlocked.'}
-                      </p>
+                      <p role="status" className="text-sm text-green-700 font-medium">✓ Email verified — payment unlocked.</p>
                     ) : (
-                      <div className="grid" style={{ gap: '12px' }}>
-                        <div>
-                          <div className="flex items-center" style={{ gap: '8px' }}>
-                            <span className="text-sm font-medium flex-1">Email {emailOk && <span className="text-green-700">✓</span>}</span>
-                            {!emailOk && (
-                              <button type="button" disabled={vBusy === 'email' || cooldown.email > 0} onClick={() => sendCode('email')} className="underline text-sm disabled:opacity-50">
-                                {vBusy === 'email' ? 'Sending…' : emailSent ? (cooldown.email > 0 ? `Resend (${cooldown.email}s)` : 'Resend code') : 'Send code'}
-                              </button>
-                            )}
-                          </div>
-                          {!emailOk && emailSent && (
-                            <div className="flex items-center" style={{ gap: '8px', marginTop: '8px' }}>
-                              <input value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit code" aria-label="Email code" inputMode="numeric" className="form-control flex-1" style={{ letterSpacing: '4px' }} />
-                              <button type="button" disabled={vBusy === 'email-check'} onClick={() => checkCode('email')} className="btn btn--secondary" style={{ padding: '0 20px' }}>
-                                {vBusy === 'email-check' ? '…' : 'Verify'}
-                              </button>
-                            </div>
+                      <div>
+                        <div className="flex items-center" style={{ gap: '8px' }}>
+                          <span className="text-sm font-medium flex-1">Email {emailOk && <span className="text-green-700">✓</span>}</span>
+                          {!emailOk && (
+                            <button type="button" disabled={vBusy === 'email' || cooldown > 0} onClick={sendCode} className="underline text-sm disabled:opacity-50">
+                              {vBusy === 'email' ? 'Sending…' : emailSent ? (cooldown > 0 ? `Resend (${cooldown}s)` : 'Resend code') : 'Send code'}
+                            </button>
                           )}
                         </div>
-                        {/* TEMP-DISABLED until the WhatsApp update: row renders only
-                            while the server reports whatsapp mode enabled. */}
-                        {waEnabled !== false && (
-                        <div>
-                          <div className="flex items-center" style={{ gap: '8px' }}>
-                            <span className="text-sm font-medium flex-1">WhatsApp {phoneOk && <span className="text-green-700">✓</span>}</span>
-                            {!phoneOk && (
-                              <button type="button" disabled={vBusy === 'whatsapp' || cooldown.whatsapp > 0} onClick={() => sendCode('whatsapp')} className="underline text-sm disabled:opacity-50">
-                                {vBusy === 'whatsapp' ? 'Sending…' : phoneSent ? (cooldown.whatsapp > 0 ? `Resend (${cooldown.whatsapp}s)` : 'Resend code') : 'Send code'}
-                              </button>
-                            )}
+                        {!emailOk && emailSent && (
+                          <div className="flex items-center" style={{ gap: '8px', marginTop: '8px' }}>
+                            <input value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit code" aria-label="Email code" inputMode="numeric" className="form-control flex-1" style={{ letterSpacing: '4px' }} />
+                            <button type="button" disabled={vBusy === 'email-check'} onClick={checkCode} className="btn btn--secondary" style={{ padding: '0 20px' }}>
+                              {vBusy === 'email-check' ? '…' : 'Verify'}
+                            </button>
                           </div>
-                          {!phoneOk && phoneSent && (
-                            <div className="flex items-center" style={{ gap: '8px', marginTop: '8px' }}>
-                              <input value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit code" aria-label="WhatsApp code" inputMode="numeric" className="form-control flex-1" style={{ letterSpacing: '4px' }} />
-                              <button type="button" disabled={vBusy === 'whatsapp-check'} onClick={() => checkCode('whatsapp')} className="btn btn--secondary" style={{ padding: '0 20px' }}>
-                                {vBusy === 'whatsapp-check' ? '…' : 'Verify'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
                         )}
                       </div>
                     )}

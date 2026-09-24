@@ -4,6 +4,9 @@ const Otp = require('../models/Otp');
 const { signToken, authRequired } = require('../middleware/auth');
 const { hashCode, randomCode, codeMatches } = require('../lib/otp');
 const { sendMail, isMailConfigured } = require('../lib/mail');
+const { DEFAULT_RING_SIZES } = require('../config/catalog');
+// Mirrors client/src/lib/metals.js METALS names.
+const METAL_NAMES = ['Yellow Gold', 'Rose Gold', 'White Gold', 'Platinum', 'Sterling Silver'];
 
 const router = express.Router();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,8 +35,27 @@ function publicUser(user) {
     email: user.email,
     phone: user.phone,
     role: user.role,
+    dob: user.dob || null,
+    anniversary: user.anniversary || null,
+    gender: user.gender || '',
+    ringSize: user.ringSize || '',
+    preferredMetal: user.preferredMetal || '',
+    marketing: {
+      email: user.marketing ? user.marketing.email !== false : true,
+      whatsapp: user.marketing ? user.marketing.whatsapp !== false : true,
+      newsletter: !!(user.marketing && user.marketing.newsletter),
+    },
   };
 }
+
+// Optional date field: '' / null clears, otherwise a real past date.
+function parseOptionalDate(v) {
+  if (v === '' || v === null) return { value: null };
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime()) || d > new Date() || d.getFullYear() < 1900) return { error: true };
+  return { value: d };
+}
+const sameDate = (a, b) => (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null);
 
 router.post('/register', async (req, res, next) => {
   try {
@@ -140,36 +162,61 @@ router.get('/me', authRequired, async (req, res, next) => {  try {
 
 // (Wishlist lives in routes/wishlist.js backed by the Wishlist collection.)
 
-// PUT /api/auth/profile — update name/email/phone (auth).
+// PUT /api/auth/profile — update personal details + preferences (auth).
 // High-value rule: while ANY order is unreceived (pending/confirmed/making/
-// shipped), the whole profile is frozen — contact details must stay valid
-// for the courier until the parcel is delivered (or the order cancelled).
+// shipped), email + phone are frozen — contact details must stay valid for
+// the courier until delivery. Names, dates, sizing and preferences stay
+// editable (they never reach the courier).
 router.put('/profile', authRequired, async (req, res, next) => {
   try {
     const user = req.user;
-    const firstName = cleanStr(req.body && req.body.firstName, 50);
-    const lastName = cleanStr(req.body && req.body.lastName, 50);
-    const email = normEmail(req.body && req.body.email);
-    const phone = typeof (req.body && req.body.phone) === 'string' ? req.body.phone.trim().slice(0, 30) : '';
+    const body = req.body || {};
+    const firstName = cleanStr(body.firstName, 50);
+    const lastName = cleanStr(body.lastName, 50);
+    const email = normEmail(body.email);
+    const phone = typeof body.phone === 'string' ? body.phone.trim().slice(0, 30) : '';
 
-    const changes =
-      (firstName && firstName !== user.firstName) ||
-      (lastName && lastName !== user.lastName) ||
-      (email && email !== user.email) ||
-      (phone && phone !== user.phone);
-    if (!changes) return res.json(publicUser(user));
+    const contactChanges = (email && email !== user.email) || (phone && phone !== user.phone);
+    if (contactChanges) {
+      const Order = require('../models/Order');
+      const open = await Order.findOne({
+        user: user._id,
+        status: { $in: ['pending', 'confirmed', 'making', 'shipped'] },
+      }).select('_id status');
+      if (open) {
+        return sendError(
+          res,
+          400,
+          `Email and mobile are locked while an order is ${open.status}. Editing reopens after delivery.`
+        );
+      }
+    }
 
-    const Order = require('../models/Order');
-    const open = await Order.findOne({
-      user: user._id,
-      status: { $in: ['pending', 'confirmed', 'making', 'shipped'] },
-    }).select('_id status');
-    if (open) {
-      return sendError(
-        res,
-        400,
-        `Profile locked while an order is ${open.status}. Editing reopens after delivery.`
-      );
+    for (const key of ['dob', 'anniversary']) {
+      if (body[key] === undefined) continue;
+      const { value, error } = parseOptionalDate(body[key]);
+      if (error) return sendError(res, 400, `Invalid ${key === 'dob' ? 'date of birth' : 'anniversary date'}`);
+      if (!sameDate(value, user[key])) user[key] = value;
+    }
+    if (body.gender !== undefined) {
+      const g = cleanStr(body.gender, 10);
+      if (!['', 'female', 'male', 'other'].includes(g)) return sendError(res, 400, 'Invalid gender');
+      user.gender = g;
+    }
+    if (body.ringSize !== undefined) {
+      const r = cleanStr(String(body.ringSize), 10);
+      if (r && !DEFAULT_RING_SIZES.includes(r)) return sendError(res, 400, 'Invalid ring size');
+      user.ringSize = r;
+    }
+    if (body.preferredMetal !== undefined) {
+      const m = cleanStr(body.preferredMetal, 30);
+      if (m && !METAL_NAMES.includes(m)) return sendError(res, 400, 'Invalid metal');
+      user.preferredMetal = m;
+    }
+    if (body.marketing && typeof body.marketing === 'object') {
+      for (const k of ['email', 'whatsapp', 'newsletter']) {
+        if (typeof body.marketing[k] === 'boolean') user.set(`marketing.${k}`, body.marketing[k]);
+      }
     }
 
     if (firstName) {

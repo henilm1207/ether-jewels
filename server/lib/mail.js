@@ -41,7 +41,7 @@ function orderConfirmationHtml(order) {
     <p>Thank you — your payment was successful and order <strong>#${id}</strong> is confirmed.</p>
     <table style="width:100%;border-collapse:collapse;">${rows}</table>
     <p style="font-size:16px;"><strong>Total paid: $${Number(order.pricing.total).toFixed(2)} USD</strong></p>
-    <p style="font-size:13px;color:#555;">Shipping to: ${esc(a.fullName)}, ${esc(a.line1)}, ${esc(a.city)} ${esc(a.zip)}, ${esc(a.country)}</p>
+    <p style="font-size:13px;color:#555;">Shipping to: ${[a.fullName, a.line1, a.line2, a.landmark, a.city, a.state, a.zip, a.country].filter(Boolean).map(esc).join(', ')}</p>
     <p style="font-size:13px;color:#555;">Your tracking id will appear in <strong>My Account → Orders</strong> once dispatched. Track it there — no need to reply to this mail.</p>
     <p style="font-size:12px;color:#888;">Questions? WhatsApp +91 9725756046 · etherstarjewels@gmail.com</p>
   </div>`;

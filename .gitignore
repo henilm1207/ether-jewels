@@ -10,3 +10,6 @@ server/public/uploads/*
 server/*-migration-backup.json
 # Persistent memory-server data (local:persist dev DB) — never commit.
 server/.devdb/
+
+# Playwright MCP browser-test snapshots/logs
+.playwright-mcp/

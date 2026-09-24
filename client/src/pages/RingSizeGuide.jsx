@@ -2,24 +2,61 @@ import { Link } from 'react-router-dom';
 import InfoShell, { InfoH, InfoP } from './InfoShell';
 import { CONTACT } from '../config';
 
-// US 3.00 – 13.00 in quarter-size steps. Diameter is linear in the US size
-// (standard US ring-sizing chart derivation); circumference is π × diameter
-// and the EU size is that circumference rounded.
+// US 3 – 13 in half sizes. Diameter is linear in the US size — the standard
+// US↔ISO relation d ≈ 0.8128·s + 11.63 mm (Wikipedia "Ring size"); checked
+// against the Sizepedia, Antoanetta and 25karats charts (US 6 = 16.51 mm /
+// 51.87 mm, US 7 = 17.32 / 54.4 — all within 0.1 mm of these rows).
+// Circumference is π × diameter; the EU (ISO 8653) size is that circumference.
 const BASE_US_SIZE = 3;
 const BASE_DIAMETER_MM = 14.07; // inside diameter at US size 3.00
 const DIAMETER_MM_PER_US_SIZE = 0.812; // diameter increase per whole US size
-const QUARTER_SIZE_STEP = 0.25;
-const SIZE_ROW_COUNT = 41; // (13.00 - 3.00) / 0.25 + 1
+const HALF_SIZE_STEP = 0.5;
+const SIZE_ROW_COUNT = 21; // (13 - 3) / 0.5 + 1
+
+// Sizes we make (mirrors DEFAULT_RING_SIZES in server/config/catalog.js).
+const STOCKED_US = new Set(['4', '4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9']);
+
+// UK / AU letters: C = 40 mm circumference, +1.25 mm per letter (so A = 37.5),
+// nearest half letter. Past Z the trade uses Z+1, Z+2…
+function ukSize(circumference) {
+  const steps = Math.round(((circumference - 37.5) / 1.25) * 2) / 2;
+  const whole = Math.floor(steps);
+  const half = steps - whole ? '½' : '';
+  const letter = whole <= 25 ? String.fromCharCode(65 + whole) : `Z+${whole - 25}`;
+  return `${letter}${half}`;
+}
+
+// Indian sizes aren't formula-based: CaratLane's published circumference
+// table (sizes 7–27, mm); BlueStone's chart agrees within ~0.3 mm. Brands
+// differ slightly, hence the "compare in mm" tip below.
+const INDIA_CIRCUMFERENCE_MM = {
+  7: 46.78, 8: 48.04, 9: 48.98, 10: 50.24, 11: 51.18, 12: 52.12, 13: 53.06, 14: 54.08, 15: 54.91,
+  16: 56.2, 17: 57.14, 18: 58.09, 19: 59.34, 20: 59.97, 21: 61.23, 22: 62.17, 23: 63.17, 24: 63.42,
+  25: 64.37, 26: 65.31, 27: 66.25,
+};
+const INDIA_TOLERANCE_MM = 0.6; // beyond this from any listed size → no Indian equivalent
+
+function indiaSize(circumference) {
+  let best = null;
+  for (const [size, c] of Object.entries(INDIA_CIRCUMFERENCE_MM)) {
+    const diff = Math.abs(c - circumference);
+    if (!best || diff < best.diff) best = { size, diff };
+  }
+  return best && best.diff <= INDIA_TOLERANCE_MM ? best.size : '—';
+}
 
 const SIZE_ROWS = Array.from({ length: SIZE_ROW_COUNT }, (_, i) => {
-  const us = BASE_US_SIZE + i * QUARTER_SIZE_STEP;
+  const us = BASE_US_SIZE + i * HALF_SIZE_STEP;
   const diameter = BASE_DIAMETER_MM + (us - BASE_US_SIZE) * DIAMETER_MM_PER_US_SIZE;
   const circumference = Math.PI * diameter;
   return {
-    us: us.toFixed(2),
+    us: String(us),
+    uk: ukSize(circumference),
+    eu: Math.round(circumference),
+    india: indiaSize(circumference),
     diameter: diameter.toFixed(2),
     circumference: circumference.toFixed(2),
-    eu: Math.round(circumference),
+    stocked: STOCKED_US.has(String(us)),
   };
 });
 
@@ -131,23 +168,31 @@ export default function RingSizeGuide() {
       </div>
 
       <InfoH>Ring Size Chart</InfoH>
+      <InfoP>
+        Shaded rows are the sizes we make: US 4 to 9, in half sizes. Need another size?{' '}
+        <Link to="/pages/contact" className="underline underline-offset-4">Contact us</Link>.
+      </InfoP>
       <div className="overflow-x-auto" style={{ marginTop: '16px', border: '1px solid #ededed' }}>
         <table className="w-full text-[15px]" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--color-bg-2)', color: '#222' }}>
-              <th scope="col" className="font-medium" style={cellStyle}>US Size</th>
+              <th scope="col" className="font-medium" style={cellStyle}>US</th>
+              <th scope="col" className="font-medium" style={cellStyle}>UK / AU</th>
+              <th scope="col" className="font-medium" style={cellStyle}>EU</th>
+              <th scope="col" className="font-medium" style={cellStyle}>India</th>
               <th scope="col" className="font-medium" style={cellStyle}>Diameter (mm)</th>
               <th scope="col" className="font-medium" style={cellStyle}>Circumference (mm)</th>
-              <th scope="col" className="font-medium" style={cellStyle}>EU Size</th>
             </tr>
           </thead>
           <tbody>
             {SIZE_ROWS.map((r) => (
-              <tr key={r.us} className="border-b border-[#ededed]">
-                <td style={cellStyle}>{r.us}</td>
+              <tr key={r.us} className="border-b border-[#ededed]" style={r.stocked ? { background: '#faf6f3' } : { color: '#8a8a8a' }}>
+                <td style={cellStyle} className={r.stocked ? 'font-medium' : ''}>{r.us}</td>
+                <td style={cellStyle}>{r.uk}</td>
+                <td style={cellStyle}>{r.eu}</td>
+                <td style={cellStyle}>{r.india}</td>
                 <td style={cellStyle}>{r.diameter}</td>
                 <td style={cellStyle}>{r.circumference}</td>
-                <td style={cellStyle}>{r.eu}</td>
               </tr>
             ))}
           </tbody>
@@ -159,7 +204,8 @@ export default function RingSizeGuide() {
         <li style={{ marginBottom: '8px' }}>Between two sizes? Choose the larger one.</li>
         <li style={{ marginBottom: '8px' }}>Bands wider than 6 mm fit tighter than thin ones. Consider going up half a size.</li>
         <li style={{ marginBottom: '8px' }}>Measure at the end of the day, when your fingers are at their largest, and avoid measuring when cold.</li>
-        <li>Your knuckle may be wider than the base of your finger. The ring has to slide over it comfortably.</li>
+        <li style={{ marginBottom: '8px' }}>Your knuckle may be wider than the base of your finger. The ring has to slide over it comfortably.</li>
+        <li>Indian sizes vary by about half a size between brands. If you can, compare in millimetres.</li>
       </ul>
 
       <InfoH>Still Unsure?</InfoH>

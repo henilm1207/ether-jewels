@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { apiUrl, MAX_CART_QTY } from '../config';
 import { metalColor } from '../lib/metals';
@@ -20,6 +21,9 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const { addItem } = useBag();
+  const { user } = useAuth();
+  // Saved ring size (Account → Preferences) wins over the product default.
+  const savedRingSize = user?.ringSize || '';
 
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [selectedKt, setSelectedKt] = useState('10KT');
@@ -51,7 +55,8 @@ export default function ProductDetail() {
         const data = await res.json();
         if (live) {
           setProduct(data);
-          setSelectedSize(data.defaultSize || null);
+          const sizes = Array.isArray(data.sizes) ? data.sizes : [];
+          setSelectedSize(savedRingSize && sizes.includes(savedRingSize) ? savedRingSize : data.defaultSize || null);
           // Start the gallery on variant 0's metal photo when assigned.
           const firstImg = data.variants?.[0]?.image;
           const k = firstImg ? (data.images || []).indexOf(firstImg) : -1;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { adminFetch } from '../../components/admin/api';
 import { PageHead, Table, td, Pill, ErrorMsg } from '../../components/admin/ui';
+import { formatAddressLines } from '../../lib/address';
 
 const STATUSES = ['pending', 'confirmed', 'making', 'shipped', 'delivered', 'cancelled'];
 const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded', 'awaiting_transfer'];
@@ -205,7 +206,7 @@ export default function Orders() {
               {sel.payment?.method === 'skydo' && sel.payment?.wireReference && (
                 <p className="text-gray-600">Wire reference: <span className="font-mono">{sel.payment.wireReference}</span> ({sel.payment.wireCurrency})</p>
               )}
-              <p className="text-gray-600">{sel.shippingAddress?.fullName}, {sel.shippingAddress?.line1}, {sel.shippingAddress?.city} {sel.shippingAddress?.zip}, {sel.shippingAddress?.country} · {sel.shippingAddress?.phone}</p>
+              <p className="text-gray-600">{[sel.shippingAddress?.fullName, ...formatAddressLines(sel.shippingAddress)].filter(Boolean).join(', ')}{sel.shippingAddress?.phone ? ` · ${sel.shippingAddress.phone}` : ''}</p>
               {sel.orderNote && <p className="text-gray-600">Note: {sel.orderNote}</p>}
             </div>
             {sel.payment?.method === 'skydo' && sel.payment?.status === 'awaiting_transfer' && (

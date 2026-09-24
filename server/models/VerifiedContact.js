@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 // recent without timestamp math scattered across routes.
 const verifiedContactSchema = new mongoose.Schema(
   {
-    channel: { type: String, enum: ['email', 'whatsapp'], required: true },
+    channel: { type: String, enum: ['email'], required: true },
     value: { type: String, required: true, trim: true, maxlength: 100 }, // normalized
     verifiedAt: { type: Date, default: Date.now },
   },

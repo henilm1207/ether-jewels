@@ -1,18 +1,24 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const addressSchema = new mongoose.Schema(
-  {
-    label: { type: String, default: 'home' },
-    fullName: String,
-    phone: String,
-    line1: String,
-    city: String,
-    country: String,
-    zip: String,
-  },
-  { _id: false }
-);
+// Saved addresses (editable). Orders keep their own frozen copy in
+// Order.shippingAddress — editing here never rewrites a placed order.
+// Field limits/validation: lib/address.js (normalizeAddress).
+const addressSchema = new mongoose.Schema({
+  label: { type: String, enum: ['home', 'work', 'other'], default: 'home' },
+  isDefault: { type: Boolean, default: false },
+  fullName: { type: String, trim: true, maxlength: 100 },
+  phone: { type: String, trim: true, maxlength: 30 },
+  line1: { type: String, trim: true, maxlength: 200 },
+  line2: { type: String, trim: true, maxlength: 200 },
+  landmark: { type: String, trim: true, maxlength: 120 },
+  area: { type: String, trim: true, maxlength: 100 },
+  city: { type: String, trim: true, maxlength: 100 },
+  state: { type: String, trim: true, maxlength: 100 },
+  zip: { type: String, trim: true, maxlength: 20 },
+  country: { type: String, trim: true, maxlength: 100 },
+  countryCode: { type: String, trim: true, uppercase: true, maxlength: 2 },
+});
 
 const userSchema = new mongoose.Schema(
   {
@@ -37,6 +43,17 @@ const userSchema = new mongoose.Schema(
       match: [/^[+]?[0-9\s\-()]{7,20}$/, 'Invalid mobile number'],
     },
     addresses: { type: [addressSchema], default: [] },
+    // Optional personal details — birthday/anniversary offers, sizing.
+    dob: { type: Date, default: null },
+    anniversary: { type: Date, default: null },
+    gender: { type: String, enum: ['', 'female', 'male', 'other'], default: '' },
+    ringSize: { type: String, trim: true, maxlength: 10, default: '' },
+    preferredMetal: { type: String, trim: true, maxlength: 30, default: '' },
+    marketing: {
+      email: { type: Boolean, default: true },
+      whatsapp: { type: Boolean, default: true },
+      newsletter: { type: Boolean, default: false },
+    },
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
     // Session rotation: bumped on password change / logout-all; every JWT
     // carries the version it was minted with and older ones stop working.
