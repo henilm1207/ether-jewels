@@ -69,7 +69,7 @@ const orderSchema = new mongoose.Schema(
       chargedAmount: { type: Number, min: 0 },
       chargedCurrency: { type: String, trim: true, maxlength: 10 },
       // SkyDo: which virtual account currency the customer was shown to wire from.
-      wireCurrency: { type: String, enum: ['USD', 'GBP', 'EUR'] },
+      wireCurrency: { type: String, enum: ['USD', 'GBP', 'EUR', 'AED'] },
       wireReference: { type: String, trim: true, maxlength: 40 },
     },
     shippingAddress: {

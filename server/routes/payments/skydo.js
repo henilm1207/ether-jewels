@@ -51,10 +51,22 @@ const WIRE_ACCOUNTS = {
           bic: process.env.SKYDO_EUR_BIC || '',
         }
       : null,
+  AED: () =>
+    process.env.SKYDO_AED_IBAN
+      ? {
+          currency: 'AED',
+          bankName: process.env.SKYDO_AED_BANK_NAME || '',
+          accountHolder: process.env.SKYDO_AED_ACCOUNT_HOLDER || '',
+          iban: process.env.SKYDO_AED_IBAN,
+          bic: process.env.SKYDO_AED_BIC || '',
+        }
+      : null,
 };
 
+const WIRE_CURRENCIES = Object.keys(WIRE_ACCOUNTS); // ['USD', 'GBP', 'EUR', 'AED']
+
 function availableCurrencies() {
-  return Object.keys(WIRE_ACCOUNTS).filter((c) => WIRE_ACCOUNTS[c]());
+  return WIRE_CURRENCIES.filter((c) => WIRE_ACCOUNTS[c]());
 }
 
 // POST /api/payments/skydo/create — cart + contact + wireCurrency ->
@@ -62,8 +74,8 @@ function availableCurrencies() {
 router.post('/create', authRequired, async (req, res, next) => {
   try {
     const { items, couponCode, shippingAddress, contact, idempotencyKey, wireCurrency } = req.body || {};
-    const currency = ['USD', 'GBP', 'EUR'].includes(wireCurrency) ? wireCurrency : null;
-    if (!currency) return res.status(400).json({ message: 'wireCurrency must be USD, GBP, or EUR' });
+    const currency = WIRE_CURRENCIES.includes(wireCurrency) ? wireCurrency : null;
+    if (!currency) return res.status(400).json({ message: `wireCurrency must be one of: ${WIRE_CURRENCIES.join(', ')}` });
     const account = WIRE_ACCOUNTS[currency]();
     if (!account) return res.status(503).json({ message: `Bank wire (${currency}) not configured yet` });
     const { addr, email } = validateContactAddress(shippingAddress, contact);
