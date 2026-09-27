@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
 import { useBag } from '../context/BagContext';
 import { useAuth } from '../context/AuthContext';
-import { apiUrl } from '../config';
+import { apiUrl, CONTACT } from '../config';
 import { CONSENT_EVENT, CONSENT_KEY, hasTrackingConsent, setTrackingConsent } from '../lib/consent';
 import ProtectedImage from '../components/ui/ProtectedImage';
 import QtyStepper from '../components/cart/QtyStepper';
@@ -72,7 +72,6 @@ export default function Cart() {
   const [couponInfo, setCouponInfo] = useState(null);
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponError, setCouponError] = useState('');
-  const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(null);
   // Checkout contact/address (server requires these for every order).
@@ -114,9 +113,11 @@ export default function Cart() {
   );
 
   // ---- Payment gateway config: Razorpay (India) / SkyDo bank wire (international) ----
+  // Compulsory routing by shipping country — not a customer choice: Indian
+  // addresses pay via Razorpay, everything else pays via SkyDo bank wire.
   const [payConfig, setPayConfig] = useState(null); // {razorpayKeyId, skydoCurrencies}
-  const [method, setMethod] = useState('razorpay'); // razorpay | skydo
-  const [methodTouched, setMethodTouched] = useState(false);
+  const method = shipCountryCode === 'IN' ? 'razorpay' : 'skydo';
+  const methodConfigured = method === 'razorpay' ? !!payConfig?.razorpayKeyId : (payConfig?.skydoCurrencies?.length ?? 0) > 0;
   const [wireCurrency, setWireCurrency] = useState('');
   const [razorpayBusy, setRazorpayBusy] = useState(false);
   const [wireBusy, setWireBusy] = useState(false);
@@ -150,13 +151,6 @@ export default function Cart() {
       live = false;
     };
   }, []);
-
-  // Default the tab off the shipping country, unless the customer already
-  // picked one manually.
-  useEffect(() => {
-    if (methodTouched) return;
-    setMethod(shipCountryCode === 'IN' ? 'razorpay' : 'skydo');
-  }, [shipCountryCode, methodTouched]);
 
   useEffect(() => {
     if (payConfig?.skydoCurrencies?.length && !wireCurrency) setWireCurrency(payConfig.skydoCurrencies[0]);
@@ -697,35 +691,25 @@ export default function Cart() {
                   {/* 2 — Pay (locked until verified) */}
                   <h3 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '12px' }}>2 · Pay</h3>
                   <div style={!vToken ? { opacity: 0.45, pointerEvents: 'none' } : undefined} aria-disabled={!vToken}>
-                  {payConfig?.razorpayKeyId || payConfig?.skydoCurrencies?.length ? (
+                  {!payConfig ? (
+                    <p className="text-sm text-gray-500">Loading payment options…</p>
+                  ) : !methodConfigured ? (
+                    <div role="alert" className="text-sm bg-red-50 border border-red-200 text-red-700 rounded" style={{ padding: '14px' }}>
+                      <p className="font-medium">Payment is temporarily unavailable for your region.</p>
+                      <p style={{ marginTop: '6px' }}>
+                        Please contact us to complete your order — <a className="underline" href={CONTACT.phoneHref}>{CONTACT.phone}</a> or <a className="underline" href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>.
+                      </p>
+                    </div>
+                  ) : (
                     <>
-                      {/* Method tabs — only the configured ones render */}
-                      <div className="flex" style={{ gap: '12px', marginBottom: '16px' }} role="group" aria-label="Payment method">
-                        {payConfig?.razorpayKeyId && (
-                          <button
-                            type="button"
-                            onClick={() => { setMethod('razorpay'); setMethodTouched(true); setError(''); }}
-                            aria-pressed={method === 'razorpay'}
-                            className={`flex-1 transition-all text-[13px] font-medium uppercase ${method === 'razorpay' ? 'bg-[#222] text-white border border-[#222]' : 'bg-white text-[#222] border hover:border-[#222]'}`}
-                            style={{ minHeight: '46px', padding: '8px 14px', borderColor: method === 'razorpay' ? '#222' : '#ededed', letterSpacing: '1px' }}
-                          >
-                            Pay Online (India)
-                          </button>
-                        )}
-                        {payConfig?.skydoCurrencies?.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => { setMethod('skydo'); setMethodTouched(true); setError(''); }}
-                            aria-pressed={method === 'skydo'}
-                            className={`flex-1 transition-all text-[13px] font-medium uppercase ${method === 'skydo' ? 'bg-[#222] text-white border border-[#222]' : 'bg-white text-[#222] border hover:border-[#222]'}`}
-                            style={{ minHeight: '46px', padding: '8px 14px', borderColor: method === 'skydo' ? '#222' : '#ededed', letterSpacing: '1px' }}
-                          >
-                            International Bank Transfer
-                          </button>
-                        )}
-                      </div>
+                      {/* Compulsory by shipping country — not a customer choice. */}
+                      <p className="text-[13px] text-gray-500" style={{ marginBottom: '12px' }}>
+                        {method === 'razorpay'
+                          ? 'Your shipping address is in India, so payment is via Razorpay (UPI, cards, netbanking).'
+                          : 'Your shipping address is outside India, so payment is via international bank transfer (SkyDo).'}
+                      </p>
 
-                      {method === 'razorpay' && payConfig?.razorpayKeyId ? (
+                      {method === 'razorpay' ? (
                         !consented ? (
                           consentNotice
                         ) : (
@@ -796,7 +780,7 @@ export default function Cart() {
                             {razorpayBusy ? 'Opening payment…' : 'Pay with Razorpay'}
                           </button>
                         )
-                      ) : method === 'skydo' && payConfig?.skydoCurrencies?.length > 0 ? (
+                      ) : (
                         <div>
                           <label htmlFor="wire-currency" className="block text-[13px] text-gray-600" style={{ marginBottom: '8px' }}>
                             Wire from a
@@ -841,39 +825,8 @@ export default function Cart() {
                             {wireBusy ? 'Reserving order…' : 'Get bank transfer details'}
                           </button>
                         </div>
-                      ) : null}
+                      )}
                     </>
-                  ) : (
-                    <div className="text-center">
-                      <button
-                        disabled={placing}
-                        onClick={async () => {
-                          if (requireLogin()) return;
-                          if (requireWithinLimit()) return;
-                          const v = validateForm();
-                          if (v) return setError(v);
-                          setPlacing(true);
-                          setError('');
-                          try {
-                            const res = await fetch(apiUrl('/api/orders'), {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json', ...authHeaders, ...verifyHeaders },
-                              body: JSON.stringify({ ...checkoutBody(), payment: { method: 'card' } }),
-                            });
-                            const data = await res.json().catch(() => ({}));
-                            if (!res.ok) throw new Error(data.message || 'Checkout failed');
-                            onPaid(data);
-                          } catch (e) {
-                            setError(e.message);
-                          } finally {
-                            setPlacing(false);
-                          }
-                        }}
-                        className="btn btn--primary w-full disabled:opacity-50"
-                      >
-                        {placing ? 'Placing order…' : 'Place order'}
-                      </button>
-                    </div>
                   )}
                   </div>{/* /pay gate — needs the OTP token */}
                 </div>
