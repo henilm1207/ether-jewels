@@ -444,7 +444,40 @@ export default function Cart() {
           </h1>
         </div>
 
-        {items.length === 0 ? (
+        {done ? (
+          // Hoisted above the empty-cart check: finishCheckout() clears the
+          // bag in the same update that sets `done`, so if this lived inside
+          // the items.length===0 branch below, the empty-cart message would
+          // win the race and the order confirmation would never render.
+          <div role="status" className="bg-[#f7f2ef] text-sm" style={{ maxWidth: '480px', margin: '0 auto', padding: '20px' }}>
+            {done.payment?.status === 'awaiting_transfer' ? (
+              <>
+                <p className="font-medium">Order {done._id} reserved — pay by bank wire to confirm it.</p>
+                <p style={{ marginTop: '8px' }}>
+                  <span className="font-medium">Amount due:</span> ${Number(done.wireInstructions?.amountUsd || 0).toFixed(2)} USD (equivalent in {done.wireInstructions?.currency})
+                </p>
+                <div className="bg-white border border-[#ededed] rounded" style={{ padding: '12px', marginTop: '10px' }}>
+                  {done.wireInstructions?.bankName && <p>Bank: <span className="font-mono">{done.wireInstructions.bankName}</span></p>}
+                  {done.wireInstructions?.accountHolder && <p>Account holder: <span className="font-mono">{done.wireInstructions.accountHolder}</span></p>}
+                  {done.wireInstructions?.routingNumber && <p>Routing number: <span className="font-mono">{done.wireInstructions.routingNumber}</span></p>}
+                  {done.wireInstructions?.sortCode && <p>Sort code: <span className="font-mono">{done.wireInstructions.sortCode}</span></p>}
+                  {done.wireInstructions?.accountNumber && <p>Account number: <span className="font-mono">{done.wireInstructions.accountNumber}</span></p>}
+                  {done.wireInstructions?.iban && <p>IBAN: <span className="font-mono">{done.wireInstructions.iban}</span></p>}
+                  {done.wireInstructions?.bic && <p>BIC/SWIFT: <span className="font-mono">{done.wireInstructions.bic}</span></p>}
+                  <p style={{ marginTop: '8px' }} className="font-medium">Reference: <span className="font-mono">{done.wireInstructions?.reference}</span></p>
+                </div>
+                <p className="text-gray-600" style={{ marginTop: '8px' }}>Include the reference with your transfer. We've emailed these details too, and will confirm your order once the transfer is received (usually 1-2 business days). <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">
+                  {done.payment?.status === 'paid' ? 'Payment successful — ' : ''}Order {done._id} placed — ${Number(done.pricing?.total || 0).toFixed(2)} USD.
+                </p>
+                <p className="text-gray-600 mt-1">We emailed your confirmation. <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
+              </>
+            )}
+          </div>
+        ) : items.length === 0 ? (
           <div className="text-center">
             <ShoppingBag size={48} className="text-gray-300 mx-auto mb-4" />
             {hydrating ? (
@@ -564,36 +597,7 @@ export default function Cart() {
                   Tax included. <Link to="/pages/shipping-and-deliveries" className="underline">Shipping</Link> calculated at checkout.
                 </p>
                 {error && <p role="alert" className="text-sm text-red-700" style={{ marginBottom: '12px' }}>{error}</p>}
-                {done ? (
-                  <div role="status" className="bg-[#f7f2ef] p-4 text-sm">
-                    {done.payment?.status === 'awaiting_transfer' ? (
-                      <>
-                        <p className="font-medium">Order {done._id} reserved — pay by bank wire to confirm it.</p>
-                        <p style={{ marginTop: '8px' }}>
-                          <span className="font-medium">Amount due:</span> ${Number(done.wireInstructions?.amountUsd || 0).toFixed(2)} USD (equivalent in {done.wireInstructions?.currency})
-                        </p>
-                        <div className="bg-white border border-[#ededed] rounded" style={{ padding: '12px', marginTop: '10px' }}>
-                          {done.wireInstructions?.bankName && <p>Bank: <span className="font-mono">{done.wireInstructions.bankName}</span></p>}
-                          {done.wireInstructions?.accountHolder && <p>Account holder: <span className="font-mono">{done.wireInstructions.accountHolder}</span></p>}
-                          {done.wireInstructions?.routingNumber && <p>Routing number: <span className="font-mono">{done.wireInstructions.routingNumber}</span></p>}
-                          {done.wireInstructions?.sortCode && <p>Sort code: <span className="font-mono">{done.wireInstructions.sortCode}</span></p>}
-                          {done.wireInstructions?.accountNumber && <p>Account number: <span className="font-mono">{done.wireInstructions.accountNumber}</span></p>}
-                          {done.wireInstructions?.iban && <p>IBAN: <span className="font-mono">{done.wireInstructions.iban}</span></p>}
-                          {done.wireInstructions?.bic && <p>BIC/SWIFT: <span className="font-mono">{done.wireInstructions.bic}</span></p>}
-                          <p style={{ marginTop: '8px' }} className="font-medium">Reference: <span className="font-mono">{done.wireInstructions?.reference}</span></p>
-                        </div>
-                        <p className="text-gray-600" style={{ marginTop: '8px' }}>Include the reference with your transfer. We've emailed these details too, and will confirm your order once the transfer is received (usually 1-2 business days). <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-medium">
-                          {done.payment?.status === 'paid' ? 'Payment successful — ' : ''}Order {done._id} placed — ${Number(done.pricing?.total || 0).toFixed(2)} USD.
-                        </p>
-                        <p className="text-gray-600 mt-1">We emailed your confirmation. <button className="underline" onClick={() => { setDone(null); navigate('/'); }}>Continue shopping</button></p>
-                      </>
-                    )}
-                  </div>
-                ) : !token ? (
+                {!token ? (
                   // No guest checkout: log in (or register) first, then return here.
                   <div ref={payRef} className="bg-[#f7f2ef] text-sm text-center" style={{ padding: '20px', scrollMarginTop: '100px' }}>
                     <p style={{ marginBottom: '12px' }}>Please log in to your account to check out.</p>

@@ -72,9 +72,13 @@ app.use(helmet({
       imgSrc: ["'self'", 'data:', 'https:'],
       mediaSrc: ["'self'", 'data:'],
       // Razorpay Checkout: script + iframe (OTP/3DS) from api.razorpay.com.
+      // cdn.razorpay.com serves Checkout's own risk-detection bundle — without
+      // it here, that script load is silently blocked (seen live: blocked
+      // fraud-detection load during an end-to-end test, checkout still
+      // opened but with weaker fraud signals).
       // Loaded only on /cart after cookie consent (see lib/consent.js).
       // SkyDo needs no third-party script — it's static wire instructions.
-      scriptSrc: ["'self'", 'https://checkout.razorpay.com'],
+      scriptSrc: ["'self'", 'https://checkout.razorpay.com', 'https://cdn.razorpay.com'],
       styleSrc: ["'self'", "'unsafe-inline'"], // React inline style={} needs this
       fontSrc: ["'self'", 'data:'],
       connectSrc: ["'self'", 'https://api.razorpay.com', 'https://lumberjack.razorpay.com', ...frontendOrigins],

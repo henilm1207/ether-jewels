@@ -55,7 +55,10 @@ router.post('/create-order', authRequired, async (req, res, next) => {
     const ownerFilter = { user: req.user._id };
     let order = null;
     if (key) {
-      order = await Order.findOne({ idempotencyKey: key, status: 'pending', 'payment.status': { $ne: 'paid' }, ...ownerFilter });
+      // Scoped by method too: if the customer abandoned a different gateway
+      // (or switched region/method) under the same checkout attempt, that
+      // stale order must NOT be silently reused/mutated here — start fresh.
+      order = await Order.findOne({ idempotencyKey: key, status: 'pending', 'payment.status': { $ne: 'paid' }, 'payment.method': 'razorpay', ...ownerFilter });
     }
     if (!order) {
       const q = await quoteCart(items, couponCode);
